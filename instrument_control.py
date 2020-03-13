@@ -7,8 +7,8 @@ Created on Wed Jan 15 11:33:11 2020
 
 
 import visa
-    import numpy as np
-    import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 
@@ -42,7 +42,7 @@ def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
         while busy:
             busy = float(scope.query('STATus:CONDition?')) % 2
             
-    wfm = np.array([])
+    wfm = []
     
     for idx, channel in enumerate(channels):
         # set channel to retrieve
@@ -66,7 +66,7 @@ def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
         #p. 5-290
         tmp = (range * tmp / 3200) + offset
         
-        wfm = np.r_[wfm, tmp]
+        wfm.append(tmp)
     
     # get samplerate
     sample_rate = float(scope.query('WAVeform:SRATe?').split()[1])
@@ -86,5 +86,8 @@ def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
     rm.close()
     del rm
     del scope
+    
+    # change list of nparrays to single nparray
+    wfm = np.asarray(wfm)
     
     return sample_rate, wfm

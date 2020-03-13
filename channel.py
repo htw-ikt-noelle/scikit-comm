@@ -32,4 +32,4 @@ def set_snr(samples, snr_dB=10, sps=1, seed=None):
         
     samples_out = samples + noise
     
-    return samples_out
+    return samples_out.squeeze()
