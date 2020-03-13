@@ -12,3 +12,4 @@ from . import filters
 from . import utils
 from . import channel
 from . import visualizer
+from . import instrument_control
