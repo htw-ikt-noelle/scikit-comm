@@ -21,12 +21,14 @@ def plot_spectrum(samples, sample_rate=1, fNum=1, scale='logNorm', tit='spectrum
         tit: title of figure
     """
 
+    isReal = np.all(np.isreal(samples))
+
     # fft
     fSamples = fft.fft(samples)
     fSamples = fSamples / len(fSamples)
     
     # if real input signal -> mulitply all frequencies, but the DC by 2
-    if np.all(np.isreal(samples)):
+    if isReal:
         fSamples[1:] *= 2        
     
     # calc amplitude and frequency axis
@@ -55,7 +57,7 @@ def plot_spectrum(samples, sample_rate=1, fNum=1, scale='logNorm', tit='spectrum
     plt.figure(fNum, facecolor='white', edgecolor='white')
     plt.clf()
     # if signal real -> plot only positive frequencies
-    if np.all(np.isreal(samples)):
+    if isReal:
         plt.plot(freq[0:int(len(fSamples)/2)], fSamples[0:int(len(fSamples)/2)])
     # if signal complex -> plot neg. and pos. frequencies
     else:
