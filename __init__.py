@@ -13,3 +13,4 @@ from . import utils
 from . import channel
 from . import visualizer
 from . import instrument_control
+from . import signal
