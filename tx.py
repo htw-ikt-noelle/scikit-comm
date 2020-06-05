@@ -51,26 +51,21 @@ def mapper(bits, constellation):
     if constellation.ndim > 1:
         raise ValueError('multiple, different constellations not allowed yet...')    
     
-    if bits.ndim > 2:
-        raise ValueError('number of dimensions of bits should be <= 2')
-        
-    if bits.ndim == 1:
-        # promote to 2D array for loop processing
-        bits = bits[np.newaxis, :]
+    if bits.ndim > 1:
+        raise ValueError('number of dimensions of bits should be <= 1')   
         
     m = int(np.log2(constellation.size))
     
-    if bits.shape[1] % m:
+    if bits.shape[0] % m:
         raise ValueError('number of bits mus be an integer multiple of m')
     
-    decimals = np.full((bits.shape[0], np.int(bits.shape[1]/m)), np.nan)
+    decimals = np.full((int(bits.shape[0]/m),), np.nan)
     
     if m == 1:
         decimals = bits        
     else:
-        for idx, row in enumerate(bits):
-            decimals[idx] = utils.bits_to_dec(row, m)
+        decimals = utils.bits_to_dec(bits, m)
     
     symbols = constellation[decimals.astype(int)]
     
-    return symbols.squeeze()
+    return symbols
