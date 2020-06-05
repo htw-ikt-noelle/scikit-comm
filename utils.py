@@ -3,7 +3,7 @@ import scipy.signal as signal
 import matplotlib.pyplot as plt
 
 
-def gen_constellation(format='QAM', order=4):
+def generate_constellation(format='QAM', order=4):
     """ Generate constellation vector for given modulation format.
 	
     """
