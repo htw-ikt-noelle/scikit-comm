@@ -10,6 +10,8 @@ def demapper(samples, constellation):
 	samples are compared to a given constellation constellation alphabet
     array and the position of the corresponding constellation (integer) is 
     converted to the corresponding bit value.
+    
+    TODO: change function so that samples is not allowed to have ndim > 1!!!
 	
 	"""
     
@@ -47,6 +49,8 @@ def decision(samples, constellation):
 	
 	Find for every samples sample the closest constellation point in a
     constellations array and return this value.
+    
+    TODO: change function so that samples is not allowed to have ndim > 1!!!
 	
 	"""    
     if constellation.ndim > 1:
