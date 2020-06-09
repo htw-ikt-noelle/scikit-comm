@@ -102,17 +102,17 @@ def plot_signal(samples, sample_rate = 1.0, fNum = 1, tit = 'time signal'):
         plt.show()
         
 	
-def plot_eye(samples, sample_rate = 2, bitRate = 1, offset = 0, fNum = 1, tit = 'eye diagramm'):
+def plot_eye(samples, sample_rate = 2, bit_rate = 1, offset = 0, fNum = 1, tit = 'eye diagramm'):
     """ plots the eye diagramm of a given signals
     
     parameters:
         
     """
          
-    sps = sample_rate/bitRate
+    sps = sample_rate/bit_rate
             
     if np.mod(sps, 1):
-        raise ValueError('sample_rate must be an integer multiple of bitRate...')
+        raise ValueError('sample_rate must be an integer multiple of bit_rate...')
     if np.mod(len(samples), 2*sps):
         raise ValueError('signal must contain an even integer multiple of sps...')
         
