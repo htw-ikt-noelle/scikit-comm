@@ -37,6 +37,7 @@ def raised_cosine_filter(samples, sample_rate=1.0, symbol_rate=1.0, roll_off=0.0
     
     """
     
+    # set parameters
     sps = sample_rate / symbol_rate
     if length == -1:
         N = samples.size
@@ -44,21 +45,24 @@ def raised_cosine_filter(samples, sample_rate=1.0, symbol_rate=1.0, roll_off=0.0
         N = length * sps # length of impulse response in number of symbols
     t_filter = np.arange(-np.ceil(N/2)+1, np.floor(N/2)+1)
     T = sps
+    
+    # generate impulse response
     if root_raised:
-        # RRC
+        # root-raised cosine filter
         with np.errstate(divide='ignore',invalid='ignore'):# avoid raising a divide by zero / NaN warning
             h = (np.sin(np.pi * t_filter / T * (1-roll_off)) + 4 * roll_off * t_filter / T * np.cos(np.pi * t_filter / T * (1 + roll_off))) / (np.pi * t_filter / T * (1 - (4 * roll_off * t_filter / T)**2))
         h[t_filter==0] = (1 - roll_off + 4 * roll_off / np.pi)
         if roll_off != 0.0:
             h[np.abs(t_filter)==T/4/roll_off] = roll_off / np.sqrt(2) * ((1 + 2 / np.pi) * np.sin(np.pi / 4 / roll_off) + (1 - 2 / np.pi) * np.cos(np.pi / 4 / roll_off))
     else:
-        # RC
+        # raised cosine filter
         with np.errstate(divide='ignore',invalid='ignore'):# avoid raising a divide by zero / NaN warning
             h = ((np.sin(np.pi*t_filter/T)) / (np.pi*t_filter/T)) * ((np.cos(roll_off*np.pi*t_filter/T)) / (1-(2*roll_off*t_filter/T)**2))
         h[t_filter==0] = 1
         if roll_off != 0.0:
             h[np.abs(t_filter) == (T/(2*roll_off))] = np.sin(np.pi/2/roll_off) / (np.pi/2/roll_off) * np.pi / 4
     
+    # actual filtering
     samples_out = filter_samples(samples, h, domain)
     
     return samples_out
@@ -74,14 +78,17 @@ def moving_average(samples, average, domain='freq'):
     
     """
     
+    # generate impulse response
     h = np.ones(average)/average
     
+    # actual filtering
     samples_out = filter_samples(samples, h, domain)    
+    
     return samples_out
 
 
 
-def windowed_sinc(samples, fc=0.5, order=111, window='none', domain='freq'):
+def windowed_sinc(samples, fc=0.5, order=111, window=None, domain='freq'):
     """ Filter a given signal windowed Si-funtion as impulse response.
     
     time domain
@@ -94,17 +101,20 @@ def windowed_sinc(samples, fc=0.5, order=111, window='none', domain='freq'):
     
     """
     
+    # calc paramters
     if (order % 2) == 0:
-        raise ValueError('windowed_sing: order has to be odd...')        
+        raise ValueError('windowed_sinc: order has to be odd...')        
     
     n = np.arange(-np.floor(order/2), np.ceil(order/2), 1)
-    # Si impulse response
+    
+    # generate Si impulse response
     with np.errstate(divide='ignore',invalid='ignore'):# avoid raising a divide by zero / NaN warning
         h = np.sin(n * np.pi * fc) / (n * np.pi)
     h[n==0] = fc
     h /= np.max(h)
+    
     # window in time domain
-    if window == 'none':
+    if window == None:
         pass
     elif window == 'Hamming':
         h *= signal.windows.hamming(order)
@@ -114,8 +124,10 @@ def windowed_sinc(samples, fc=0.5, order=111, window='none', domain='freq'):
     # debug plots...
     # f = np.fft.fftshift(np.fft.fftfreq(order))
     # plt.plot(f, np.abs(np.fft.fftshift(np.fft.fft(h))))
-        
+    
+    # actual filtering
     samples_out = filter_samples(samples, h, domain)
+    
     return samples_out
 
 
@@ -127,11 +139,16 @@ def ideal_lp(samples, fc):
     
     
     """
+    
+    # generate ideal frequency response
     f = np.fft.fftfreq(samples.size)
     H = np.zeros_like(samples)
     H[np.abs(f) <= fc/2] = 1
     
+    # calc impulse response with ifft    
     h = np.real(np.fft.ifft(H))
     
-    samples_out = filter_samples(samples, h, domain='freq')    
+    # actual filtering
+    samples_out = filter_samples(samples, h, domain='freq') 
+    
     return samples_out
