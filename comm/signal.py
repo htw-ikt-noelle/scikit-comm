@@ -111,6 +111,43 @@ class Signal():
             
             
             
+    def set_snr(self, snr_dB=[10], seed=[None]):
+        
+        
+        n_dims = len(self.bits)
+        
+        if not (isinstance(snr_dB,list) and isinstance(seed,list)):
+            raise TypeError('input parameters have to be lists...')
+            
+        if not ((len(snr_dB) == 1) or (len(snr_dB) == n_dims)):
+            raise TypeError('format of snr_dB should be 1 or n_dims...')
+        elif len(snr_dB) == 1:
+            snr_dB = snr_dB * n_dims            
+            
+        if not ((len(seed) == 1) or (len(seed) == n_dims)):
+            raise TypeError('seed of type should be 1 or n_dims...')
+        elif len(seed) == 1:
+            seed = seed * n_dims
+            
+        for i, (sn, se) in enumerate(zip(snr_dB, seed)):
+            sps = self.sample_rate[i] / self.symbol_rate[i]
+            self.samples[i] = channel.set_snr(self.samples[i], sn, sps, se)        
+            
+            
+    def mapper(self):
+        """
+        Generate sig.symbols from sig.bits and sig.constellation.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        for i, (b, c) in enumerate(zip(self.bits, self.constellation)):
+            self.symbols[i] = tx.mapper(bits=b, constellation=c)
+            
+            
     def generate_constellation(self, format=['QAM'], order=[4]):
         """
         Set sig.constellation and sig.modulation_info.
