@@ -50,9 +50,9 @@ class Signal():
 
         """
         
-        if (not isinstance(n_dims,int)) or (n_dims < 1):
-            raise ValueError('n_dims must be an integer and >= 1...')
         
+            
+        self.n_dims = n_dims
         self.samples = [np.empty(0, dtype=complex)] * n_dims
         self.center_frequency = [0.0] * n_dims
         self.sample_rate = [1.0] * n_dims
@@ -63,67 +63,70 @@ class Signal():
         self.constellation = [np.empty(0, dtype=complex)] * n_dims
         
         
-    def _check_list(self, value):
+    def _check_attribute(self, value):
         """
-        Check if value is a list. If not try to convert it.
+        Check if attribute is of valid type (or can be converted to a valid type).
+        
+        Attribute can be either be:
+            * a list of lenth n_dims:
+                -> set attribute of every signal dimension accordingly
+            * an integer, float, string, ndarray or None of dimension 1:
+                -> set attributes of all signal dimensions to this single value
+            * an ndarray containing n_dims rows:
+                -> set attribute of each dimension to one row of ndarray
 
         Parameters
         ----------
-        value : TYPE
+        value : list, integer, float, string, ndarray, None
             The value to be set in the signal structure.
 
         Returns
         -------
         value : list
-            The value as a list.
+            The value as a list of length n_dims.
 
         """
         
-        # type conversions, if possible
+        # check for list...
         if isinstance(value, list):
-            # simple case
-            value = value
-        elif isinstance(value, (int, float)):
-            # generate list form salar integers and floats
-            value = [value]
-        elif isinstance(value, np.ndarray):            
-            if value.ndim == 1:
-                # generate a one element list containing ndarray
-                value = [value]
+            # ...and correct dimension
+            if len(value) == self.n_dims:
+                # simple case
+                value = value
             else:
-                # generate a list containing one ndarray per entry
-                value = list(value)                    
-        else:
-            try:
-                # try to automatically generate a list
-                value = list(value)
-            except TypeError:
-                print('given value are not convertable to list')
-        
+                raise ValueError('Signal attributes have to be lists of length n_dims...');
+        # try to convert to list
+        else:            
+            if (isinstance(value, (int, float, str)) or (value == None)):
+                # set all dimensions at once by generating list of correct 
+                # length form salar integers, floats, strings or None
+                value = [value] * self.n_dims
+            elif isinstance(value, np.ndarray):
+                if (value.ndim == 1):
+                    # set all dimensions at once by generating list of correct 
+                    # length having the ndarray in each element
+                    value = [value] * self.n_dims
+                elif ((value.ndim == 2) and (value.shape[0] == self.n_dims)):
+                    # generate a list in which ever entry contains one row of 
+                    # the given ndarray
+                    value = list(value)
+                else:
+                    raise ValueError('attribute has to be a ndarray of dimension 1 or has to of shape (n_dims,X)...')
+            else:
+                raise TypeError('Cannot reasonably convert attribute type to list...')
+
         return value
+
+
+    @property
+    def n_dims(self):
+        return self._n_dims
     
-    def _check_dimension(self, key, value):       
-        """
-        Raise a warning, if the list value has a different length than the other signal attributes.
-
-        Parameters
-        ----------
-        key : str
-            Name of the attribute to check.
-        value : list
-            Content of the attribute of the signal to be set.
-
-        Returns
-        -------
-        None.
-
-        """
-        # raise warning, if ndims is different for different attributes
-        for k, v in vars(self).items():
-            if len(v) != len(value):
-                print('WARNING: dimensions of "' + key + '" inconsistent with "'
-                      + str(k) +'" in signal structure...')
-
+    @n_dims.setter
+    def n_dims(self, value):
+        if (not isinstance(value,int)) or (value < 1):
+            raise ValueError('n_dims must be an integer and >= 1...')
+        self._n_dims = value
 
     @property
     def samples(self):
@@ -131,9 +134,8 @@ class Signal():
     
     @samples.setter
     def samples(self, value):
-        value = self._check_list(value)
-        self._samples = value
-        self._check_dimension('samples', value)
+        value = self._check_attribute(value)
+        self._samples = value        
         
     @property
     def bits(self):
@@ -141,39 +143,35 @@ class Signal():
     
     @bits.setter
     def bits(self, value):
-        value = self._check_list(value)
+        value = self._check_attribute(value)
         self._bits = value
-        self._check_dimension('bits', value)
-        
+                
     @property
     def center_frequency(self):
         return self._center_frequency
     
     @center_frequency.setter
     def center_frequency(self, value):
-        value = self._check_list(value)
+        value = self._check_attribute(value)
         self._center_frequency = value
-        self._check_dimension('center_frequency', value)
-        
+                
     @property
     def sample_rate(self):
         return self._sample_rate
     
     @sample_rate.setter
     def sample_rate(self, value):
-        value = self._check_list(value)
+        value = self._check_attribute(value)
         self._sample_rate = value
-        self._check_dimension('sample_rate', value)
-        
+                
     @property
     def symbols(self):
         return self._symbols
     
     @symbols.setter
     def symbols(self, value):
-        value = self._check_list(value)
+        value = self._check_attribute(value)
         self._symbols = value
-        self._check_dimension('symbols', value)
         
     @property
     def symbol_rate(self):
@@ -181,9 +179,8 @@ class Signal():
     
     @symbol_rate.setter
     def symbol_rate(self, value):
-        value = self._check_list(value)
+        value = self._check_attribute(value)
         self._symbol_rate = value
-        self._check_dimension('symbol_rate', value)
         
     @property
     def modulation_info(self):
@@ -191,9 +188,8 @@ class Signal():
     
     @modulation_info.setter
     def modulation_info(self, value):
-        value = self._check_list(value)
+        value = self._check_attribute(value)
         self._modulation_info = value
-        self._check_dimension('modulation_info', value)
         
     @property
     def constellation(self):
@@ -201,17 +197,12 @@ class Signal():
     
     @constellation.setter
     def constellation(self, value):
-        value = self._check_list(value)
+        value = self._check_attribute(value)
         self._constellation = value
-        self._check_dimension('constellation', value)
+       
         
         
-                
-        
-        
-        
-        
-    def generate_bits(self, n_bits=[2**15], type=['random'], seed=[None]):
+    def generate_bits(self, n_bits=2**15, type='random', seed=None):
         """
         Generate an array of size (n_bits,) binary values.
 
@@ -235,25 +226,9 @@ class Signal():
 
         """
         
-        n_dims = len(self.bits)
-        
-        if not (isinstance(n_bits,list) and isinstance(type,list) and isinstance(seed,list)):
-            raise TypeError('input parameters have to be lists...')
-            
-        if not ((len(n_bits) == 1) or (len(n_bits) == n_dims)):
-            raise TypeError('length of n_bits should be 1 or n_dims...')
-        elif len(n_bits) == 1:
-            n_bits = n_bits * n_dims            
-            
-        if not ((len(type) == 1) or (len(type) == n_dims)):
-            raise TypeError('length of type should be 1 or n_dims...')
-        elif len(type) == 1:
-            type = type * n_dims
-            
-        if not ((len(seed) == 1) or (len(seed) == n_dims)):
-            raise TypeError('length of seed should be 1 or n_dims...')
-        elif len(seed) == 1:
-            seed = seed * n_dims    
+        n_bits = self._check_attribute(n_bits)
+        type = self._check_attribute(type)
+        seed = self._check_attribute(seed)       
 
         for i, (b, t, s) in enumerate(zip(n_bits, type, seed)):
             self.bits[i] = tx.generate_bits(n_bits=b, type=t, seed=s)
@@ -261,23 +236,11 @@ class Signal():
             
             
             
-    def set_snr(self, snr_dB=[10], seed=[None]):
+    def set_snr(self, snr_dB=10, seed=None):
         
+        snr_dB = self._check_attribute(snr_dB)
+        seed = self._check_attribute(seed)
         
-        n_dims = len(self.bits)
-        
-        if not (isinstance(snr_dB,list) and isinstance(seed,list)):
-            raise TypeError('input parameters have to be lists...')
-            
-        if not ((len(snr_dB) == 1) or (len(snr_dB) == n_dims)):
-            raise TypeError('format of snr_dB should be 1 or n_dims...')
-        elif len(snr_dB) == 1:
-            snr_dB = snr_dB * n_dims            
-            
-        if not ((len(seed) == 1) or (len(seed) == n_dims)):
-            raise TypeError('seed of type should be 1 or n_dims...')
-        elif len(seed) == 1:
-            seed = seed * n_dims
             
         for i, (sn, se) in enumerate(zip(snr_dB, seed)):
             sps = self.sample_rate[i] / self.symbol_rate[i]
@@ -298,7 +261,7 @@ class Signal():
             self.symbols[i] = tx.mapper(bits=b, constellation=c)
             
             
-    def generate_constellation(self, format=['QAM'], order=[4]):
+    def generate_constellation(self, format='QAM', order=4):
         """
         Set sig.constellation and sig.modulation_info.
     
@@ -320,27 +283,15 @@ class Signal():
     
         """
     
-        n_dims = len(self.bits)
-        
-        if not (isinstance(format,list) and isinstance(order,list)):
-            raise TypeError('input parameters have to be lists...')
-            
-        if not ((len(format) == 1) or (len(format) == n_dims)):
-            raise TypeError('format of n_bits should be 1 or n_dims...')
-        elif len(format) == 1:
-            format = format * n_dims            
-            
-        if not ((len(order) == 1) or (len(order) == n_dims)):
-            raise TypeError('order of type should be 1 or n_dims...')
-        elif len(order) == 1:
-            order = order * n_dims
+        format = self._check_attribute(format)
+        order = self._check_attribute(order)
             
         for i, (f, o) in enumerate(zip(format, order)):
             self.constellation[i] = utils.generate_constellation(format=f, order=o)
             self.modulation_info[i] = f
         
 
-    def pulseshaper(self, upsampling=[2], pulseshape=['rc'], roll_off=[0.2]):
+    def pulseshaper(self, upsampling=2, pulseshape='rc', roll_off=0.2):
         """
         Upsample and pulseshape the modulated symbols and write them to samples.
         
@@ -360,31 +311,15 @@ class Signal():
         None.
 
         """
-
-        n_dims = len(self.symbols)
         
-        if not (isinstance(upsampling,list) and isinstance(pulseshape,list) and
-                isinstance(roll_off,list)):
-            raise TypeError('input parameters have to be lists...')
-            
-        if not ((len(upsampling) == 1) or (len(upsampling) == n_dims)):
-            raise TypeError('upsampling of n_bits should be 1 or n_dims...')
-        elif len(upsampling) == 1:
-            upsampling = upsampling * n_dims            
-            
-        if not ((len(pulseshape) == 1) or (len(pulseshape) == n_dims)):
-            raise TypeError('pulseshape of type should be 1 or n_dims...')
-        elif len(pulseshape) == 1:
-            pulseshape = pulseshape * n_dims
-            
-        if not ((len(roll_off) == 1) or (len(roll_off) == n_dims)):
-            raise TypeError('roll_off of type should be 1 or n_dims...')
-        elif len(roll_off) == 1:
-            roll_off = roll_off * n_dims
+        upsampling = self._check_attribute(upsampling)
+        pulseshape = self._check_attribute(pulseshape)
+        roll_off = self._check_attribute(roll_off)
+
             
         for i, (u, p, r) in enumerate(zip(upsampling, pulseshape, roll_off)):
             self.samples[i] = tx.pulseshaper(self.symbols[i], u, p, r)
-            self.sample_rate[i] = u
+            self.sample_rate[i] = u * self.symbol_rate[i]
             
 
 
