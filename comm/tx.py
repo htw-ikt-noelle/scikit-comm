@@ -2,6 +2,7 @@ import numpy as np
 import scipy.signal as signal
 import matplotlib.pyplot as plt
 from . import utils
+from . import filters
 
 
 
@@ -52,7 +53,7 @@ def mapper(bits, constellation):
         raise ValueError('multiple, different constellations not allowed yet...')    
     
     if bits.ndim > 1:
-        raise ValueError('number of dimensions of bits should be <= 1')   
+        raise ValueError('number of dimensions of bits should be 1')   
         
     m = int(np.log2(constellation.size))
     
@@ -69,3 +70,46 @@ def mapper(bits, constellation):
     symbols = constellation[decimals.astype(int)]
     
     return symbols
+
+
+def pulseshaper(samples, upsampling=2, pulseshape='rc', roll_off=0.2):
+        
+    if samples.ndim > 1:
+        raise ValueError('number of dimensions of samples should be 1...')   
+        
+    if upsampling%1:        
+        raise ValueError('upsampling factor has to be an integer...')   
+        # suggestion for the future (non integer upsampling: e.g. 2.34):
+        #   1) upsample to the next smaller integer: 2
+        #   2) filtering / pulseshaping
+        #   3) resample (scipy.singal.resample (FFT)) to the desired upsampling 2.34
+        
+    if upsampling == 1:        
+        return samples
+    
+    # upsampling (insert zeros between sampling points)
+    samples_up = signal.upfirdn(np.asarray([1]), samples, up=upsampling, down=1)
+    
+    # actual pulseshaping filter
+    if pulseshape == 'rc':
+        samples_out = filters.raised_cosine_filter(samples_up, 
+                                                   sample_rate=upsampling, 
+                                                   roll_off=roll_off,
+                                                   domain='freq')
+    elif pulseshape == 'rrc':
+        samples_out = filters.raised_cosine_filter(samples_up, 
+                                                   sample_rate=upsampling, 
+                                                   roll_off=roll_off, 
+                                                   root_raised=True,
+                                                   domain='freq')
+    elif pulseshape == 'rect':
+        samples_out = filters.moving_average(samples_up, upsampling, 
+                                             domain='time')
+    else:
+        raise ValueError('puseshape can only be either rc, rrc or rect...')   
+        
+            
+    
+    
+    
+    return samples_out

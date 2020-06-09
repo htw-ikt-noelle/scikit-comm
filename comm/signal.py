@@ -190,6 +190,52 @@ class Signal():
             self.modulation_info[i] = f
             
         
+    def pulseshaper(self, upsampling=[2], pulseshape=['rc'], roll_off=[0.2]):
+        """
+        Upsample and pulseshape the modulated symbols and write them to samples.
+        
+        For detailed documentation see comm.tx.pulseshaper()
+
+        Parameters
+        ----------
+        upsampling : TYPE, optional
+            DESCRIPTION. The default is [2].
+        pulseshape : TYPE, optional
+            DESCRIPTION. The default is ['rc'].
+        roll_off : TYPE, optional
+            DESCRIPTION. The default is [0.2].
+
+        Returns
+        -------
+        None.
+
+        """
+
+        n_dims = len(self.symbols)
+        
+        if not (isinstance(upsampling,list) and isinstance(pulseshape,list) and
+                isinstance(roll_off,list)):
+            raise TypeError('input parameters have to be lists...')
+            
+        if not ((len(upsampling) == 1) or (len(upsampling) == n_dims)):
+            raise TypeError('upsampling of n_bits should be 1 or n_dims...')
+        elif len(upsampling) == 1:
+            upsampling = upsampling * n_dims            
+            
+        if not ((len(pulseshape) == 1) or (len(pulseshape) == n_dims)):
+            raise TypeError('pulseshape of type should be 1 or n_dims...')
+        elif len(pulseshape) == 1:
+            pulseshape = pulseshape * n_dims
+            
+        if not ((len(roll_off) == 1) or (len(roll_off) == n_dims)):
+            raise TypeError('roll_off of type should be 1 or n_dims...')
+        elif len(roll_off) == 1:
+            roll_off = roll_off * n_dims
+            
+        for i, (u, p, r) in enumerate(zip(upsampling, pulseshape, roll_off)):
+            self.samples[i] = tx.pulseshaper(self.symbols[i], u, p, r)
+            self.sample_rate[i] = u
+            
             
             
     def mapper(self):
