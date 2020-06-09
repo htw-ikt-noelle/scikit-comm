@@ -62,6 +62,155 @@ class Signal():
         self.modulation_info = [''] * n_dims
         self.constellation = [np.empty(0, dtype=complex)] * n_dims
         
+        
+    def _check_list(self, value):
+        """
+        Check if value is a list. If not try to convert it.
+
+        Parameters
+        ----------
+        value : TYPE
+            The value to be set in the signal structure.
+
+        Returns
+        -------
+        value : list
+            The value as a list.
+
+        """
+        
+        # type conversions, if possible
+        if isinstance(value, list):
+            # simple case
+            value = value
+        elif isinstance(value, (int, float)):
+            # generate list form salar integers and floats
+            value = [value]
+        elif isinstance(value, np.ndarray):            
+            if value.ndim == 1:
+                # generate a one element list containing ndarray
+                value = [value]
+            else:
+                # generate a list containing one ndarray per entry
+                value = list(value)                    
+        else:
+            try:
+                # try to automatically generate a list
+                value = list(value)
+            except TypeError:
+                print('given value are not convertable to list')
+        
+        return value
+    
+    def _check_dimension(self, key, value):       
+        """
+        Raise a warning, if the list value has a different length than the other signal attributes.
+
+        Parameters
+        ----------
+        key : str
+            Name of the attribute to check.
+        value : list
+            Content of the attribute of the signal to be set.
+
+        Returns
+        -------
+        None.
+
+        """
+        # raise warning, if ndims is different for different attributes
+        for k, v in vars(self).items():
+            if len(v) != len(value):
+                print('WARNING: dimensions of "' + key + '" inconsistent with "'
+                      + str(k) +'" in signal structure...')
+
+
+    @property
+    def samples(self):
+        return self._samples
+    
+    @samples.setter
+    def samples(self, value):
+        value = self._check_list(value)
+        self._samples = value
+        self._check_dimension('samples', value)
+        
+    @property
+    def bits(self):
+        return self._bits
+    
+    @bits.setter
+    def bits(self, value):
+        value = self._check_list(value)
+        self._bits = value
+        self._check_dimension('bits', value)
+        
+    @property
+    def center_frequency(self):
+        return self._center_frequency
+    
+    @center_frequency.setter
+    def center_frequency(self, value):
+        value = self._check_list(value)
+        self._center_frequency = value
+        self._check_dimension('center_frequency', value)
+        
+    @property
+    def sample_rate(self):
+        return self._sample_rate
+    
+    @sample_rate.setter
+    def sample_rate(self, value):
+        value = self._check_list(value)
+        self._sample_rate = value
+        self._check_dimension('sample_rate', value)
+        
+    @property
+    def symbols(self):
+        return self._symbols
+    
+    @symbols.setter
+    def symbols(self, value):
+        value = self._check_list(value)
+        self._symbols = value
+        self._check_dimension('symbols', value)
+        
+    @property
+    def symbol_rate(self):
+        return self._symbol_rate
+    
+    @symbol_rate.setter
+    def symbol_rate(self, value):
+        value = self._check_list(value)
+        self._symbol_rate = value
+        self._check_dimension('symbol_rate', value)
+        
+    @property
+    def modulation_info(self):
+        return self._modulation_info
+    
+    @modulation_info.setter
+    def modulation_info(self, value):
+        value = self._check_list(value)
+        self._modulation_info = value
+        self._check_dimension('modulation_info', value)
+        
+    @property
+    def constellation(self):
+        return self._constellation
+    
+    @constellation.setter
+    def constellation(self, value):
+        value = self._check_list(value)
+        self._constellation = value
+        self._check_dimension('constellation', value)
+        
+        
+                
+        
+        
+        
+        
     def generate_bits(self, n_bits=[2**15], type=['random'], seed=[None]):
         """
         Generate an array of size (n_bits,) binary values.
