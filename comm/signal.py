@@ -151,25 +151,25 @@ class Signal():
     def generate_constellation(self, format=['QAM'], order=[4]):
         """
         Set sig.constellation and sig.modulation_info.
-
+    
         Parameters
         ----------
         format : TYPE, optional
             DESCRIPTION. The default is ['QAM'].
         order : TYPE, optional
             DESCRIPTION. The default is [4].
-
+    
         Raises
         ------
         TypeError
             DESCRIPTION.
-
+    
         Returns
         -------
         None.
-
+    
         """
-        
+    
         n_dims = len(self.bits)
         
         if not (isinstance(format,list) and isinstance(order,list)):
@@ -188,8 +188,8 @@ class Signal():
         for i, (f, o) in enumerate(zip(format, order)):
             self.constellation[i] = utils.generate_constellation(format=f, order=o)
             self.modulation_info[i] = f
-            
         
+
     def pulseshaper(self, upsampling=[2], pulseshape=['rc'], roll_off=[0.2]):
         """
         Upsample and pulseshape the modulated symbols and write them to samples.
@@ -236,22 +236,65 @@ class Signal():
             self.samples[i] = tx.pulseshaper(self.symbols[i], u, p, r)
             self.sample_rate[i] = u
             
-            
-            
-    def mapper(self):
+
+
+    def plot_spectrum(self, dimension=0, **kwargs):
         """
-        Generate sig.symbols from sig.bits and sig.constellation.
+        Plot spectum of the signal samples of a given dimension.
+        
+        For further documentation see comm.visualizer.plot_spectrum.
+        
+        Parameters
+        ----------
+        dimension : TYPE, optional
+            DESCRIPTION. The default is 0.
 
         Returns
         -------
         None.
 
         """
+        visualizer.plot_spectrum(self.samples[dimension], self.sample_rate[dimension], **kwargs)
         
-        for i, (b, c) in enumerate(zip(self.bits, self.constellation)):
-            self.symbols[i] = tx.mapper(bits=b, constellation=c)
+    def plot_constellation(self, dimension=0, decimation=1, **kwargs):
+        """
+        Plot constellation of signal samples of a given dimension.
         
+        For further documentation see comm.visualizer.plot_constellation.
 
+        Parameters
+        ----------
+        dimension : TYPE, optional
+            DESCRIPTION. The default is 0.
+        decimation : TYPE, optional
+            DESCRIPTION. The default is 1.
 
-    def plot_spectrum(self, dimension=0):
-        visualizer.plot_spectrum(self.samples[dimension], self.sample_rate[dimension])
+        Returns
+        -------
+        None.
+
+        """
+        visualizer.plot_constellation(self.samples[dimension], decimation=decimation, **kwargs)
+        
+        
+    def plot_eye(self, dimension=0, offset=0, **kwargs):
+        """
+        Plot eye diagramm of signal samples of a given dimension.
+        
+        For further documentation see comm.visualizer.plot_eye
+
+        Parameters
+        ----------
+        dimension : TYPE, optional
+            DESCRIPTION. The default is 0.
+        offset : TYPE, optional
+            DESCRIPTION. The default is 0.
+
+        Returns
+        -------
+        None.
+
+        """
+            
+        visualizer.plot_eye(self.samples[dimension], self.sample_rate[dimension],
+                            self.symbol_rate[dimension], offset, **kwargs)

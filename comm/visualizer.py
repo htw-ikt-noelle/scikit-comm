@@ -90,17 +90,19 @@ def plot_signal(samples, sample_rate = 1.0, fNum = 1, tit = 'time signal'):
         plt.plot(t, np.imag(samples))
         plt.xlabel('time [s]')
         plt.ylabel('amplitude imaginary part')
+        plt.title(tit)
         plt.grid()
         plt.show()
     else:
         plt.plot(t, samples)
         plt.xlabel('time [s]')
         plt.ylabel('amplitude')
+        plt.title(tit)
         plt.grid()
         plt.show()
         
 	
-def plot_eye(samples, sample_rate = 1, bitRate = 0.5, offset = 0, fNum = 1, tit = 'eye diagramm'):
+def plot_eye(samples, sample_rate = 2, bitRate = 1, offset = 0, fNum = 1, tit = 'eye diagramm'):
     """ plots the eye diagramm of a given signals
     
     parameters:
@@ -108,30 +110,37 @@ def plot_eye(samples, sample_rate = 1, bitRate = 0.5, offset = 0, fNum = 1, tit 
     """
          
     sps = sample_rate/bitRate
-    t = np.linspace(0, (2 * sps -1) * (1/sample_rate), 2 * sps)
-        
+            
     if np.mod(sps, 1):
         raise ValueError('sample_rate must be an integer multiple of bitRate...')
     if np.mod(len(samples), 2*sps):
         raise ValueError('signal must contain an even integer multiple of sps...')
         
+    t = np.linspace(0, (2 * sps -1) * (1/sample_rate), int(2 * sps))
     samples = np.reshape(samples, (int(2 * sps), -1), order = 'F')
+    
+    plt.figure(fNum, facecolor='white', edgecolor='white')
+    
         
     if np.any(np.iscomplex(samples)):
         plt.subplot(121)
         plt.plot(t, np.real(samples), color = '#1f77b4')
         plt.xlabel('time [s]')
         plt.ylabel('amplitude real part')
+        plt.grid()        
+        plt.title(tit)
         plt.subplot(122)
         plt.plot(t, np.imag(samples), color = '#1f77b4')
         plt.xlabel('time [s]')
         plt.ylabel('amplitude imaginary part')
         plt.grid()
+        plt.gcf().tight_layout()
         plt.show()
     else:
         plt.plot(t, samples, color = '#1f77b4')
         plt.xlabel('time [s]')
         plt.ylabel('amplitude')
+        plt.title(tit)
         plt.grid()
         plt.show()
     
@@ -139,10 +148,26 @@ def plot_eye(samples, sample_rate = 1, bitRate = 0.5, offset = 0, fNum = 1, tit 
 	
 def plot_hist(samples, nBins=100):
     #TODO: implement automated histogramm
-	# check for complex input??
-	a = 1
-    
+    # check for complex input??
+    pass
 
-def plot_constellation(samples):
+def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation'):
     #TODO: implement plot of complex plane
-	a = 1
+    plt.figure(fNum, facecolor='white', edgecolor='white')
+    
+    samples = samples[0::decimation]
+    
+    # if np.any(np.iscomplex(samples)):
+    plt.plot(samples.real, samples.imag, 'C0.')
+    xMax = np.max(np.abs(np.real(samples))) * 1.1
+    yMax = np.max(np.abs(np.imag(samples))) * 1.1
+    plt.xlim((-xMax,xMax))
+    plt.ylim((-yMax,yMax))
+    plt.title(tit)
+    plt.xlabel('real part')
+    plt.ylabel('imaginary part')
+    plt.title(tit)
+    plt.grid()
+    # plt.gca().set_aspect('equal', 'box') # auto adjust axis limits
+    plt.gca().axis('equal')
+    plt.show()
