@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from . import visualizer
 from . import tx
 from . import utils
+from . import channel
 
        
 class Signal():
