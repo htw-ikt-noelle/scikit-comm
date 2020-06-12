@@ -4,6 +4,7 @@ from . import visualizer
 from . import tx
 from . import utils
 from . import channel
+from . import filters
 
        
 class Signal():
@@ -97,9 +98,9 @@ class Signal():
                 raise ValueError('Signal attributes have to be lists of length n_dims...');
         # try to convert to list
         else:            
-            if (isinstance(value, (int, float, str)) or (value == None)):
+            if (isinstance(value, (int, float, str, bool)) or (value == None)):
                 # set all dimensions at once by generating list of correct 
-                # length form salar integers, floats, strings or None
+                # length form salar integers, floats, strings, bool or None
                 value = [value] * self.n_dims
             elif isinstance(value, np.ndarray):
                 if (value.ndim == 1):
@@ -259,6 +260,40 @@ class Signal():
         
         for i, (b, c) in enumerate(zip(self.bits, self.constellation)):
             self.symbols[i] = tx.mapper(bits=b, constellation=c)
+            
+            
+    def raised_cosine_filter(self, roll_off=0.0, root_raised=False, **kargs):
+        """            
+        Filter samples with a raised cosine filter.
+        
+        For detailed documentation see comm.filters.raised_cosine_filter
+        
+        Parameters
+        ----------
+        roll_off : TYPE, optional
+            DESCRIPTION. The default is 0.0.
+        root_raised : TYPE, optional
+            DESCRIPTION. The default is False.
+        **kargs : TYPE
+            DESCRIPTION.
+        
+        Returns
+        -------
+        None.
+           
+        """
+        roll_off = self._check_attribute(roll_off)
+        root_raised = self._check_attribute(root_raised)
+     
+        for i, (s, sr, symr, ro, rr) in enumerate(zip(self.samples, 
+                                                      self.sample_rate, 
+                                                      self.symbol_rate, 
+                                                      roll_off, root_raised)):
+            self.samples[i] = filters.raised_cosine_filter(samples=s, 
+                                                           sample_rate=sr,
+                                                           symbol_rate=symr,
+                                                           roll_off=ro,
+                                                           root_raised=rr, **kargs)
             
             
     def generate_constellation(self, format='QAM', order=4):
