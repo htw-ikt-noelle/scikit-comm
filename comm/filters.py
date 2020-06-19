@@ -87,16 +87,15 @@ def moving_average(samples, average, domain='freq'):
     return samples_out
 
 
-
 def windowed_sinc(samples, fc=0.5, order=111, window=None, domain='freq'):
     """ Filter a given signal windowed Si-funtion as impulse response.
     
     time domain
     0<fc<1, where 1 specifies the Nyquist frequency (half the sampling frequency)
     window can be 
-        'none' --> Si impulse response
-        'Hamming'
-        'Blackmann-Harris'
+    'none' --> Si impulse response
+    'Hamming'
+    'Blackmann-Harris'
     order has to be odd    
     
     """

@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Nov 27 19:01:26 2014
-
-@author: noelle
-"""
-
 
 import numpy as np
 import numpy.fft as fft

@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jan 15 11:33:11 2020
-
-@author: noelle
-"""
-
 
 import visa
 import numpy as np

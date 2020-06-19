@@ -6,38 +6,45 @@ from . import utils
 from . import channel
 from . import filters
 
-       
+
 class Signal():
-    """ Overall Signal definition.        
-              
-        samples: list of ndarrays, list of length n_dims, each element containing
-            a complex ndarray of size (nsamples,) representing the complex 
-            samples of the signal
-        center_frequency: list of scalars of length n_dims, float, [Hz]
-        sample_rate: list of scalars of length n_dims, float, [Hz], positive
-        bits: list of ndarrays, list of length n_dims, each element 
-            containing an ndarray of size (nbits,) representing the logical 
-            binary information per complex signal dimension
-        symbols: list of ndarrays, complex, list of length n_dims, each element 
-            containing an ndarray of size (nsymbols,) representing the complex
-            modulation symbols per complex signal dimension
-        symbol_rate: list of scalars of length n_dims, float, [Hz], positive
-        modulation_info: list of stings, list of length n_dims, each element 
-            containing a descriptive name of the used constellation per complex
-            signal dimension
-        constellation: list of ndarrays, list of length n_dims, each element containing
-            a complex ndarray of size (nConstellationPoints,) representing representing the
-            complex modulation symbols, while the order specifies the mapping
-            between bits and modulation symbols (see comm.tx.mapper() for details)
+    """
+    Overall Signal definition.
+
+    samples: list of ndarrays, list of length n_dims, each element containing
+    a complex ndarray of size (nsamples,) representing the complex
+    samples of the signal
     
+    center_frequency: list of scalars of length n_dims, float, [Hz]
     
+    sample_rate: list of scalars of length n_dims, float, [Hz], positive
+    
+    bits: list of ndarrays, list of length n_dims, each element
+    containing an ndarray of size (nbits,) representing the logical
+    binary information per complex signal dimension
+    
+    symbols: list of ndarrays, complex, list of length n_dims, each element
+    containing an ndarray of size (nsymbols,) representing the complex
+    modulation symbols per complex signal dimension
+    
+    symbol_rate: list of scalars of length n_dims, float, [Hz], positive
+    
+    modulation_info: list of stings, list of length n_dims, each element
+    containing a descriptive name of the used constellation per complex
+    signal dimension
+    
+    constellation: list of ndarrays, list of length n_dims, each element containing
+    a complex ndarray of size (nConstellationPoints,) representing representing the
+    complex modulation symbols, while the order specifies the mapping
+    between bits and modulation symbols (see comm.tx.mapper() for details)
+
     """
 
     def __init__(self, n_dims=1):
         """
         Initialize signal structure.
-        
-        Initialize signal with n_dims, while all signal dimensions have equal 
+
+        Initialize signal with n_dims, while all signal dimensions have equal
         default values.
 
         Parameters
@@ -50,9 +57,9 @@ class Signal():
         None.
 
         """
-        
-        
-            
+
+
+
         self.n_dims = n_dims
         self.samples = [np.empty(0, dtype=complex)] * n_dims
         self.center_frequency = [0.0] * n_dims
@@ -62,12 +69,12 @@ class Signal():
         self.symbol_rate = [1.0] * n_dims
         self.modulation_info = [''] * n_dims
         self.constellation = [np.empty(0, dtype=complex)] * n_dims
-        
-        
+
+
     def _check_attribute(self, value):
         """
         Check if attribute is of valid type (or can be converted to a valid type).
-        
+
         Attribute can be either be:
             * a list of lenth n_dims:
                 -> set attribute of every signal dimension accordingly
@@ -87,7 +94,7 @@ class Signal():
             The value as a list of length n_dims.
 
         """
-        
+
         # check for list...
         if isinstance(value, list):
             # ...and correct dimension
@@ -97,18 +104,18 @@ class Signal():
             else:
                 raise ValueError('Signal attributes have to be lists of length n_dims...');
         # try to convert to list
-        else:            
+        else:
             if (isinstance(value, (int, float, str, bool)) or (value == None)):
-                # set all dimensions at once by generating list of correct 
+                # set all dimensions at once by generating list of correct
                 # length form salar integers, floats, strings, bool or None
                 value = [value] * self.n_dims
             elif isinstance(value, np.ndarray):
                 if (value.ndim == 1):
-                    # set all dimensions at once by generating list of correct 
+                    # set all dimensions at once by generating list of correct
                     # length having the ndarray in each element
                     value = [value] * self.n_dims
                 elif ((value.ndim == 2) and (value.shape[0] == self.n_dims)):
-                    # generate a list in which ever entry contains one row of 
+                    # generate a list in which ever entry contains one row of
                     # the given ndarray
                     value = list(value)
                 else:
@@ -122,7 +129,7 @@ class Signal():
     @property
     def n_dims(self):
         return self._n_dims
-    
+
     @n_dims.setter
     def n_dims(self, value):
         if (not isinstance(value,int)) or (value < 1):
@@ -132,77 +139,77 @@ class Signal():
     @property
     def samples(self):
         return self._samples
-    
+
     @samples.setter
     def samples(self, value):
         value = self._check_attribute(value)
-        self._samples = value        
-        
+        self._samples = value
+
     @property
     def bits(self):
         return self._bits
-    
+
     @bits.setter
     def bits(self, value):
         value = self._check_attribute(value)
         self._bits = value
-                
+
     @property
     def center_frequency(self):
         return self._center_frequency
-    
+
     @center_frequency.setter
     def center_frequency(self, value):
         value = self._check_attribute(value)
         self._center_frequency = value
-                
+
     @property
     def sample_rate(self):
         return self._sample_rate
-    
+
     @sample_rate.setter
     def sample_rate(self, value):
         value = self._check_attribute(value)
         self._sample_rate = value
-                
+
     @property
     def symbols(self):
         return self._symbols
-    
+
     @symbols.setter
     def symbols(self, value):
         value = self._check_attribute(value)
         self._symbols = value
-        
+
     @property
     def symbol_rate(self):
         return self._symbol_rate
-    
+
     @symbol_rate.setter
     def symbol_rate(self, value):
         value = self._check_attribute(value)
         self._symbol_rate = value
-        
+
     @property
     def modulation_info(self):
         return self._modulation_info
-    
+
     @modulation_info.setter
     def modulation_info(self, value):
         value = self._check_attribute(value)
         self._modulation_info = value
-        
+
     @property
     def constellation(self):
         return self._constellation
-    
+
     @constellation.setter
     def constellation(self, value):
         value = self._check_attribute(value)
         self._constellation = value
-       
-        
-        
+
+
+
     def generate_bits(self, n_bits=2**15, type='random', seed=None):
         """
         Generate an array of size (n_bits,) binary values.
@@ -226,28 +233,28 @@ class Signal():
         None.
 
         """
-        
+
         n_bits = self._check_attribute(n_bits)
         type = self._check_attribute(type)
-        seed = self._check_attribute(seed)       
+        seed = self._check_attribute(seed)
 
         for i, (b, t, s) in enumerate(zip(n_bits, type, seed)):
             self.bits[i] = tx.generate_bits(n_bits=b, type=t, seed=s)
-            
-            
-            
-            
+
+
+
+
     def set_snr(self, snr_dB=10, seed=None):
-        
+
         snr_dB = self._check_attribute(snr_dB)
         seed = self._check_attribute(seed)
-        
-            
+
+
         for i, (sn, se) in enumerate(zip(snr_dB, seed)):
             sps = self.sample_rate[i] / self.symbol_rate[i]
-            self.samples[i] = channel.set_snr(self.samples[i], sn, sps, se)        
-            
-            
+            self.samples[i] = channel.set_snr(self.samples[i], sn, sps, se)
+
+
     def mapper(self):
         """
         Generate sig.symbols from sig.bits and sig.constellation.
@@ -257,17 +264,17 @@ class Signal():
         None.
 
         """
-        
+
         for i, (b, c) in enumerate(zip(self.bits, self.constellation)):
             self.symbols[i] = tx.mapper(bits=b, constellation=c)
-            
-            
+
+
     def raised_cosine_filter(self, roll_off=0.0, root_raised=False, **kargs):
-        """            
+        """
         Filter samples with a raised cosine filter.
-        
+
         For detailed documentation see comm.filters.raised_cosine_filter
-        
+
         Parameters
         ----------
         roll_off : TYPE, optional
@@ -276,60 +283,60 @@ class Signal():
             DESCRIPTION. The default is False.
         **kargs : TYPE
             DESCRIPTION.
-        
+
         Returns
         -------
         None.
-           
+
         """
         roll_off = self._check_attribute(roll_off)
         root_raised = self._check_attribute(root_raised)
-     
-        for i, (s, sr, symr, ro, rr) in enumerate(zip(self.samples, 
-                                                      self.sample_rate, 
-                                                      self.symbol_rate, 
+
+        for i, (s, sr, symr, ro, rr) in enumerate(zip(self.samples,
+                                                      self.sample_rate,
+                                                      self.symbol_rate,
                                                       roll_off, root_raised)):
-            self.samples[i] = filters.raised_cosine_filter(samples=s, 
+            self.samples[i] = filters.raised_cosine_filter(samples=s,
                                                            sample_rate=sr,
                                                            symbol_rate=symr,
                                                            roll_off=ro,
                                                            root_raised=rr, **kargs)
-            
-            
+
+
     def generate_constellation(self, format='QAM', order=4):
         """
         Set sig.constellation and sig.modulation_info.
-    
+
         Parameters
         ----------
         format : TYPE, optional
             DESCRIPTION. The default is ['QAM'].
         order : TYPE, optional
             DESCRIPTION. The default is [4].
-    
+
         Raises
         ------
         TypeError
             DESCRIPTION.
-    
+
         Returns
         -------
         None.
-    
+
         """
-    
+
         format = self._check_attribute(format)
         order = self._check_attribute(order)
-            
+
         for i, (f, o) in enumerate(zip(format, order)):
             self.constellation[i] = utils.generate_constellation(format=f, order=o)
             self.modulation_info[i] = f
-        
+
 
     def pulseshaper(self, upsampling=2, pulseshape='rc', roll_off=0.2):
         """
         Upsample and pulseshape the modulated symbols and write them to samples.
-        
+
         For detailed documentation see comm.tx.pulseshaper()
 
         Parameters
@@ -346,24 +353,24 @@ class Signal():
         None.
 
         """
-        
+
         upsampling = self._check_attribute(upsampling)
         pulseshape = self._check_attribute(pulseshape)
         roll_off = self._check_attribute(roll_off)
 
-            
+
         for i, (u, p, r) in enumerate(zip(upsampling, pulseshape, roll_off)):
             self.samples[i] = tx.pulseshaper(self.symbols[i], u, p, r)
             self.sample_rate[i] = u * self.symbol_rate[i]
-            
+
 
 
     def plot_spectrum(self, dimension=0, **kwargs):
         """
         Plot spectum of the signal samples of a given dimension.
-        
+
         For further documentation see comm.visualizer.plot_spectrum.
-        
+
         Parameters
         ----------
         dimension : TYPE, optional
@@ -375,11 +382,11 @@ class Signal():
 
         """
         visualizer.plot_spectrum(self.samples[dimension], self.sample_rate[dimension], **kwargs)
-        
+
     def plot_constellation(self, dimension=0, decimation=1, **kwargs):
         """
         Plot constellation of signal samples of a given dimension.
-        
+
         For further documentation see comm.visualizer.plot_constellation.
 
         Parameters
@@ -395,12 +402,12 @@ class Signal():
 
         """
         visualizer.plot_constellation(self.samples[dimension], decimation=decimation, **kwargs)
-        
-        
+
+
     def plot_eye(self, dimension=0, offset=0, **kwargs):
         """
         Plot eye diagramm of signal samples of a given dimension.
-        
+
         For further documentation see comm.visualizer.plot_eye
 
         Parameters
@@ -415,6 +422,6 @@ class Signal():
         None.
 
         """
-            
+
         visualizer.plot_eye(self.samples[dimension], self.sample_rate[dimension],
                             self.symbol_rate[dimension], offset, **kwargs)
