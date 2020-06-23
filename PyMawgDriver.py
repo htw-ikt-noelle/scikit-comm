@@ -18,8 +18,10 @@ print(pymeasure.__version__)
 
 adapter = VISAAdapter('TCPIP::192.168.1.44::INSTR') # interface for the adapter must be defined
 awg = Agilent33521A(adapter) 
+#awg = adapter
 awg.id # returns the result of *IDN? command #awg.ask("*IDN?")
 awg.write(':OUTPut1:STATe off')
 #awg.write('APPLy:SQUare')
 print(awg.id , ' The device Agilent33522 has been identified')
+
 

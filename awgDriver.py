@@ -29,14 +29,12 @@ def set_samples_AWG33522A(self,channels=(1), address = '192.168.1.44'):
 			
 	wfm = np.array([])
     
-   
-   
    # if wfm is SIN, SQUARE, RAMP, TRIANg,PULSE ,PRBSPNX , ARB
    
-   if wfm == np.SIN: 
+   if wfm == np.sin: 
        print('This is a sinusoid ')
        return
-   if wfm == scipy.signal.SQUARE:
+   if wfm == scipy.signal.square:
        print('This is a square wave')
        return
    if wfm ==  'ARB':
@@ -56,11 +54,9 @@ def set_samples_AWG33522A(self,channels=(1), address = '192.168.1.44'):
             print('Error at signal, must be between 2 and 131072 points')
             return
         
-        self.sig = sig - min(sig)
-        self.sig = sig ./ max(sig) .* 2**14
-        self.sig = unit16(sig)
-    
-    
+        sig = sig - min(sig)
+        sig = sig ./ max(sig) .* 2**14
+        sig = unit16(sig)
     
     
     for idx, channel in enumerate(channels):
