@@ -13,7 +13,7 @@ channels = [1,2]
 ipAdress = '192.168.1.44'
 Amp_PP = 1.0
 Offset = 0.0
-SampleRate = 232.5e6
+SampleRate = 52.5e6
 nSamples = 100
 
 # random float generator , clipped between lower and higher value, set to 32767 blocks, rounded and output as integer

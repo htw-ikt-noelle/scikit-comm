@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 Input pareameters [samples, ipadress, channel, amplitudepp = 1, offset = 1, filter = Normal, samplerate = 62.5e6, MEMname set arb1 or arb2, 
                    delete volatile memory to refeed again, clear volatile meory"""
 
-def write_samples_AWG33522A(ipAdress,channels,nSamples,samples,SampleRate,Amp_PP, Offset, filter_settings = "off"):
+def write_samples_AWG33522A(ipAdress,channels,nSamples,samples,SampleRate,Amp_PP, Offset, filter_settings = None):
     
     import visa
     
@@ -80,23 +80,29 @@ def write_samples_AWG33522A(ipAdress,channels,nSamples,samples,SampleRate,Amp_PP
     print("SampleRate:",SampleRate)
        
     #if filter_name = awg.query('SOUR1:FUNCtion:ARBitrary:FILTer?') == "OFF\n":
+    filter_settings = str(input("Chosse from one of these filters normal or off : "))
 
     if SampleRate > 62.5e6 and filter_settings =="off":
         raise ValueError('sample rate should be lower than 62.5 Million samples per second')
     
-    if SampleRate <= 62.5e6:
-        filter_gen = awg.write('SOUR1:FUNCtion:ARBitrary:FILTer OFF ')
-        awg.write(':SOURce1:FUNCtion:SHAPe:ARBitrary:SRATe %G' % (SampleRate))
-    
-    if filter_settings  == "normal":            
-        if SampleRate > 62.5e6: 
-            str(input("Do you want to change the STEP filter? If Yes press Enter. "))
-            str(input("Are you sure? If Yes press Enter, else leave it "))
-            #if filter_name = awg.query('SOUR1:FUNCtion:ARBitrary:FILTer?') == "NORMAL\n":
-            #if set_filter == "NORMAL":
-            awg.write(':SOURce1:FUNCtion:SHAPe:ARBitrary:SRATe %G' % (SampleRate))
+    if SampleRate <= 62.5e6 and filter_settings == "off":
+        command = str(input("Do you want to change the STEP filter to off? Type yes or no. "))
         
-            filter_gen = awg.write('SOUR1:FUNCtion:ARBitrary:FILTer NORMAL ')   
+        if command == "yes":
+        
+            filter_gen = awg.write('SOUR1:FUNCtion:ARBitrary:FILTer OFF ')
+            awg.write(':SOURce1:FUNCtion:SHAPe:ARBitrary:SRATe %G' % (SampleRate))
+        if command == "no":
+            print("The filter is is still step")
+    
+    #if filter_settings  == "normal":            
+    if SampleRate > 62.5e6 or SampleRate <= 62.5e6 or filter_settings  == "normal": 
+        command = str(input("Do you want to change the filter to Normal? If Yes type yes. "))
+        if command == "yes":
+        #if filter_name = awg.query('SOUR1:FUNCtion:ARBitrary:FILTer?') == "NORMAL\n":
+        #if set_filter == "NORMAL":
+            awg.write(':SOURce1:FUNCtion:SHAPe:ARBitrary:SRATe %G' % (SampleRate))
+            filter_gen = awg.write('SOUR1:FUNCtion:ARBitrary:FILTer NORMAL ') 
            
     ##if filter_name= awg.query('SOUR1:FUNCtion:ARBitrary:FILTer?') == "STEP\n":
         else:
@@ -104,9 +110,6 @@ def write_samples_AWG33522A(ipAdress,channels,nSamples,samples,SampleRate,Amp_PP
             filter_gen = awg.write('SOUR1:FUNCtion:ARBitrary:FILTer STEP ')
        
     after_filter =awg.query('SOUR1:FUNCtion:ARBitrary:FILTer?')
-    
-
- 
     
     return   before_filter, after_filter
                    
