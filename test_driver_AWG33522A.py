@@ -11,8 +11,8 @@ from writeWfmToAWG33522A import write_samples_AWG33522A
 
 channels = [1,2]
 ipAdress = '192.168.1.44'
-Amp_PP = 1.0
-Offset = 0.0
+Amp_PP = 3.0
+Offset = 1.0
 SampleRate = 52.5e6
 nSamples = 100
 
