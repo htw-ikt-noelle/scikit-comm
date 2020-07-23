@@ -67,4 +67,26 @@ def dec_to_bits(decimals, m):
     bits = bits.reshape(decimals.size*m).astype(int)
     
     return bits
+
+def create_time_axis(sample_rate=1.0, n_samples=1000):
+    """
+    Generate a time axis array.
+
+    Parameters
+    ----------
+    sample_rate : float, optional
+        Sample rate of the time axis array. The default is 1.0
+    n_samples : int, optional
+        Length of the time axis in samples. The default is 1000.
+
+    Returns
+    -------
+    t : 1D array
+        Time axis array of length n_samples sampled at equidistant points with
+        time difference 1/sample_rate.
+
+    """
+    t = np.arange(0, n_samples) / sample_rate
+    return t
+
     
