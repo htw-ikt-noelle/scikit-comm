@@ -39,7 +39,11 @@ filter_mode : 3 Filter modes are available for this AWG
 
 import numpy as np
 import random
-from edit_writeWfmToAWG33522A import write_samples_AWG33522A
+from awg_driver_test import write_samples_AWG33522A
+import time
+from datetime import timedelta
+
+start_time = time.time() 
 
 class user_attributes:
     def __init__(self):  # initialize 
@@ -51,21 +55,24 @@ class user_attributes:
         self.Offset = Offset
         self.channel= channel
         
-check= user_attributes()
+# check= user_attributes()
 # setting up default values
 user_attributes.ipAdress = '192.168.1.44'
-user_attributes.nSamples = int(1e6)  # number of samples
-user_attributes.SampleRate = 250e6 # not more than 250e6
-user_attributes.Offset = 0.0      # range -5V +5V
-user_attributes.Amp_PP = 4.0      #range 1e-3 to +10V
-user_attributes.channel = [1,2] # channels can be 1 or 2 as specified by the AWG
-
+user_attributes.nSamples = int(10e3)  # number of samples
+user_attributes.SampleRate = [250e6, 250e6] # not more than 250e6
+user_attributes.Offset = [0.0, 0.0]     # range -5V +5V
+user_attributes.Amp_PP = [4.0, 4.0]       #range 1e-3 to +10V
+user_attributes.channel = [1, 2] # channels can be 1 or 2 as specified by the AWG
 
 # random float samples generated, clipped between -1 and 1 and multiplied by 32767 and set type as integer
-array_samples= np.round(np.clip(np.random.randn(1,user_attributes.nSamples),-1.0,1.0)*32767).astype(int)
-samples = array_samples.tolist().pop() # changes array into list -- shape [[x,y,z...]] and pops out one list
+array_samples= np.random.randn(2,user_attributes.nSamples)
+# array_samples= np.round(np.clip(np.random.randn(2,user_attributes.nSamples),-1.0,1.0)*2).astype(int)
+samples = array_samples.tolist()
+# samples = array_samples.tolist().pop() # changes array into list -- shape [[x,y,z...]] and pops out one list
 
 # both channel output, input parameters are used from above, filters can be set to NORM, OFF and STEP according to the manual, only use upper case
 write_samples_AWG33522A(user_attributes, samples,filter_mode ="NORM")
 
-
+elapsed_time_secs = time.time() - start_time
+msg = "Execution took: %s secs (Wall clock time)" % timedelta(seconds=round(elapsed_time_secs))
+print(msg) 
