@@ -10,17 +10,17 @@ def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
     """
     Parameters
     ----------
-    channels : TYPE, optional
-        DESCRIPTION. The default is (1).
-    address : TYPE, optional
-        DESCRIPTION. The default is '192.168.1.12'.
+    channels : iterable, int, optional
+        iterable containing the channel numbers to fetch data samples from device. The default is (1).
+    address : string, optional
+        IP Adress of device. The default is '192.168.1.12'.
 
     Returns
     -------
-    sample_rate : TYPE
-        DESCRIPTION.
-    wfm : TYPE
-        DESCRIPTION.
+    sample_rate : float
+        actual sample rate of returned samples.
+    wfm : list of numpy arrays, float
+        each list element constains the samples of a requested channel as numpy float array.
 
     """
 
@@ -102,16 +102,17 @@ def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
     return sample_rate, wfm
 
 
-# Function for writing samples to an Agilent/Keysight 33500 Series 30MHz Function/Arbitrary Waveform Generator
-def write_samples_AWG33522A(samples, ip_adress='192.168.1.44', sample_rate=[250e6], offset=[0.0], amp_pp=[1.0], channels=[1], out_filter=['normal']):
+def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250e6], offset=[0.0], amp_pp=[1.0], channels=[1], out_filter=['normal']):
     """
     write_samples_AWG33522A
+    
+    Function for writing samples to an Agilent/Keysight 33500 Series 30MHz Function/Arbitrary Waveform Generator
 
     Parameters
     ----------
     samples : numpy array, n_outputs x n_samples , float
         samples to output, to be scaled between -1 and 1 (values outside this range are clipped).
-    ip_adress : string, optional
+    ip_address : string, optional
         DESCRIPTION. The default is '192.168.1.44'. Currently, only LAN connection is supported.
     sample_rate : list of floats, optional
         sample rate of the individual outputs. The default is [250e6]. Range: 1µSa/s to 250 MSa/s, limited to 62.5 MSa/s if out_filter is OFF.
@@ -155,7 +156,7 @@ def write_samples_AWG33522A(samples, ip_adress='192.168.1.44', sample_rate=[250e
     # create resource 
     rm = visa.ResourceManager('@py')
     # open connection to AWG
-    awg = rm.open_resource('TCPIP::' + ip_adress + '::INSTR')   
+    awg = rm.open_resource('TCPIP::' + ip_address + '::INSTR')   
 
     # selecting byte order , used to make binary data point transfers in the block mode Swapped(LSB) or Normal(MSB)
     # SWAPped byte order,(LSB) of each data point is assumed first. Most computers use the "swapped" byte order.
