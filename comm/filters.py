@@ -196,6 +196,7 @@ def windowed_sinc(samples, fc=0.5, order=111, window=None, domain='freq'):
 def ideal_lp(samples, fc):
     """
     Filter a given signal with an ideal lowpass filter.
+    
     This filter is only implemented in the frequency domain (cyclic convolution)
     and has NO group delay.
     
@@ -208,13 +209,12 @@ def ideal_lp(samples, fc):
     
     Returns
     -------
-    samples_out : 1D numpy array, real or complex
-        filtered output signal.
-    real_fc : float
-        actual applied cut off frequency (matching the frequency grid of the FFT)
-    """
-    
-    
+    results : dict containing following keys
+        samples_out : 1D numpy array, real or complex
+            filtered output signal.
+        real_fc : float
+            actual applied cut off frequency (matching the frequency grid of the FFT)
+    """ 
     # generate ideal frequency response
     f = np.fft.fftfreq(samples.size, d=0.5)
     H = np.zeros_like(samples)
@@ -226,6 +226,11 @@ def ideal_lp(samples, fc):
     h = np.real(np.fft.ifft(H))
     
     # actual filtering
-    samples_out = filter_samples(samples, h, domain='freq') 
+    samples_out = filter_samples(samples, h, domain='freq')
     
-    return samples_out, real_fc
+    # generate results dict
+    results = dict()
+    results['samples_out'] = samples_out
+    results['real_fc'] = real_fc
+    
+    return results
