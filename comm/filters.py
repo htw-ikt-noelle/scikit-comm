@@ -203,7 +203,7 @@ def ideal_lp(samples, fc):
     Parameters
     ----------
     samples : 1D numpy array, real or complex
-        input signal..
+        input signal.
     fc : float, optional
         cut off frequency, 0.0 <= fc <= 1.0, where 1.0 specifies the Nyquist frequency (half the sampling frequency). The default is 0.5.
     
@@ -234,3 +234,45 @@ def ideal_lp(samples, fc):
     results['real_fc'] = real_fc
     
     return results
+
+def time_shift(samples, sample_rate=1.0, tau=0.0):
+    """
+    Add a cyclic time shift to the input signal.
+    
+    A positve time shift tau delays the signal, while a negative 
+    time shift advances it. For time shifts equal to an integer sampling duration, 
+    the signal is simply rolled.
+
+    Parameters
+    ----------
+    samples :  1D numpy array, real or complex
+        input signal.
+    sample_rate : float, optional
+        sample rate of input signal in Hz. The default is 1.0.
+    tau : float, optional
+        time shift in s. The default is 0.0.
+
+    Returns
+    -------
+    samples_out : 1D numpy array, real or complex
+        cyclic time shifted input signal.
+    """    
+    # integer sample shift is simple roll operation
+    if tau%(1/sample_rate) == 0.0:
+        shift = int(tau*sample_rate)
+        samples_out = np.roll(samples, shift)    
+    # fractional sample shift
+    else:    
+        # check, if input is real    
+        isreal = np.alltrue(np.isreal(samples))
+        # frequency vector
+        w = np.fft.fftfreq(np.size(samples, axis=0), d=1/sample_rate) * 2 * np.pi    
+        
+        samples_out = np.fft.ifft(np.fft.fft(samples) * np.exp(-1j * w * tau))
+        
+        if isreal:
+            samples_out = np.real(samples_out)
+    
+    return samples_out
+    
+    

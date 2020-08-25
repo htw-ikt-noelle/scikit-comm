@@ -34,6 +34,15 @@ sig_tx.mapper()
 # upsampling (to 5*50e6 --> 250 MSa/s)  and pulseshaping
 ROLL_OFF = 0.1
 sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=[ROLL_OFF])
+
+# # ##################
+# # sig_tx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
+
+# tau = 0.0/sig_tx.sample_rate[0]
+# # # plt.stem(np.real(sig_rx.samples[0][:10]),markerfmt='C0o')
+# sig_tx.samples[0] = comm.filters.time_shift(sig_tx.samples[0], sig_tx.sample_rate[0], tau)
+# # #########################
+# sig_tx.plot_eye()
 # TODO: compensate for the group delay of RRC filter??
 
 
@@ -43,7 +52,7 @@ sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=[RO
 #comm.visualizer.plot_signal(sig_tx.samples[0], sample_rate=sig_tx.sample_rate[0])
 
 # generate DAC samples (analytical signalg at IF)
-f_IF_nom = 30e6 #30e6
+f_IF_nom = 1*30e6 #30e6
 f_granularity = 1 / sig_tx.samples[0].size * sig_tx.sample_rate[0]
 f_if = round(f_IF_nom / f_granularity) * f_granularity
 print('intermediate frequency: {} MHz'.format(f_if/1e6))
@@ -114,32 +123,36 @@ sr_dsp = sig_tx.symbol_rate[0] * TX_UPSAMPLE_FACTOR
 len_dsp = sr_dsp / sr * np.size(samples)
 if len_dsp % 1:
     raise ValueError('DSP samplerate results in asynchronous sampling of the data symbols')
-samples = ssignal.resample(samples, num=int(len_dsp), window='hamming')
+samples = ssignal.resample(samples, num=int(len_dsp), window=None)
 sr = sr_dsp
 # #comm.visualizer.plot_spectrum(rx_samples, sample_rate=sr)
 
-# IQ-Downmixing and (ideal) lowpass filtering
+# contruct rx signal
+sig_rx = comm.signal.Signal(n_dims=1)
+sig_rx.symbol_rate = sig_tx.symbol_rate
+sig_rx.sample_rate = sr
+
+# IQ-Downmixing and (ideal) lowpass filtering (real signal processing)
 t = np.arange(0, np.size(samples)) / sr
-# t = comm.utils.create_time_axis(sr, np.size(samples))
-# samples_bb = rx_samples *  np.exp(-1j*2*np.pi*(f_if+1e4*0)*t)
+t = comm.utils.create_time_axis(sr, np.size(samples))
 samples_r = samples *  np.cos(2 * np.pi * f_if * t)
 # comm.visualizer.plot_spectrum(samples_r, sample_rate=sr)
 fc = sig_tx.symbol_rate[0] / 2 * (1 + ROLL_OFF) * 1.1 # cuttoff frequency of filter
 fc = fc/(sr/2) # normalization to the sampling frequency
 tmp = comm.filters.ideal_lp(samples_r, fc)
 samples_r = tmp['samples_out']
-#comm.visualizer.plot_spectrum(samples_bb, sample_rate=sr)
+# comm.visualizer.plot_spectrum(samples_r, sample_rate=sr)
 samples_i = samples *  np.sin(2 * np.pi * f_if * t)
 # # comm.visualizer.plot_spectrum(samples_i, sample_rate=sr)
 tmp = comm.filters.ideal_lp(samples_i, fc)
 samples_i = tmp['samples_out']
 # # comm.visualizer.plot_spectrum(samples_i, sample_rate=sr)
-
-# contruct rx signal
-sig_rx = comm.signal.Signal(n_dims=1)
-sig_rx.symbol_rate = sig_tx.symbol_rate
-sig_rx.sample_rate = sr
 sig_rx.samples[0] = samples_r - 1j * samples_i
+
+# IQ-Downmixing (ideal) (complex singal processing)
+# samples_bb = samples *  np.exp(-1j*2*np.pi*(f_if+1e4*0)*t)
+# sig_rx.samples[0] = samples_bb
+
 #sig_rx.plot_spectrum()
 #sig_rx.plot_constellation()
 
@@ -147,9 +160,16 @@ sig_rx.samples[0] = samples_r - 1j * samples_i
 # Rx matched filter
 sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
 # TODO: compensate for the group delay of the filter???
-#sig_rx.plot_eye()
+# sig_rx.plot_eye()
 
 # TODO sample clock phase recovery
+tau = 0/sig_rx.sample_rate[0]
+# plt.stem(np.real(sig_rx.samples[0][:10]),markerfmt='C0o')
+sig_rx.samples[0] = comm.filters.time_shift(sig_rx.samples[0], sig_rx.sample_rate[0], tau)
+# plt.stem(np.real(sig_rx.samples[0][:10]),markerfmt='C1o')
+# plt.show()
+
+sig_rx.plot_eye()
 
 
 
@@ -161,7 +181,6 @@ comm.visualizer.plot_constellation(rx_symbols)
 # comm.visualizer.plot_constellation(rx_symbols)
 # sig_rx.samples[0] = sig_rx.samples[0][START_SAMPLE::int(sps)]
 # sig_rx.plot_constellation()
-
 
 
 ## implementing viterbi-viterbi for phase estimation
@@ -177,10 +196,9 @@ a = 1+r/2-np.sqrt((1+r/2)**2-1) # alpha
 h_Wiener = a*r/(1-a**2) * a**np.arange(N_CPE//2+1) # postive half
 h_Wiener = np.concatenate((np.flip(h_Wiener[1:]), h_Wiener)) # make symmetric
 h_Wiener = h_Wiener / np.sum(h_Wiener) # normalize to unit sum (make unbiased estimator)
-plt.figure(2); plt.stem(np.arange(2*(N_CPE//2)+1)-N_CPE//2,h_Wiener,basefmt='C2-',use_line_collection=True); plt.show();
+# plt.figure(2); plt.stem(np.arange(2*(N_CPE//2)+1)-N_CPE//2,h_Wiener,basefmt='C2-',use_line_collection=True); plt.show();
 phi_est = np.roll(comm.filters.filter_samples(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, h_Wiener, domain='freq'), -N_CPE//2+1)
        
-           
 rx_symbols = rx_symbols * np.exp(-1j*(phi_est + np.pi/4))
 rx_symbols = rx_symbols[1*N_CPE+1:-N_CPE*1] # crop start and end
-comm.visualizer.plot_constellation(rx_symbols)
+# comm.visualizer.plot_constellation(rx_symbols)
