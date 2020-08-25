@@ -1,8 +1,11 @@
 __pycache__
 .vscode
 .ipynb_checkpoints/
+.pylint.d
 docs/build
 public
+.gitignore
+
 
 test_signal_heterodyne.py
 
