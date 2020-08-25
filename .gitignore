@@ -5,8 +5,3 @@ __pycache__
 docs/build
 public
 .gitignore
-
-
-test_signal_heterodyne.py
-
-test_heterodyne_noelle.py
