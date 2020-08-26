@@ -10,9 +10,9 @@ import comm as comm
 
 ###################### Tx ##################################
 # signal parameters
-LASER_LINEWIDTH = 0*100e3 # [Hz]
+LASER_LINEWIDTH = 1*200e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
-EXPERIMENT = False
+EXPERIMENT = True
 UPLOAD_SAMPLES = False
 SNR = 200
 
@@ -169,7 +169,7 @@ sig_rx.samples[0] = comm.filters.time_shift(sig_rx.samples[0], sig_rx.sample_rat
 # plt.stem(np.real(sig_rx.samples[0][:10]),markerfmt='C1o')
 # plt.show()
 
-sig_rx.plot_eye()
+#sig_rx.plot_eye()
 
 
 
@@ -177,7 +177,7 @@ sig_rx.plot_eye()
 START_SAMPLE = TX_UPSAMPLE_FACTOR-2
 sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
 rx_symbols = sig_rx.samples[0][START_SAMPLE::int(sps)]
-comm.visualizer.plot_constellation(rx_symbols)
+#comm.visualizer.plot_constellation(rx_symbols)
 # comm.visualizer.plot_constellation(rx_symbols)
 # sig_rx.samples[0] = sig_rx.samples[0][START_SAMPLE::int(sps)]
 # sig_rx.plot_constellation()
@@ -201,4 +201,4 @@ phi_est = np.roll(comm.filters.filter_samples(np.unwrap(mth_Power*np.angle(rx_sy
        
 rx_symbols = rx_symbols * np.exp(-1j*(phi_est + np.pi/4))
 rx_symbols = rx_symbols[1*N_CPE+1:-N_CPE*1] # crop start and end
-# comm.visualizer.plot_constellation(rx_symbols)
+comm.visualizer.plot_constellation(rx_symbols)
