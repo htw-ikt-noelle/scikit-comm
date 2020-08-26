@@ -5,6 +5,7 @@ from . import tx
 from . import utils
 from . import channel
 from . import filters
+from . import rx
 
 
 class Signal():
@@ -301,6 +302,28 @@ class Signal():
                                                            symbol_rate=symr,
                                                            roll_off=ro,
                                                            root_raised=rr, **kargs)
+            
+    def sampling_phase_adjustment(self):
+        """
+        Estimate the sampling phase offset and compensate for it.
+        
+        For detailed documentation see comm.rx.sampling_phase_adjustment.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        for i, (s, sr, symr) in enumerate(zip(self.samples,
+                                                      self.sample_rate,
+                                                      self.symbol_rate)):
+            
+            self.samples[i] = rx.sampling_phase_adjustment(samples=s,
+                                                           sample_rate=sr,
+                                                           symbol_rate=symr)['samples_out']
+        
+        
 
 
     def generate_constellation(self, format='QAM', order=4):
