@@ -2,6 +2,8 @@ import time
 import numpy as np
 import scipy.signal as ssignal
 import matplotlib.pyplot as plt
+import sys
+sys.path.append("..\\comm")
 import comm as comm
 #from scipy.signal.signaltools import wiener as wiener
 
@@ -35,13 +37,6 @@ sig_tx.mapper()
 ROLL_OFF = 0.1
 sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=[ROLL_OFF])
 
-# # ##################
-# # sig_tx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
-
-# tau = 0.0/sig_tx.sample_rate[0]
-# # # plt.stem(np.real(sig_rx.samples[0][:10]),markerfmt='C0o')
-# sig_tx.samples[0] = comm.filters.time_shift(sig_tx.samples[0], sig_tx.sample_rate[0], tau)
-# # #########################
 # sig_tx.plot_eye()
 # TODO: compensate for the group delay of RRC filter??
 
@@ -162,19 +157,17 @@ sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True)
 # TODO: compensate for the group delay of the filter???
 # sig_rx.plot_eye()
 
-# TODO sample clock phase recovery
-tau = 0/sig_rx.sample_rate[0]
-# plt.stem(np.real(sig_rx.samples[0][:10]),markerfmt='C0o')
-sig_rx.samples[0] = comm.filters.time_shift(sig_rx.samples[0], sig_rx.sample_rate[0], tau)
-# plt.stem(np.real(sig_rx.samples[0][:10]),markerfmt='C1o')
-# plt.show()
-
-sig_rx.plot_eye()
 
 
+# sampling phase adjustment
+# results = comm.rx.sampling_phase_adjustment(sig_rx.samples[0], sample_rate=sig_rx.sample_rate[0], symbol_rate=sig_rx.symbol_rate[0])
+# sig_rx.samples[0] = results['samples_out']
+# sig_rx.plot_eye()
+sig_rx.sampling_phase_adjustment()
+# sig_rx.plot_eye()
 
 # sampling
-START_SAMPLE = TX_UPSAMPLE_FACTOR-2
+START_SAMPLE = 0
 sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
 rx_symbols = sig_rx.samples[0][START_SAMPLE::int(sps)]
 comm.visualizer.plot_constellation(rx_symbols)

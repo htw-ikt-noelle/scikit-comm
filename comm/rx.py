@@ -2,6 +2,8 @@ import numpy as np
 import scipy.signal as signal
 import matplotlib.pyplot as plt
 from . import utils
+from . import filters
+from . import visualizer
 
 
 def demapper(samples, constellation):
@@ -93,3 +95,98 @@ def count_errors(bits_tx, bits_rx):
     ber = np.sum(err_idx, axis=-1) / bits_tx.shape[-1]
 
     return ber, err_idx
+
+
+
+def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0):
+    """
+    Estimate the sampling phase offset and compensate for it.
+    
+    The sampling phase offset is estimated by finding the phase of the oszillation
+    with the frequency of the symbol rate in the signal abs(samples)**2. This offset
+    is compensated for by a temporal cyclic shift of the input signal.
+    
+    To contain this frequency component, the signal has to be sampled at least 
+    with a rate of three times the symbol rate. If the input signal is sampled
+    with lower frequency, the signal is temporally upsampled.
+    
+    Literature: see ???
+
+    Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        input signal.        
+    sample_rate : float, optional
+        sample rate of input signal in Hz. The default is 1.0.
+    symbol_rate : float, optional
+        symbol rate of input signal in Hz. The default is 2.0.
+
+    Raises
+    ------
+    ValueError
+        DESCRIPTION.
+
+    Returns
+    -------
+    results : dict containing following keys
+        samples_out : 1D numpy array, real or complex
+            cyclic shifted output signal.
+        est_shift : float
+            estimated (and inversely applied) temporal shift.
+
+    """
+    
+    # do all dsp on a copy of the samples
+    samples_tmp = samples
+    # sample rate of dsp (must be at least 3 time symbol rate)
+    sr_dsp = sample_rate
+    
+    # if signal has less than three samples per symbol --> oszillation with
+    # symbol rate not present in spectrum of abs(signal)
+    if sample_rate < (3 * symbol_rate):
+        # upsample to 3 samples per symol
+        sr_dsp = symbol_rate * 3
+        # watch out, that this is really an integer
+        len_dsp = sr_dsp / sample_rate * np.size(samples, axis=0)
+        if len_dsp % 1:
+            raise ValueError('DSP samplerate results in asynchronous sampling of the data symbols')
+        samples_tmp = signal.resample(samples_tmp, num=int(len_dsp), window=None)    
+    
+    # calc length of vector so that spectrum exactly includes the symbol rate
+    tmp = np.floor(symbol_rate * np.size(samples_tmp, axis=0) / sr_dsp)
+    n_sam = int(tmp / symbol_rate * sr_dsp)
+    
+    # cut vector to size and take amplitude square
+    samples_tmp = np.abs(samples_tmp[:n_sam])**2
+    
+    # calc phase of frequency component with frequency equal to the symbol rate
+    t_tmp = np.arange(n_sam) / sr_dsp
+    est_phase = np.angle(np.sum(samples_tmp * np.exp(1j * 2 * np.pi * symbol_rate * t_tmp)))
+    est_shift = est_phase / 2 / np.pi / symbol_rate
+    
+    # # for debugging purpose
+    # visualizer.plot_eye(samples, sample_rate=sample_rate, bit_rate=symbol_rate)
+    
+    # compensate for found sample phase offset
+    samples_out = filters.time_shift(samples, sample_rate, -est_shift)
+    
+    # # for debugging purpose
+    # visualizer.plot_eye(samples_out, sample_rate=sample_rate, bit_rate=symbol_rate)
+    
+    # generate results dict
+    results = dict()
+    results['samples_out'] = samples_out
+    results['est_shift'] = est_shift
+    
+    return results
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
