@@ -98,7 +98,7 @@ def count_errors(bits_tx, bits_rx):
 
 
 
-def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0):
+def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, shift_dir='both'):
     """
     Estimate the sampling phase offset and compensate for it.
     
@@ -156,22 +156,35 @@ def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0):
     tmp = np.floor(symbol_rate * np.size(samples_tmp, axis=0) / sr_dsp)
     n_sam = int(tmp / symbol_rate * sr_dsp)
     
+    
     # cut vector to size and take amplitude square
     samples_tmp = np.abs(samples_tmp[:n_sam])**2
     
     # calc phase of frequency component with frequency equal to the symbol rate
     t_tmp = np.arange(n_sam) / sr_dsp
     est_phase = np.angle(np.sum(samples_tmp * np.exp(1j * 2 * np.pi * symbol_rate * t_tmp)))
+    
+    # ensure to only advance the signal (shift to the left)
+    if (shift_dir == 'advance') and (est_phase < 0.0):
+        est_phase += 2 * np.pi        
+    
+    # ensture to only delay the singal (shift to the right)
+    if (shift_dir == 'delay') and (est_phase > 0.0):
+        est_phase -= 2 * np.pi        
+    
     est_shift = est_phase / 2 / np.pi / symbol_rate
     
     # # for debugging purpose
+    # sps = int(sample_rate / symbol_rate)
     # visualizer.plot_eye(samples, sample_rate=sample_rate, bit_rate=symbol_rate)
+    # plt.plot(np.abs(samples[:10*sps]), 'C0')
     
     # compensate for found sample phase offset
     samples_out = filters.time_shift(samples, sample_rate, -est_shift)
     
     # # for debugging purpose
     # visualizer.plot_eye(samples_out, sample_rate=sample_rate, bit_rate=symbol_rate)
+    # plt.plot(np.abs(samples[:10*sps]), 'C1')
     
     # generate results dict
     results = dict()

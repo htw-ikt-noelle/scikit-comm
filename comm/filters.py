@@ -239,8 +239,8 @@ def time_shift(samples, sample_rate=1.0, tau=0.0):
     """
     Add a cyclic time shift to the input signal.
     
-    A positve time shift tau delays the signal, while a negative 
-    time shift advances it. For time shifts equal to an integer sampling duration, 
+    A positve time shift tau delays (right shifts) the signal, while a negative 
+    time shift advances (left shifts) it. For time shifts equal to an integer sampling duration, 
     the signal is simply rolled.
 
     Parameters
@@ -257,6 +257,7 @@ def time_shift(samples, sample_rate=1.0, tau=0.0):
     samples_out : 1D numpy array, real or complex
         cyclic time shifted input signal.
     """    
+       
     # integer sample shift is simple roll operation
     if tau%(1/sample_rate) == 0.0:
         shift = int(tau*sample_rate)
@@ -272,6 +273,10 @@ def time_shift(samples, sample_rate=1.0, tau=0.0):
         
         if isreal:
             samples_out = np.real(samples_out)
+            
+    # # for debugging purpose
+    # plt.plot(np.abs(samples[:100]), 'C0')
+    # plt.plot(np.abs(samples_out[:100]), 'C1')
     
     return samples_out
     
