@@ -201,6 +201,127 @@ def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, shift_d
     results['est_shift'] = est_shift
     
     return results
+
+def sampling_clock_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, block_size=500):
+    """
+    Estimate sampling frequency offset and correct for it.
+    
+    This function estimates the sampling frequency offset between nominal (given) 
+    and actual (sample rate of samples) sampling frequency and corrects for the
+    found value.
+    This is done by splitting the singal into blocks of block_size SYMBOLS and 
+    estimating the sampling time offset for each of the blocks (see comm.rx.sampling_phase_adjustment).
+    Then, the sampling time offest is corrected for by cyclic time shift of the individual blocks.
+    Longer block sizes enhance the accuracy of the time offset estimatin, but cause the sampling
+    clock offset to be larger within one block.
+    CAUTION: method will fail for large sampling clock (frequency) offsets and if the sampling frequency
+    offset leads to a timing error larger than +- 1/symbol_rate over the whole samples.
+    
+
+    Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        input signal.        
+    sample_rate : float, optional
+        sample rate of input signal in Hz. The default is 1.0.
+    symbol_rate : float, optional
+        symbol rate of input signal in Hz. The default is 2.0.
+    block_size : int, optional
+        signal is split into blocks of block_size SYMBOLS. The default is 500.
+
+    Returns
+    -------
+    results : dict containing following keys
+        samples_out : 1D numpy array, real or complex
+            output signal.
+        est_shift : float or 1D numpy array of floats
+            estimated (and inversely applied) temporal shift per block.
+
+    """
+    
+    # if only one block is questioned -> do only time shift
+    if block_size == -1:
+        results = sampling_phase_adjustment(samples, sample_rate=sample_rate,
+                                                         symbol_rate=symbol_rate, 
+                                                         shift_dir='both')
+        return results
+    # otherwise, do time shift for every block
+    else:
+        n_samples = np.size(samples, axis=0)    
+        sps = np.int(sample_rate / symbol_rate)
+        s_per_block = block_size * sps    
+        
+        # cut signal, to an integer number of blocks and create array
+        n_samples_new = int(np.floor(n_samples / s_per_block) * s_per_block)
+        samples_array = np.reshape(samples[:n_samples_new], (-1, s_per_block))
+        
+        tmp = list()
+        # run sampling_phase_adjustment once per block
+        for idx, block in enumerate(samples_array):
+            tmp.append(sampling_phase_adjustment(block, sample_rate=sample_rate,
+                                                             symbol_rate=symbol_rate, 
+                                                             shift_dir='both'))
+        
+    # generate output dict containing samples and estimated time shifts per block
+    results = dict()
+    results['samples_out'] = np.asarray([block['samples_out'] for block in tmp]).reshape(-1)
+    results['est_shift'] = np.asarray([block['est_shift'] for block in tmp])
+    return results
+
+
+
+    ########### MULTIPLE, DIFFERENT METHODS TO COMPENSATE SAMPLING CLOCK OFFSETS (have to be tested) ######################
+    """
+    These could be used instead of the above implemented method (within the "else" branch)
+    
+    METHOD 1: "sample dropping", prabably better for real time implementation, but not better in first tests
+    
+        n_blocks = np.size(samples_array, axis=0)        
+        correction  = 0
+        tmp = list()
+        # run sampling_phase_adjustment multiple times
+        for block in np.arange(n_blocks):
+            # shift estimation, "dry run"
+            samples_tmp = samples[block*s_per_block + correction:block*s_per_block + s_per_block + correction]
+            tmp = sampling_phase_adjustment(samples_tmp, sample_rate=sample_rate, symbol_rate=symbol_rate, shift_dir='advance')
+            # "sample dropping"
+            correction += int(tmp['est_shift']//(1/sample_rate))
+            # actual phase adjustemnt
+            samples_block = samples[block*s_per_block + correction:block*s_per_block + s_per_block + correction]
+            tmp.append(sampling_phase_adjustment(samples_block, sample_rate=sample_rate, symbol_rate=symbol_rate, shift_dir='advance'))
+            
+            
+    MATHOD 2: estimate slope of sampling clock offset over blocks and do resampling (only works in case of almost constant sampling frequency missmatch)
+        
+        tmp = list()
+        # run sampling_phase_adjustment multiple times, once for every block
+        for idx, block in enumerate(samples_array):
+            tmp.append(sampling_phase_adjustment(block, sample_rate=sample_rate, symbol_rate=symbol_rate, shift_dir='both'))
+            # print(results[-1]['est_shift'])
+        # generate shifts as ndarrays    
+        shifts = np.asarray([block['est_shift'] for block in tmp])
+        # do unwrap of shifts (has to be converted in rad???), and shifts have to be fftshifted, because of current filter implementation...can be changed in the future???
+        shifts = np.unwrap(np.fft.fftshift(shifts) / (0.5/symbol_rate) * 2 * np.pi) * (0.5/symbol_rate) / 2 / np.pi
+        # estimate mean sample time offset per block
+        sample_time_offset = np.mean(np.diff(shifts))
+        
+        t_block = s_per_block / sample_rate
+        # ratio between nominal and actual sampling frequency
+        ratio = t_block / (t_block + sample_time_offset)
+        
+        t_old = np.arange(n_samples) / sample_rate
+        # interpolate signal at different timing / sampling instants, but keep start and end time the same
+        n_samples_new = int(np.round(ratio * n_samples))
+        t_new = np.linspace(start=t_old[0], stop=t_old[-1], num=n_samples_new, endpoint=True)        
+        f = sinterp.interp1d(t_old, samples, kind='cubic')
+        samples = f(t_new)
+        
+        # do clock phase adjumstemnt once after resampling        
+        results = sampling_phase_adjustment(samples, sample_rate=sample_rate, symbol_rate=symbol_rate, shift_dir='both')
+    """
+    #####################################################################################
+    
+    
     
     
     

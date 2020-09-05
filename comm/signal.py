@@ -322,6 +322,28 @@ class Signal():
             self.samples[i] = rx.sampling_phase_adjustment(samples=s,
                                                            sample_rate=sr,
                                                            symbol_rate=symr)['samples_out']
+            
+    def sampling_clock_adjustment(self, block_size=500):
+        """
+        Estimate the sampling clock offset and compensate for it.
+        
+        For detailed documentation see comm.rx.sampling_clock_adjustment.
+
+        Returns
+        -------
+        None.
+
+        """
+        block_size = self._check_attribute(block_size)
+        
+        for i, (s, sr, symr, bs) in enumerate(zip(self.samples,
+                                                      self.sample_rate,
+                                                      self.symbol_rate, block_size)):
+            
+            self.samples[i] = rx.sampling_clock_adjustment(samples=s,
+                                                           sample_rate=sr,
+                                                           symbol_rate=symr,
+                                                           block_size=bs)['samples_out']
         
         
 

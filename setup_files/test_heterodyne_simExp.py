@@ -8,22 +8,23 @@ import comm as comm
 
 
 
-
+############################################################
 ###################### Tx ##################################
+############################################################
+
 # signal parameters
 LASER_LINEWIDTH = 0*200e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
-EXPERIMENT = True
+EXPERIMENT = False
 UPLOAD_SAMPLES = False
 SNR = 200
-
 
 # contruct signal
 sig_tx = comm.signal.Signal(n_dims=1)
 sig_tx.symbol_rate = 50e6 #50e6
 
 # generate bits
-sig_tx.generate_bits(n_bits=2**12)
+sig_tx.generate_bits(n_bits=2**14)
 
 # set constellation (modualtion format)
 sig_tx.generate_constellation(order=4)
@@ -32,13 +33,12 @@ sig_tx.modulation_info = 'QPSK'
 # create symbols
 sig_tx.mapper()
 
-# upsampling (to 5*50e6 --> 250 MSa/s)  and pulseshaping
+# upsampling and pulseshaping
 ROLL_OFF = 0.1
 sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=[ROLL_OFF])
 
 # sig_tx.plot_eye()
 # TODO: compensate for the group delay of RRC filter??
-
 
 # plot for checks
 # sig_tx.plot_constellation(0)
@@ -51,7 +51,6 @@ f_granularity = 1 / sig_tx.samples[0].size * sig_tx.sample_rate[0]
 f_if = round(f_IF_nom / f_granularity) * f_granularity
 print('intermediate frequency: {} MHz'.format(f_if/1e6))
 t = np.arange(0, np.size(sig_tx.samples[0])) / sig_tx.sample_rate
-# t = comm.utils.create_time_axis(sig_tx.sample_rate, np.size(sig_tx.samples[0]))
 
 # sig_tx.plot_spectrum(0)
 # upmixing to IF
@@ -64,7 +63,7 @@ sig_tx.center_frequency = f_if
 
 # sig_tx.plot_spectrum(0)
 
-# format samples so that driver can handle them (range: +-32768, integer, list)
+# format samples so that driver can handle them (range +-1)
 maxVal = np.max(np.abs(np.concatenate((np.real(sig_tx.samples), np.imag(sig_tx.samples)))))
 samples = np.asarray(sig_tx.samples) / maxVal
 samples = np.concatenate((np.real(samples), np.imag(samples)))
@@ -72,6 +71,7 @@ samples = np.concatenate((np.real(samples), np.imag(samples)))
 
 ############################################################################
 ################## Link ####################################################
+############################################################################
 
 ##################### Experiment ###########################################
 if EXPERIMENT:
@@ -101,7 +101,7 @@ else:
     # plt.figure(1); plt.plot(phaseAcc); plt.show()
     
     # add artificial sample clock error
-    ratio = 1.0000 # ratio of sampling frequency missmatch     
+    ratio = 1.001 # ratio of sampling frequency missmatch     
     n_old = np.size(samples, axis=0)
     t_old = np.arange(n_old) / sr
     n_new = int(np.round(ratio * n_old))
@@ -118,13 +118,14 @@ else:
 
 #############################################################################
 ######################## Rx #################################################
-
+#############################################################################
 
 #comm.visualizer.plot_spectrum(rx_samples, sample_rate=sr_rx)
 # # comm.visualizer.plot_signal(samples, sample_rate=sr)
 
-# resampling to N x symbolrate
+# resampling to the same sample rate as at the transmitter
 sr_dsp = sig_tx.symbol_rate[0] * TX_UPSAMPLE_FACTOR
+
 # # watch out, that this is really an integer, otherwise the samplerate is asynchronous with the data afterwards!!!
 len_dsp = sr_dsp / sr * np.size(samples)
 if len_dsp % 1:
@@ -133,12 +134,13 @@ samples = ssignal.resample(samples, num=int(len_dsp), window=None)
 sr = sr_dsp
 # #comm.visualizer.plot_spectrum(rx_samples, sample_rate=sr)
 
-# contruct rx signal
+# contruct rx signal structure
 sig_rx = comm.signal.Signal(n_dims=1)
 sig_rx.symbol_rate = sig_tx.symbol_rate
 sig_rx.sample_rate = sr
 
-# IQ-Downmixing and (ideal) lowpass filtering (real signal processing)
+# IQ-Downmixing and (ideal) lowpass filtering
+# ...either real signal processing
 t = np.arange(0, np.size(samples)) / sr
 t = comm.utils.create_time_axis(sr, np.size(samples))
 samples_r = samples *  np.cos(2 * np.pi * f_if * t)
@@ -155,129 +157,30 @@ samples_i = tmp['samples_out']
 # # comm.visualizer.plot_spectrum(samples_i, sample_rate=sr)
 sig_rx.samples[0] = samples_r - 1j * samples_i
 
-# IQ-Downmixing (ideal) (complex singal processing)
+# ... OR complex singal processing
 # samples_bb = samples *  np.exp(-1j*2*np.pi*(f_if+1e4*0)*t)
 # sig_rx.samples[0] = samples_bb
 
 #sig_rx.plot_spectrum()
 #sig_rx.plot_constellation()
 
-# "standard" coherent complex baseband signal processing
+############# From here: "standard" coherent complex baseband signal processing ############
 # Rx matched filter
 sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
 # TODO: compensate for the group delay of the filter???
 # sig_rx.plot_eye()
 
-
-# # sampling phase adjustment
-# # results = comm.rx.sampling_phase_adjustment(sig_rx.samples[0], sample_rate=sig_rx.sample_rate[0], symbol_rate=sig_rx.symbol_rate[0])
-# # sig_rx.samples[0] = results['samples_out']
-# # sig_rx.plot_eye()
-# sig_rx.sampling_phase_adjustment()
-# # sig_rx.plot_eye()
-
-
-
-
-############################################################
-# sampling adjustment
-BLOCK_SIZE = 500 # size of one block in SYMBOLS... -1 for only one block
-samples = sig_rx.samples[0]
-
-# artificial time shift
-# samples = comm.filters.time_shift(samples, sample_rate=sig_rx.sample_rate[0],tau=-0.45e-9 + 8.0e-9)
-
-if BLOCK_SIZE == -1:
-    # plt.plot(np.abs(samples[:100]), 'C0')
-    # sampling phase adjustment (once per simulation) --> timing recovery
-    results = comm.rx.sampling_phase_adjustment(samples, sample_rate=sr, symbol_rate=sig_tx.symbol_rate[0], shift_dir='advance')
-    samples = results['samples_out']
-    shift = results['est_shift']
-    # plt.plot(np.abs(samples[:100]), 'C1')
-    # print(shift)
-else:
-    # sampling clock adjustment (multiple times per simulation, multiple blocks)
-    # --> crude sampling frequency offset correction
-    # cut down to multiple of block size
-    n = np.size(samples, axis=0)
-    sps = np.int(sr / sig_tx.symbol_rate[0])    
-    results = list()
-    
-    # ############# NEW, sample dropping, not really better #############    
-    # n_blocks = np.size(samples_array, axis=0)
-    # s_per_block = BLOCK_SIZE * sps
-    # correction  = 0
-    # # run sampling_phase_adjustment multiple times
-    # for block in np.arange(n_blocks):
-    #     # shift estimation
-    #     samples_tmp = samples[block*s_per_block + correction:block*s_per_block + s_per_block + correction]
-    #     tmp = comm.rx.sampling_phase_adjustment(samples_tmp, sample_rate=sig_rx.sample_rate[0], symbol_rate=sig_rx.symbol_rate[0], shift_dir='advance')
-    #     # print(tmp['est_shift'])
-    #     # sample dropping
-    #     correction += int(tmp['est_shift']//(1/sig_rx.sample_rate[0]))
-    #     # actual phase adjustemnt
-    #     samples_block = samples[block*s_per_block + correction:block*s_per_block + s_per_block + correction]
-    #     results.append(comm.rx.sampling_phase_adjustment(samples_block, sample_rate=sig_rx.sample_rate[0], symbol_rate=sig_rx.symbol_rate[0], shift_dir='advance'))
-    #     # print(correction)
-    # #####################################################################
-                
-    
-    
-    ################# OLD, cyclic block shift, works for small sampling offsets and smaller than one UI offset over ALL samples  ############
-    n_new = int(np.floor(n / BLOCK_SIZE / sps) * BLOCK_SIZE * sps)
-    samples_array = np.reshape(samples[:n_new], (-1, BLOCK_SIZE * sps))
-    # run sampling_phase_adjustment multiple times
-    for idx, samples in enumerate(samples_array):
-        results.append(comm.rx.sampling_phase_adjustment(samples, sample_rate=sr, symbol_rate=sig_tx.symbol_rate[0], shift_dir='advance'))
-        # print(results[-1]['est_shift'])
-    # generate output samples and shifts as ndarrays
-    samples = np.asarray([result['samples_out'] for result in results]).reshape(-1)
-    shifts = [result['est_shift'] for result in results]
-    # plt.stem(np.asarray(shifts[:]),use_line_collection=True), plt.show()
-    ##############################################################################
-    
-    
-    
-    # ####### NEWEST, estimate slope of sampling clock offset over block and do resampling ############
-    # n_new = int(np.floor(n / BLOCK_SIZE / sps) * BLOCK_SIZE * sps)
-    # samples_array = np.reshape(samples[:n_new], (-1, BLOCK_SIZE * sps))
-    # # run sampling_phase_adjustment multiple times
-    # for idx, samples_tmp in enumerate(samples_array):
-    #     results.append(comm.rx.sampling_phase_adjustment(samples_tmp, sample_rate=sr, symbol_rate=sig_tx.symbol_rate[0], shift_dir='both'))
-    #     # print(results[-1]['est_shift'])
-    # # generate output samples and shifts as ndarrays    
-    # shifts = np.asarray([result['est_shift'] for result in results])
-    # shifts = np.unwrap(np.fft.fftshift(shifts) / 1e-8 * 2 * np.pi) * 1e-8 / 2 / np.pi
-    # sample_time_offset = np.mean(np.diff(shifts))
-    
-    # t_block = BLOCK_SIZE * sps / sr
-    # ratio = t_block/(t_block+sample_time_offset)
-    
-    # n_old = np.size(samples, axis=0)
-    # t_old = np.arange(n_old) / sr
-    # n_new = int(np.round(ratio * n_old))
-    # t_new = np.linspace(start=t_old[0], stop=t_old[-1], num=n_new, endpoint=True)
-    # # interpolate signal at different timing / sampling instants
-    # f = sinterp.interp1d(t_old, samples, kind='cubic')
-    # samples = f(t_new)
-    
-    # results = comm.rx.sampling_phase_adjustment(samples, sample_rate=sr, symbol_rate=sig_tx.symbol_rate[0], shift_dir='both')
-    # samples = results['samples_out']
-    
-    
-    # tmp = 0
-    # ########################################################################################
-    
-    
-    
-
-sig_rx.samples[0] = samples
-
-
-
-
-##########################################################
-
+# sampling phase / clock adjustment
+BLOCK_SIZE = 80 # size of one block in SYMBOLS... -1 for only one block
+sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
+# samples = sig_rx.samples[0]
+# results = comm.rx.sampling_clock_adjustment(samples, sample_rate=sr, 
+#                                             symbol_rate=sig_tx.symbol_rate[0], 
+#                                             block_size=BLOCK_SIZE)
+# samples = results['samples_out']
+# shifts = results['est_shift']
+# # plt.stem(shifts),plt.show()
+# sig_rx.samples[0] = samples
 
 # sampling
 START_SAMPLE = 0
@@ -288,13 +191,13 @@ rx_symbols = sig_rx.samples[0][START_SAMPLE::int(sps)]
 # sig_rx.samples[0] = sig_rx.samples[0][START_SAMPLE::int(sps)]
 # sig_rx.plot_constellation()
 
-
 ## implementing viterbi-viterbi for phase estimation
+# TODO: put into individual funtion
 N_CPE = 21 # must be an odd number for Wiener filter
-  # number of CPE_taps
+ 
+# number of CPE_taps
 mth_Power = 4 # 4=QAM&QPSK, 2=BPSK,...
 phi_est = np.roll(comm.filters.moving_average(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, N_CPE, domain='freq'), -N_CPE//2)
-
 
 ## Wiener filter (see Ip2007, Acuna2013)
 r = .3 # r = sigma²_phi / sigma²_ampl;  r>0; r is the ratio between the magnitude of the phase noise variance sigma²_phi and the additive noise variance sigma²
@@ -307,4 +210,5 @@ phi_est = np.roll(comm.filters.filter_samples(np.unwrap(mth_Power*np.angle(rx_sy
        
 rx_symbols = rx_symbols * np.exp(-1j*(phi_est + np.pi/4))
 rx_symbols = rx_symbols[1*N_CPE+1:-N_CPE*1] # crop start and end
+
 comm.visualizer.plot_constellation(rx_symbols)
