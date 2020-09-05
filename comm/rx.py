@@ -120,6 +120,15 @@ def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, shift_d
         sample rate of input signal in Hz. The default is 1.0.
     symbol_rate : float, optional
         symbol rate of input signal in Hz. The default is 2.0.
+    shift_dir : string, optional
+        defines the bahaviour of the compensation of the found temporal shift. Can be 
+        either 'delay', 'advance' or 'both'. 
+        'delay' / 'advance' will only compensate for the time shift by exclusively 
+        shifting the signal to the right / left. This means that the time shift 
+        can be in the range between [-1/symbol_rate, 0] or [0, 1/symbol_rate], respectively. 
+        The option 'both' will shift the signal either to the left or to the 
+        right, depending on the minimum amount of time shift. The time shift will 
+        therefore be in the range between [-0.5/symbol_rate, 0.5/symbol_rate].
 
     Raises
     ------
