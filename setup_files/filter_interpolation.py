@@ -44,12 +44,17 @@ def filter_arbitrary(samples,FILTER,sample_rate=1.0):
     # check if FILTER has two or three columns
     
     if isinstance(FILTER,np.ndarray):
-        if FILTER[0].shape == (2,):
+    
+        if FILTER[0].shape == (3,):
                 FILTER = FILTER
-        if FILTER[0].shape == (3,0):
-            FILTER[:,2] = 0 # set phase values to zeros                 
-    else:
-        raise ValueError('FILTER must be a NX2 or NX3 numpy array') 
+        if FILTER[0].shape == (2,):
+            #FILTER = np.append(FILTER, np.zeros((FILTER.shape[0], 1), dtype=FILTER.dtype), axis=1)
+            FILTER = np.column_stack((FILTER, np.zeros((FILTER.shape[0], 1), float)))  # add the third column with phase in it 
+                    
+else:
+    raise ValueError('FILTER must be a NX2 or NX3 numpy array')
+        
+    
         
     ###### Sort the data in which the frequency is in ascending order
     u,udx = np.unique(FILTER[:,0],return_index=True) # unique ascending frequencies

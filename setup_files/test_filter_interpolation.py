@@ -21,18 +21,22 @@ Fs = 1e3 # sample rate
 
 ##### Data feed
 # N x 3 Array with frequency in Hz, Magnitude in dB and Phase in degreee
-FILTER = np.array(([[72, -300 ,25],[110, 2 ,25],[50, 6 ,25],[75, 2 ,25],[85, 2 ,25],[130, 2 ,25],[10, 4, 23],[110, 6,55],[150,7,78],[200,5,47],[280,3,47],[220,5,47],[380,5,47]]),dtype='float')
+#FILTER = np.array(([[72, -300 ,25],[110, 2 ,25],[50, 6 ,25],[75, 2 ,25],[85, 2 ,25],[130, 2 ,25],[10, 4, 23],[110, 6,55],[150,7,78],[200,5,47],[280,3,47],[220,5,47],[380,5,47]]),dtype='float')
 #FILTER = np.random.randint(30, size=(10, 3)) # random integeras of shape Nx3
+FILTER = np.array([[2,3],[3,2],[4,5]])
 
 # check if FILTER has two or three columns
     
-# if isinstance(FILTER,np.ndarray):
-#     if FILTER[0].shape == (2,):
-#             FILTER = FILTER[::] 
-#     if FILTER[0].shape == (3,):
-#         FILTER[:,2] = 0 # set phase values to zeros                
-# else:
-#     raise ValueError('FILTER must be FILTER NX2 or NX3 numpy array')
+if isinstance(FILTER,np.ndarray):
+    
+    if FILTER[0].shape == (3,):
+            FILTER = FILTER
+    if FILTER[0].shape == (2,):
+        #FILTER = np.append(FILTER, np.zeros((FILTER.shape[0], 1), dtype=FILTER.dtype), axis=1)
+        FILTER = np.column_stack((FILTER, np.zeros((FILTER.shape[0], 1), float)))
+                    
+else:
+    raise ValueError('FILTER must be a NX2 or NX3 numpy array')
 
 ###### Sort the data in which the frequency is in ascending order
 u,udx = np.unique(FILTER[:,0],return_index=True) # unique ascending frequencies
@@ -44,6 +48,7 @@ f_Hz = FILTER_sorted[:,0] # freq axis from the table
 FILTER_sorted[:,1] = 10**(FILTER_sorted[:,1]/20)  # Magnitude dB into linear
 #mag_lin= 10**(FILTER_sorted[:,1]/10) 
 #FILTER_sorted[:,2] = np.radians(FILTER_sorted[:,2])  # phase angle from degree to radian
+
 FILTER_sorted[:,2] = np.pi/180 *FILTER_sorted[:,2]
 #phase_rad = np.pi/180 *FILTER_sorted[:,2]
 
@@ -86,7 +91,7 @@ f_ph_ip = f_ph(f_sig) # with phase
 X_f = np.fft.fft(samples) 
 
 #plt.plot(H[:,0],H[:,1],'o',f_sig,f(f_sig),'b-', f_sig,f1(f_sig),'--')
-plt.plot(H[:,0],H[:,1],'ro',f_sig,f_mag(f_sig),'b-x'),f_sig,f_ph_ip,'k*',plt.xlim((-500,500))
+plt.plot(H[:,0],H[:,1],'ro',f_sig,f_mag(f_sig),'b-x'),plt.xlim((-500,500))
 plt.show()
 
 #Calculates Transfer function H(f) and Inverse FFTSHIFT(!!!Important)
