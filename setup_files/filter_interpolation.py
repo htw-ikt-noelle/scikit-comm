@@ -9,8 +9,8 @@ This program shows implementation of real filter in order to filter the incoming
 """
 
 import numpy as np
-import sys
-sys.path.append("..\\comm")
+# import sys
+# sys.path.append("..\\comm")
 import comm as comm
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
@@ -51,8 +51,8 @@ def filter_arbitrary(samples,FILTER,sample_rate=1.0):
             #FILTER = np.append(FILTER, np.zeros((FILTER.shape[0], 1), dtype=FILTER.dtype), axis=1)
             FILTER = np.column_stack((FILTER, np.zeros((FILTER.shape[0], 1), float)))  # add the third column with phase in it 
                     
-else:
-    raise ValueError('FILTER must be a NX2 or NX3 numpy array')
+    else:
+        raise ValueError('FILTER must be a NX2 or NX3 numpy array')
         
     
         
@@ -118,10 +118,3 @@ else:
         samples_out = np.real(samples_out)
     
     return samples_out
-
-
-samples = np.arange(0,150,1)
-FILTER = np.random.randint(500, size=(20, 3)) 
-samples_out = filter_arbitrary(samples,FILTER,sample_rate=1.0)
-comm.visualizer.plot_signal(samples)
-comm.visualizer.plot_signal(samples_out)
