@@ -308,12 +308,13 @@ def filter_arbitrary(samples,FILTER,sample_rate=1.0):
     
         if FILTER[0].shape == (3,):
                 FILTER = FILTER
-        if FILTER[0].shape == (2,):
+        elif FILTER[0].shape == (2,):
             #FILTER = np.append(FILTER, np.zeros((FILTER.shape[0], 1), dtype=FILTER.dtype), axis=1)
-            FILTER = np.column_stack((FILTER, np.zeros((FILTER.shape[0], 1), float)))  # add the third column with phase in it 
-                    
-    else:
-        raise ValueError('FILTER must be a NX2 or NX3 numpy array')
+            FILTER = np.column_stack((FILTER, np.zeros((FILTER.shape[0], 1), float)))  # add the third column with phase in it                     
+        else:
+            raise ValueError('FILTER must be a NX2 or NX3 numpy array')
+    else :
+        TypeError('FILTER must be a Numpy ND-array')
         
        
     ###### Sort the data in which the frequency is in ascending order
@@ -345,7 +346,7 @@ def filter_arbitrary(samples,FILTER,sample_rate=1.0):
         H = FILTER_sorted
     
     #phase unwrap 
-    H[:,2] = np.unwrap(H[:,2]) 
+    H[:,2] = np.unwrap(H[:,2])
     
     ### Interpolator for magnitude and phase 
     # f_mag = interp1d(H[:,0],H[:,1],bounds_error=False,fill_value='extrapolate', kind='linear') # magnitude interpolation
