@@ -8,11 +8,9 @@ import comm as comm
 #from scipy.signal.signaltools import wiener as wiener
 
 
-
-
 ###################### Tx ##################################
 # signal parameters
-LASER_LINEWIDTH = 0*200e3 # [Hz]
+LASER_LINEWIDTH = 1*200e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
 EXPERIMENT = False
 UPLOAD_SAMPLES = False
@@ -54,7 +52,7 @@ print('intermediate frequency: {} MHz'.format(f_if/1e6))
 t = np.arange(0, np.size(sig_tx.samples[0])) / sig_tx.sample_rate
 # t = comm.utils.create_time_axis(sig_tx.sample_rate, np.size(sig_tx.samples[0]))
 
-# sig_tx.plot_spectrum(0)
+sig_tx.plot_spectrum(0)
 # upmixing to IF
 sig_tx.samples[0] = sig_tx.samples[0] * np.exp(1j * 2 * np.pi * f_if * t)
 sig_tx.center_frequency = f_if
@@ -169,7 +167,7 @@ sig_rx.sampling_phase_adjustment()
 START_SAMPLE = 0
 sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
 rx_symbols = sig_rx.samples[0][START_SAMPLE::int(sps)]
-#comm.visualizer.plot_constellation(rx_symbols)
+comm.visualizer.plot_constellation(rx_symbols)
 # comm.visualizer.plot_constellation(rx_symbols)
 # sig_rx.samples[0] = sig_rx.samples[0][START_SAMPLE::int(sps)]
 # sig_rx.plot_constellation()
