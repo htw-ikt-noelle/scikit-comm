@@ -286,8 +286,8 @@ def filter_arbitrary(samples,FILTER,sample_rate=1.0):
 
     Parameters
     ----------
-    samples : 1D numpy array, real or complex
-        input signal.
+    samples : 1D numpy array, real or complex input signal.
+        shape = (N,)
     sample_rate : float
         Sample rate of the signal in Hz. The default is 1.0.
     FILTER : 2D numpy array
@@ -301,6 +301,8 @@ def filter_arbitrary(samples,FILTER,sample_rate=1.0):
         filtered output signal.
 
     """
+    # convert Nx1 matrix to vector (see https://stackoverflow.com/questions/39549331/reshape-numpy-n-vector-to-n-1-vector?rq=1)
+    samples = samples.reshape(-1,)
     
     # check if FILTER has two or three columns
     
@@ -315,8 +317,7 @@ def filter_arbitrary(samples,FILTER,sample_rate=1.0):
             raise ValueError('FILTER must be a NX2 or NX3 numpy array')
     else :
         TypeError('FILTER must be a Numpy ND-array')
-        
-       
+           
     ###### Sort the data in which the frequency is in ascending order
     u,udx = np.unique(FILTER[:,0],return_index=True) # unique ascending frequencies
     FILTER_sorted = FILTER[udx,:] # adds sorted and unique 1st row into the array table
@@ -324,7 +325,7 @@ def filter_arbitrary(samples,FILTER,sample_rate=1.0):
     f_Hz = FILTER_sorted[:,0] # freq axis from the table
     
     # fill the FILTER-sorted with mag_lin and phase_rad in the 2nd adn 3rd column
-    FILTER_sorted[:,1] = 10**(FILTER_sorted[:,1]/20)      # Magnitude dB into linear
+    #FILTER_sorted[:,1] = 10**(FILTER_sorted[:,1]/20)      # Magnitude dB into linear
     FILTER_sorted[:,2] = np.pi/180 * FILTER_sorted[:,2]   # phase angle from degree to radian
     
     
@@ -348,6 +349,7 @@ def filter_arbitrary(samples,FILTER,sample_rate=1.0):
     #phase unwrap 
     H[:,2] = np.unwrap(H[:,2])
     
+    
     ### Interpolator for magnitude and phase 
     # f_mag = interp1d(H[:,0],H[:,1],bounds_error=False,fill_value='extrapolate', kind='linear') # magnitude interpolation
     # f_ph = interp1d(H[:,0],H[:,2],bounds_error=False,fill_value='extrapolate', kind='linear') # phase interpolation
@@ -358,7 +360,7 @@ def filter_arbitrary(samples,FILTER,sample_rate=1.0):
     f_sig = np.fft.fftshift(np.fft.fftfreq(samples.size,1/sample_rate)) 
     
     #interpolation to input signal frequency axis
-    f_mag_ip = f_mag(f_sig)   # with magnitude
+    f_mag_ip = 10**(f_mag(f_sig)/20)   # back to linear scale
     f_ph_ip = f_ph(f_sig) # with phase
     
     # FFT of the input samples
