@@ -6,33 +6,13 @@ import comm as comm
 #from scipy.signal.signaltools import wiener as wiener
 
 
-def Add_Phase_Noise(samples, sRate=1.0, linewidth=1.0, seed=None):
-    """ Adds laser phase noise to complex signal in 1D ndarray 'samples'
-    see https://github.com/htw-ikt-noelle/OptischeKommunikationssysteme/blob/master/LaserPhaseNoise.ipynb
-    
-    bla bla bla
-    """
-    
-    # helper calculations
-    dt = 1/sRate   # [s] sample interval for discrete phase noise model
-    varPN = 2*np.pi*linewidth*dt; #[rad²] phase variance increase after time-step dt;   proportional to linewidth and observation time dt [Barry1990]/eq.(112)
-    # phase noise (Wiener) processes
-    np.random.seed(seed=seed)
-    phaseInc = np.sqrt(varPN)*np.random.normal(loc=0,scale=1,size=np.size(samples,0)); # [rad] ensemble of Gaussian i.i.d. phase increments with variance varPN
-    phaseAcc = np.cumsum(phaseInc,0); # [rad] accumulated phase = random walks
-    phaseAcc = phaseAcc - phaseAcc[0]    # [rad] rotate (shift) all phase processes back to initial zero phase
-
-    samples = samples * np.exp(1j*phaseAcc);    
-    
-    return samples, phaseAcc, varPN
-
 ###################### Tx ##################################
 # signal parameters
 LASER_LINEWIDTH = 1*100e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
-EXPERIMENT = True
-UPLOAD_SAMPLES = True
-SNR = 20
+EXPERIMENT = False
+UPLOAD_SAMPLES = False
+SNR = 200
 
 
 # contruct signal
@@ -110,7 +90,7 @@ else:
     samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=int(sig_tx.sample_rate[0]/sig_tx.symbol_rate[0]), seed=None)
 
     ## phase noise emulation
-    samples, phaseAcc, varPN = Add_Phase_Noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=None)
+    samples, phaseAcc, varPN = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=None)
     sr = sig_tx.sample_rate[0]
     # plt.figure(1); plt.plot(phaseAcc); plt.show()
     
@@ -154,14 +134,14 @@ samples_i = comm.filters.ideal_lp(samples_i, fc)
 sig_rx = comm.signal.Signal(n_dims=1)
 sig_rx.symbol_rate = sig_tx.symbol_rate
 sig_rx.sample_rate = sr
-sig_rx.samples[0] = samples_r - 1j * samples_i
+sig_rx.samples[0] = samples_r['samples_out'] - 1j * samples_i['samples_out']
 #sig_rx.plot_spectrum()
 #sig_rx.plot_constellation()
 
 # "standard" coherent complex baseband signal processing
 # Rx matched filter
 sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
-sig_rx.plot_eye()
+#sig_rx.plot_eye()
 
 # TODO sample clock phase recovery
 
@@ -179,7 +159,7 @@ comm.visualizer.plot_constellation(rx_symbols)
 
 
 ## implementing viterbi-viterbi for phase estimation
-N_CPE = 15 # must be an odd number for Wiener filter
+N_CPE = 21 # must be an odd number for Wiener filter
   # number of CPE_taps
 mth_Power = 4 # 4=QAM&QPSK, 2=BPSK,...
 phi_est = np.roll(comm.filters.moving_average(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, N_CPE, domain='freq'), -N_CPE//2)
