@@ -1,0 +1,10 @@
+UNITTEST HOWTO
+
+* generate a test_MODULE.py file for each MODULE
+* in each file generate a TestFUNCTION class, which is intended to test the FUNCTION in the MODULE
+* generate test_* functions in oder to test differnt test cases for the individual FUNCTION
+
+
+To RUN all available tests:
+* open a console in this folder 
+* run: python -m unittest discover

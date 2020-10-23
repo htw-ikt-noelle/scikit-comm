@@ -1,3 +1,8 @@
+import sys
+import os
+if not any(os.path.abspath('..') == p for p in sys.path): 
+    print('adding comm module to path...')
+    sys.path.insert(0, os.path.abspath('..'))
 import time
 import numpy as np
 import scipy.signal as ssignal
