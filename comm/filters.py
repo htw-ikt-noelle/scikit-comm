@@ -5,16 +5,33 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
 
-def filter_samples(samples, h, domain='freq'):
-    """ Filter signal with given impulse response.
+def filter_samples(samples, filter, domain='freq'):
+    """ Filter the input signal.
+    
     
     Filter is either implemented in either in the 
     
-        -time domain (convolution), filter data along one-dimension with an FIR filter, see 
-        https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.lfilter.html
+        -time domain filter (convolution). CAUTION: size of signal vector changes!
     
-        -frequency domain (multiplication of spectra equivalent to a cyclic convolution), in this case the given impulse
-        response h is zero-padded or truncated to fit the length of the input singal.
+        -frequency domain (multiplication of input signal spectrum with transfer 
+                           function...equivalent to a cyclic convolution).
+        
+        
+    Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        input signal.
+    filter : 1D numpy array, real or complex
+        Either inpulse response of the filter (when domain='time') or transfer 
+        function (double-sided, starting from negative frequencies) of the 
+        filter (when domain='freq').    
+    domain : string, optional
+        implementation of the filter either in 'time' or in 'freq' domain. The default is 'freq'.
+
+    Returns
+    -------
+    samples_out : 1D numpy array, real or complex
+        filtered input signal.
     
     """
     
@@ -22,9 +39,11 @@ def filter_samples(samples, h, domain='freq'):
     isreal = np.alltrue(np.isreal(samples))
     
     if domain == 'time':
-        samples_out = signal.lfilter(h, np.ones(1), samples)
+        samples_out = signal.convolve(samples, filter)
     elif domain == 'freq':
-        samples_out = np.fft.ifft(np.fft.fft(samples) * np.fft.fft(h, n=samples.size))
+        if samples.shape != filter.shape:
+            raise TypeError('shape of samples and filter must be equal')
+        samples_out = np.fft.ifft(np.fft.ifftshift(np.fft.ifftshift(np.fft.fft(samples)) * filter))
     else:
         raise ValueError('filter_samples: domain must either be "time" or "freq" ...')    
         
@@ -32,6 +51,8 @@ def filter_samples(samples, h, domain='freq'):
         samples_out = np.real(samples_out)
     
     return samples_out
+
+
     
 
 
@@ -71,7 +92,8 @@ def raised_cosine_filter(samples, sample_rate=1.0, symbol_rate=1.0, roll_off=0.0
         filtered output signal.
 
     """
-    
+    if length > samples.size:
+        raise ValueError('impulse response should be shorter or equal than signal')
     
     # set parameters
     sps = sample_rate / symbol_rate
@@ -99,7 +121,18 @@ def raised_cosine_filter(samples, sample_rate=1.0, symbol_rate=1.0, roll_off=0.0
             h[np.abs(t_filter) == (T/(2*roll_off))] = np.sin(np.pi/2/roll_off) / (np.pi/2/roll_off) * np.pi / 4
     
     # actual filtering
-    samples_out = filter_samples(samples, h, domain)
+    if domain == 'time':
+        samples_out = filter_samples(samples, h, domain)
+    elif domain == 'freq':
+        # pad impulse response to get length of signal
+        left = int(np.ceil((samples.size-N)/2))
+        right = int(np.floor((samples.size-N)/2))
+        h = np.pad(h, (left, right), mode='constant', constant_values=(0, 0))
+        # generate acausal impulse response (no group delay)
+        h = np.fft.ifftshift(h)
+        H = np.fft.ifftshift(np.fft.fft(h, n=samples.size))
+        samples_out = filter_samples(samples, H, domain)
+        
     
     return samples_out
 
