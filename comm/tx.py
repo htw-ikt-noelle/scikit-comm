@@ -88,7 +88,11 @@ def pulseshaper(samples, upsampling=2, pulseshape='rc', roll_off=0.2):
         return samples
     
     # upsampling (insert zeros between sampling points)
-    samples_up = signal.upfirdn(np.asarray([1]), samples, up=upsampling, down=1)
+    # changed implementation necessary due to bug in scipy from version 1.5.0
+    # samples_up = signal.upfirdn(np.asarray([1]), samples, up=upsampling, down=1)
+    tmp = np.zeros((samples.size, upsampling-1))
+    samples_up = np.c_[samples, tmp]
+    samples_up = np.reshape(samples_up,-1)
     
     # actual pulseshaping filter
     if pulseshape == 'rc':
@@ -105,8 +109,10 @@ def pulseshaper(samples, upsampling=2, pulseshape='rc', roll_off=0.2):
     elif pulseshape == 'rect':
         samples_out = filters.moving_average(samples_up, upsampling, 
                                              domain='time')
+    elif pulseshape == 'None':
+        samples_out = samples_up
     else:
-        raise ValueError('puseshape can only be either rc, rrc or rect...')   
+        raise ValueError('puseshape can only be either rc, rrc, None or rect...')   
         
             
     
