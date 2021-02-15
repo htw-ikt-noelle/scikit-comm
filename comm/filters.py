@@ -61,13 +61,17 @@ def raised_cosine_filter(samples, sample_rate=1.0, symbol_rate=1.0, roll_off=0.0
     """
     Filter a given signal with a (root) raised cosine filter.
     
-     -time domain (convolution), filter data along one-dimension with an FIR filter, see 
-     https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.lfilter.html
+     -time domain (convolution): data is convolved with an (root) raised cosine 
+     impulse response (h). CAUTION: This filter generates a group delay which is 
+     equal to ceil(size(h)/2). Further, the number of samples of the output signal
+     differs from the number of samples of the input signal.
         
-     -frequency domain (multiplication of spectra equivalent to a CYCLIC convolution), in this case the given impulse
-     response h is zero-padded or truncated to fit the length of the input singal.
+     -frequency domain (multiplication of spectra equivalent to a CYCLIC 
+    convolution), the frequency response of an (root) raised cosine filter is
+    multiplied with the spectrum of the signal. This filter is acausal and does
+    not produce any group delay.
      
-     CAUTION: This filter generates a group delay which is equal to ceil(size(h)/2).
+     
 
     Parameters
     ----------
@@ -80,11 +84,15 @@ def raised_cosine_filter(samples, sample_rate=1.0, symbol_rate=1.0, roll_off=0.0
     roll_off : float, optional
         roll off factor of the filter. The default is 0.0.
     length : int, optional
-        length of the filter impulse response, -1 equals to the length of the input singal. The default is -1.
+        length of the filter impulse response, -1 equals to the length of the 
+        input singal. The default is -1. This parameter is only reasonably in 
+        case of time domain filtering (domain='time').
     root_raised : bool, optional
-        is the filter a root-raised cosine filter (True) or a raised-cosine filter (False). The default is False.
+        is the filter a root-raised cosine filter (True) or a raised-cosine 
+        filter (False). The default is False.
     domain : string, optional
-        implementation of the filter either in 'time' or in 'freq' domain. The default is 'freq'.
+        implementation of the filter either in 'time' or in 'freq' domain. 
+        The default is 'freq'.
 
     Returns
     -------
@@ -92,105 +100,161 @@ def raised_cosine_filter(samples, sample_rate=1.0, symbol_rate=1.0, roll_off=0.0
         filtered output signal.
 
     """
-    if length > samples.size:
-        raise ValueError('impulse response should be shorter or equal than signal')
+    
+    if samples.ndim != 1:
+        raise ValueError('signal vector has to be a 1D array...')
     
     # set parameters
     sps = sample_rate / symbol_rate
-    if length == -1:
-        N = samples.size
-    else:
-        N = length # length of impulse response in number of samples
-    t_filter = np.arange(-np.ceil(N/2)+1, np.floor(N/2)+1)
-    T = sps
     
-    # generate impulse response
-    if root_raised:
-        # root-raised cosine filter
-        with np.errstate(divide='ignore',invalid='ignore'):# avoid raising a divide by zero / NaN warning
-            h = (np.sin(np.pi * t_filter / T * (1-roll_off)) + 4 * roll_off * t_filter / T * np.cos(np.pi * t_filter / T * (1 + roll_off))) / (np.pi * t_filter / T * (1 - (4 * roll_off * t_filter / T)**2))
-        h[t_filter==0] = (1 - roll_off + 4 * roll_off / np.pi)
-        if roll_off != 0.0:
-            h[np.abs(t_filter)==T/4/roll_off] = roll_off / np.sqrt(2) * ((1 + 2 / np.pi) * np.sin(np.pi / 4 / roll_off) + (1 - 2 / np.pi) * np.cos(np.pi / 4 / roll_off))
-    else:
-        # raised cosine filter
-        with np.errstate(divide='ignore',invalid='ignore'):# avoid raising a divide by zero / NaN warning
-            h = ((np.sin(np.pi*t_filter/T)) / (np.pi*t_filter/T)) * ((np.cos(roll_off*np.pi*t_filter/T)) / (1-(2*roll_off*t_filter/T)**2))
-        h[t_filter==0] = 1
-        if roll_off != 0.0:
-            h[np.abs(t_filter) == (T/(2*roll_off))] = np.sin(np.pi/2/roll_off) / (np.pi/2/roll_off) * np.pi / 4
-    
-    # actual filtering
+    # time domain implementation
     if domain == 'time':
+    
+        if length > samples.size:
+            raise ValueError('impulse response should be shorter or equal than signal')
+                
+        if length == -1:
+            N = samples.size
+        else:
+            N = length # length of impulse response in number of samples
+        
+        t_filter = np.arange(-np.ceil(N/2)+1, np.floor(N/2)+1)
+        T = sps
+        
+        # generate impulse response
+        if root_raised:
+            # root-raised cosine filter
+            with np.errstate(divide='ignore',invalid='ignore'):# avoid raising a divide by zero / NaN warning
+                h = (np.sin(np.pi * t_filter / T * (1-roll_off)) + 4 * roll_off * t_filter / T * np.cos(np.pi * t_filter / T * (1 + roll_off))) / (np.pi * t_filter / T * (1 - (4 * roll_off * t_filter / T)**2))
+            h[t_filter==0] = (1 - roll_off + 4 * roll_off / np.pi)
+            if roll_off != 0.0:
+                h[np.abs(t_filter)==T/4/roll_off] = roll_off / np.sqrt(2) * ((1 + 2 / np.pi) * np.sin(np.pi / 4 / roll_off) + (1 - 2 / np.pi) * np.cos(np.pi / 4 / roll_off))
+        else:
+            # raised cosine filter
+            with np.errstate(divide='ignore',invalid='ignore'):# avoid raising a divide by zero / NaN warning
+                h = ((np.sin(np.pi*t_filter/T)) / (np.pi*t_filter/T)) * ((np.cos(roll_off*np.pi*t_filter/T)) / (1-(2*roll_off*t_filter/T)**2))
+            h[t_filter==0] = 1
+            if roll_off != 0.0:
+                h[np.abs(t_filter) == (T/(2*roll_off))] = np.sin(np.pi/2/roll_off) / (np.pi/2/roll_off) * np.pi / 4
+        
+        # actual filtering
         samples_out = filter_samples(samples, h, domain)
+    
+    # frequency domain implementation
     elif domain == 'freq':
-        # pad impulse response to get length of signal
-        left = int(np.ceil((samples.size-N)/2))
-        right = int(np.floor((samples.size-N)/2))
-        h = np.pad(h, (left, right), mode='constant', constant_values=(0, 0))
-        # generate acausal impulse response (no group delay)
-        h = np.fft.ifftshift(h)
-        H = np.fft.ifftshift(np.fft.fft(h, n=samples.size))
+        
+        f = np.fft.ifftshift(np.fft.fftfreq(samples.size, 1/sample_rate))
+        H = np.zeros(f.size)
+        T = 1/symbol_rate
+        
+        # set constant part to 1 (see transfer function in Wikipedia 
+        # https://en.wikipedia.org/wiki/Raised-cosine_filter)        
+        H[(np.abs(f) <= (1-roll_off)/2/T)]  = 1.0
+        
+        # define transition part
+        if roll_off > 0.0:
+            transition = (np.abs(f) <= (1+roll_off)/2/T) & (np.abs(f) > (1-roll_off)/2/T)
+            H[transition] = 0.5 * (1 + np.cos((np.pi*T/roll_off) * (np.abs(f[transition])-((1-roll_off)/2/T))))
+        
+        # root-raised cosine?
+        if root_raised:
+            H = np.sqrt(H)
+        
+        # actual filtering
         samples_out = filter_samples(samples, H, domain)
         
+ 
     
     return samples_out
 
 
 
 
-def moving_average(samples, average, domain='freq'):
+def moving_average(samples, average=4, domain='freq'):
     """ Filter a given signal with a moving average filter.
     
-    In the time domain, a causal moving average filter is used, while the last 
-    average-1 samples of the convolution are truncated.
+    In the time domain implementation, a causal impulse response is used, which
+    generates a filter group delay of floor(average/2) samples. CAUTION: The 
+    number of samples of the output signal differs from the number of samples 
+    of the input signal.
     
-    In the frequency domain a cyclic convoultion is used.
+    In the frequency domain implementation (cyclic convolution), an acausal 
+    filter is used which does not generate any group delay.
+    
+     Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        input signal.
+    average : int, optional
+        number of samples to average. The default is 4.    
+    domain : string, optional
+        implementation of the filter either in 'time' or in 'freq' domain. 
+        The default is 'freq'.
+
+    Returns
+    -------
+    samples_out : 1D numpy array, real or complex
+        filtered output signal.
     
     """
     
-    # generate impulse response
-    h = np.ones(average)/average
+    if samples.ndim != 1:
+        raise ValueError('signal vector has to be a 1D array...')
     
-    # actual filtering
-    samples_out = filter_samples(samples, h, domain)    
+    if average == 1:
+        return samples
+    
+    # time domain implementation
+    if domain == 'time':
+        # generate impulse response
+        h = np.ones(average)/average
+        # actual filtering
+        samples_out = filter_samples(samples, h, domain)
+    elif domain == 'freq':
+        # generate causal impulse response
+        h = np.zeros(samples.shape)
+        h[0:np.int(np.ceil(average/2))] = 1
+        h[-np.int(np.floor(average/2))::] = 1        
+        # calc frequency response
+        H = np.fft.ifftshift(np.fft.fft(h))
+        samples_out = filter_samples(samples, H, domain)    
     
     return samples_out
 
 
-def windowed_sinc(samples, fc=0.5, order=111, window=None, domain='freq'):
+def windowed_sinc(samples, fc=0.5, order=111, window=None):
     """
-    Filter a given signal windowed Si-funtion as impulse response.
+    Filter a given signal with a windowed Si-funtion as impulse response.
 
     Parameters
     ----------
     samples : 1D numpy array, real or complex
-        input signal..
+        input signal.
     fc : float, optional
-        cut off frequency, 0.0 <= fc <= 1.0, where 1.0 specifies the Nyquist frequency (half the sampling frequency). The default is 0.5.
+        cut off frequency, 0.0 <= fc <= 1.0, where 1.0 specifies the Nyquist 
+        frequency (half the sampling frequency). The default is 0.5.
     order : int, optional
-        length of the inpulse response, which has to be odd. If order=-1, the length is chosen to be the length of the input signal. The default is 111.
+        length of the inpulse response, which has to be odd. If order=-1, the
+        length is chosen to be the length of the input signal. The default is 111.
     window : string, optional
         type of the window funtion which is multiplied with the sinc-impulse response before filtering.
         'none' --> Si impulse response
         'Hamming'
         'Blackmann-Harris'. The default is None.
-    domain : string, optional
-        implementation of the filter either in 'time' or in 'freq' domain. The default is 'freq'.
-        
+            
     CAUTION: This filter generates a group delay which is equal to ceil(order/2).
-
-    Raises
-    ------
-    ValueError
-        DESCRIPTION.
+    Further, the number of samples of the output signal differs from the 
+    number of samples of the input signal (see scipy convolution).
 
     Returns
     -------
     samples_out : 1D numpy array, real or complex
-        filtered output signal.
+        filtered output signal of lenth samples.size+order-1.
 
-    """    
+    """  
+    
+    if samples.ndim != 1:
+        raise ValueError('signal vector has to be a 1D array...')
     
     # calc paramters
     if (order % 2) == 0:
@@ -214,6 +278,8 @@ def windowed_sinc(samples, fc=0.5, order=111, window=None, domain='freq'):
         h *= signal.windows.hamming(order)
     elif window == 'Blackman-Harris':
         h *= signal.windows.blackmanharris(order)
+    else:
+        raise ValueError('window has to be either None, "Hamming" or "Blackman-Harris"')
         
     # # debug plots...
     # plt.figure(1)
@@ -222,7 +288,7 @@ def windowed_sinc(samples, fc=0.5, order=111, window=None, domain='freq'):
     # plt.show()
     
     # actual filtering
-    samples_out = filter_samples(samples, h, domain)
+    samples_out = filter_samples(samples, h, domain='time')
     
     return samples_out
 
@@ -239,7 +305,8 @@ def ideal_lp(samples, fc):
     samples : 1D numpy array, real or complex
         input signal.
     fc : float, optional
-        cut off frequency, 0.0 <= fc <= 1.0, where 1.0 specifies the Nyquist frequency (half the sampling frequency). The default is 0.5.
+        cut off frequency, 0.0 <= fc <= 1.0, where 1.0 specifies the Nyquist 
+        frequency (half the sampling frequency). The default is 0.5.
     
     Returns
     -------
@@ -250,17 +317,14 @@ def ideal_lp(samples, fc):
             actual applied cut off frequency (matching the frequency grid of the FFT)
     """ 
     # generate ideal frequency response
-    f = np.fft.fftfreq(samples.size, d=0.5)
+    f = np.fft.ifftshift(np.fft.fftfreq(samples.size, d=0.5))
     H = np.zeros_like(samples)
     H[np.abs(f) <= fc] = 1
     
-    real_fc = np.max(np.abs(f[np.abs(f) <= fc]))
-    
-    # calc impulse response with ifft    
-    h = np.real(np.fft.ifft(H))
+    real_fc = np.max(np.abs(f[np.abs(f) <= fc]))    
     
     # actual filtering
-    samples_out = filter_samples(samples, h, domain='freq')
+    samples_out = filter_samples(samples, H, domain='freq')
     
     # generate results dict
     results = dict()
