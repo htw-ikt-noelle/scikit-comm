@@ -202,18 +202,27 @@ N_CPE = 21 # must be an odd number for Wiener filter
  
 # number of CPE_taps
 mth_Power = 4 # 4=QAM&QPSK, 2=BPSK,...
-phi_est = np.roll(comm.filters.moving_average(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, N_CPE, domain='freq'), -N_CPE//2)
+phi_est = comm.filters.moving_average(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, N_CPE, domain='freq')
+# phi_est = np.roll(comm.filters.moving_average(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, N_CPE, domain='freq'),-N_CPE//2+1)
 
 ## Wiener filter (see Ip2007, Acuna2013)
-r = .3 # r = sigma²_phi / sigma²_ampl;  r>0; r is the ratio between the magnitude of the phase noise variance sigma²_phi and the additive noise variance sigma²
+r = .5 # r = sigma²_phi / sigma²_ampl;  r>0; r is the ratio between the magnitude of the phase noise variance sigma²_phi and the additive noise variance sigma²
 a = 1+r/2-np.sqrt((1+r/2)**2-1) # alpha
 h_Wiener = a*r/(1-a**2) * a**np.arange(N_CPE//2+1) # postive half
 h_Wiener = np.concatenate((np.flip(h_Wiener[1:]), h_Wiener)) # make symmetric
 h_Wiener = h_Wiener / np.sum(h_Wiener) # normalize to unit sum (make unbiased estimator)
+
+H_Wiener = np.fft.ifftshift(np.fft.fft(h_Wiener, n=rx_symbols.size))
 # plt.figure(2); plt.stem(np.arange(2*(N_CPE//2)+1)-N_CPE//2,h_Wiener,basefmt='C2-',use_line_collection=True); plt.show();
-phi_est = np.roll(comm.filters.filter_samples(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, h_Wiener, domain='freq'), -N_CPE//2+1)
+# phi_est = np.roll(comm.filters.filter_samples(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, h_Wiener, domain='freq'), -N_CPE//2+1)
+# compensate for N_CPE/2 samples group delay of CPE Wiener filter
+phi_est = np.roll(comm.filters.filter_samples(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, H_Wiener, domain='freq'), -N_CPE//2+1)
        
 rx_symbols = rx_symbols * np.exp(-1j*(phi_est + np.pi/4))
 rx_symbols = rx_symbols[1*N_CPE+1:-N_CPE*1] # crop start and end
 
 comm.visualizer.plot_constellation(rx_symbols)
+
+comm.visualizer.plot_signal(abs(rx_symbols))
+
+# plt.figure(),plt.plot(h_Wiener)
