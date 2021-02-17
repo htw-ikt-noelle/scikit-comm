@@ -104,6 +104,9 @@ def raised_cosine_filter(samples, sample_rate=1.0, symbol_rate=1.0, roll_off=0.0
     if samples.ndim != 1:
         raise ValueError('signal vector has to be a 1D array...')
     
+    if (roll_off < 0.0) or (roll_off > 1.0):
+        raise ValueError('roll_off needs to be between 0.0 and 1.0')
+    
     # set parameters
     sps = sample_rate / symbol_rate
     
