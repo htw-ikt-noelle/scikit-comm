@@ -321,8 +321,90 @@ def sampling_clock_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, block_s
     """
     #####################################################################################
     
+
+def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_power=4, rho=0.2):
+    """
+    Viterbi-Viterbi carrier phase estimation and recovery.
+    
+    This function estimates the phase noise of the carrier by using the Viterbi-
+    Viterbi method [1]. Either a rectangular or a Wiener filter shape can be used.    
     
     
+    
+    [1] A. Viterbi, "Nonlinear estimation of PSK-modulated carrier phase with 
+    application to burst digital transmission," in IEEE Transactions on 
+    Information Theory, vol. 29, no. 4, pp. 543-551, July 1983, doi: 10.1109/TIT.1983.1056713.
+    
+    [2] Ezra Ip, Alan Pak Tao Lau, Daniel J. F. Barros, and Joseph M. Kahn, 
+    "Coherent detection in optical fiber systems," Opt. Express 16, 753-791 (2008)
+    
+    [3] E. Ip and J. M. Kahn, "Feedforward Carrier Recovery for Coherent 
+    Optical Communications," in Journal of Lightwave Technology, vol. 25, 
+    no. 9, pp. 2675-2692, Sept. 2007, doi: 10.1109/JLT.2007.902118.
+
+    Parameters
+    ----------
+    symbols :  1D numpy array, real or complex
+        input symbols.  
+    n_taps : int, optional
+        Number of symbols to average over. The default is 21.
+    filter_shape : string, optional
+        Specifies the filter shape: either 'rect' or 'wiener'. The default is 'wiener'.
+    mth_power : int, optional
+        Specifies the power to which the constellation is raised in order to 
+        remove the modulation (needs to be the number of equidistant phase 
+        states of the PSK modulation). The default is 4.
+    rho : float, optional
+        Tuning factor for 'wiener' filter shape, rho>0; rho is the ratio between
+        the magnitude of the phase noise variance sigma²_phi and the additive
+        noise variance sigma² (for more informations see [2],[3]). The default is 0.2.
+
+    Returns
+    -------
+     results : dict containing following keys
+        rec_symbols : 1D numpy array, real or complex
+            recovered symbols.
+        est_shift : float or 1D numpy array of floats
+            estimated phase noise.
+
+    """
+    
+    if filter_shape == 'rect':
+        # filter the unwraped phase
+        phi_est = filters.moving_average(np.unwrap(mth_power * np.angle(symbols)) / mth_power, n_taps, domain='freq')
+        # undo the group delay of moving average filter
+        phi_est = np.roll(phi_est,  -n_taps//2)
+        
+    elif filter_shape == 'wiener':        
+        a = 1 + rho / 2 - np.sqrt( ( 1 + rho / 2)**2 - 1) # alpha         
+        h_wiener = a * rho / (1 - a**2) * a**np.arange(n_taps // 2 + 1) # postive half
+        h_wiener = np.concatenate((np.flip(h_wiener[1:]), h_wiener)) # make symmetric
+        h_wiener = h_wiener / np.sum(h_wiener) # normalize to unit sum (make unbiased estimator)        
+       
+        H_wiener = np.fft.ifftshift(np.fft.fft(h_wiener, n=symbols.size))
+        # filter the unwraped phase        
+        phi_est = filters.filter_samples(np.unwrap(mth_power*np.angle(symbols))/mth_power, H_wiener, domain='freq')
+        # undo group delay of Wiener filter
+        phi_est = np.roll(phi_est,  -n_taps//2+1)
+    
+    # for QPSK: shift recoverd constellation by pi/4
+    if mth_power == 4:
+        phase_correction = np.pi/4
+    else:
+        phase_correction = 0
+    
+    # actual phase recovery
+    rec_symbols = symbols * np.exp(-1j*(phi_est + phase_correction))
+    # crop start and end (necessary???)
+    rec_symbols = rec_symbols[1*n_taps+1:-n_taps*1] 
+    
+    
+    # generate output dict containing recoverd symbols and estimated phase noise
+    results = dict()
+    results['rec_symbols'] = rec_symbols
+    results['phi_est'] = phi_est
+    return results
+
     
     
     

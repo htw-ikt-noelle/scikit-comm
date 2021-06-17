@@ -18,7 +18,7 @@ import comm as comm
 ############################################################
 
 # signal parameters
-LASER_LINEWIDTH = 1*200e3 # [Hz]
+LASER_LINEWIDTH = 200e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
 EXPERIMENT = False
 UPLOAD_SAMPLES = False
@@ -106,7 +106,7 @@ else:
     # plt.figure(1); plt.plot(phaseAcc); plt.show()
     
     # add artificial sample clock error
-    ratio = 1.001 # ratio of sampling frequency missmatch     
+    ratio = 1.00 # ratio of sampling frequency missmatch     
     n_old = np.size(samples, axis=0)
     t_old = np.arange(n_old) / sr
     n_new = int(np.round(ratio * n_old))
@@ -176,7 +176,7 @@ sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True)
 # sig_rx.plot_eye()
 
 # sampling phase / clock adjustment
-BLOCK_SIZE = 80 # size of one block in SYMBOLS... -1 for only one block
+BLOCK_SIZE = -1 # size of one block in SYMBOLS... -1 for only one block
 sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
 # samples = sig_rx.samples[0]
 # results = comm.rx.sampling_clock_adjustment(samples, sample_rate=sr, 
@@ -192,37 +192,12 @@ START_SAMPLE = 0
 sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
 rx_symbols = sig_rx.samples[0][START_SAMPLE::int(sps)]
 comm.visualizer.plot_constellation(rx_symbols)
-# comm.visualizer.plot_constellation(rx_symbols)
-# sig_rx.samples[0] = sig_rx.samples[0][START_SAMPLE::int(sps)]
-# sig_rx.plot_constellation()
 
-## implementing viterbi-viterbi for phase estimation
-# TODO: put into individual funtion
-N_CPE = 21 # must be an odd number for Wiener filter
- 
-# number of CPE_taps
-mth_Power = 4 # 4=QAM&QPSK, 2=BPSK,...
-phi_est = comm.filters.moving_average(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, N_CPE, domain='freq')
-# phi_est = np.roll(comm.filters.moving_average(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, N_CPE, domain='freq'),-N_CPE//2+1)
+# CPE
+cpe_results = comm.rx.carrier_phase_estimation_VV(rx_symbols, n_taps=21, filter_shape='wiener', mth_power=4, rho=.3)
+rx_symbols = cpe_results['rec_symbols']
+est_phase = cpe_results['phi_est']
 
-## Wiener filter (see Ip2007, Acuna2013)
-r = .5 # r = sigma²_phi / sigma²_ampl;  r>0; r is the ratio between the magnitude of the phase noise variance sigma²_phi and the additive noise variance sigma²
-a = 1+r/2-np.sqrt((1+r/2)**2-1) # alpha
-h_Wiener = a*r/(1-a**2) * a**np.arange(N_CPE//2+1) # postive half
-h_Wiener = np.concatenate((np.flip(h_Wiener[1:]), h_Wiener)) # make symmetric
-h_Wiener = h_Wiener / np.sum(h_Wiener) # normalize to unit sum (make unbiased estimator)
-
-H_Wiener = np.fft.ifftshift(np.fft.fft(h_Wiener, n=rx_symbols.size))
-# plt.figure(2); plt.stem(np.arange(2*(N_CPE//2)+1)-N_CPE//2,h_Wiener,basefmt='C2-',use_line_collection=True); plt.show();
-# phi_est = np.roll(comm.filters.filter_samples(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, h_Wiener, domain='freq'), -N_CPE//2+1)
-# compensate for N_CPE/2 samples group delay of CPE Wiener filter
-phi_est = np.roll(comm.filters.filter_samples(np.unwrap(mth_Power*np.angle(rx_symbols))/mth_Power, H_Wiener, domain='freq'), -N_CPE//2+1)
-       
-rx_symbols = rx_symbols * np.exp(-1j*(phi_est + np.pi/4))
-rx_symbols = rx_symbols[1*N_CPE+1:-N_CPE*1] # crop start and end
-
+comm.visualizer.plot_signal(est_phase)
 comm.visualizer.plot_constellation(rx_symbols)
-
-comm.visualizer.plot_signal(abs(rx_symbols))
-
-# plt.figure(),plt.plot(h_Wiener)
+# comm.visualizer.plot_signal(abs(rx_symbols))
