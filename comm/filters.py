@@ -35,9 +35,6 @@ def filter_samples(samples, filter, domain='freq'):
     
     """
     
-    # check, if input is real    
-    isreal = np.alltrue(np.isreal(samples))
-    
     if domain == 'time':
         samples_out = signal.convolve(samples, filter)
     elif domain == 'freq':
@@ -45,10 +42,7 @@ def filter_samples(samples, filter, domain='freq'):
             raise TypeError('shape of samples and filter must be equal')
         samples_out = np.fft.ifft(np.fft.ifftshift(np.fft.ifftshift(np.fft.fft(samples)) * filter))
     else:
-        raise ValueError('filter_samples: domain must either be "time" or "freq" ...')    
-        
-    if isreal:
-        samples_out = np.real(samples_out)
+        raise ValueError('filter_samples: domain must either be "time" or "freq" ...')  
     
     return samples_out
 
@@ -308,7 +302,7 @@ def ideal_lp(samples, fc):
     samples : 1D numpy array, real or complex
         input signal.
     fc : float, optional
-        cut off frequency, 0.0 <= fc <= 1.0, where 1.0 specifies the Nyquist 
+        cut off frequency, 0.0 < fc <= 1.0, where 1.0 specifies the Nyquist 
         frequency (half the sampling frequency). The default is 0.5.
     
     Returns
