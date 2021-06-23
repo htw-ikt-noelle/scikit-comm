@@ -372,8 +372,7 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     if filter_shape == 'rect':
         # filter the unwraped phase
         phi_est = filters.moving_average(np.unwrap(mth_power * np.angle(symbols)) / mth_power, n_taps, domain='freq')
-        # undo the group delay of moving average filter
-        phi_est = np.roll(phi_est,  -n_taps//2)
+       
         
     elif filter_shape == 'wiener':        
         a = 1 + rho / 2 - np.sqrt( ( 1 + rho / 2)**2 - 1) # alpha         
@@ -385,7 +384,7 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
         # filter the unwraped phase        
         phi_est = filters.filter_samples(np.unwrap(mth_power*np.angle(symbols))/mth_power, H_wiener, domain='freq')
         # undo group delay of Wiener filter
-        phi_est = np.roll(phi_est,  -n_taps//2+1)
+        phi_est = np.roll(phi_est,  -(n_taps//2))
     
     # for QPSK: shift recoverd constellation by pi/4
     if mth_power == 4:
