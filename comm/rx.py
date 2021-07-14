@@ -425,6 +425,7 @@ def calc_evm(symbols, constellation, norm='max'):
     'max' or as reference RMS 'rms'.
     
     [1] https://rfmw.em.keysight.com/wireless/helpfiles/89600b/webhelp/subsystems/digdemod/Content/digdemod_symtblerrdata_evm.htm
+    
     [2] https://rfmw.em.keysight.com/wireless/helpfiles/89600b/webhelp/subsystems/digdemod/Content/dlg_digdemod_comp_evmnormref.htm
 
     Parameters
