@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jun 17 19:56:34 2021
-
-@author: UET-Labor
-"""
-
 import sys
 import os
 import time
