@@ -18,12 +18,12 @@ import comm as comm
 ############################################################
 
 # signal parameters
-LASER_LINEWIDTH = 200e3 # [Hz]
+LASER_LINEWIDTH = 0*1e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
-EXPERIMENT = True
+EXPERIMENT = False
 UPLOAD_SAMPLES = True
-USE_PREDIST = True
-SNR = 200
+USE_PREDIST = False
+SNR = 20
 
 # contruct signal
 sig_tx = comm.signal.Signal(n_dims=1)
@@ -201,6 +201,11 @@ comm.visualizer.plot_constellation(rx_symbols)
 cpe_results = comm.rx.carrier_phase_estimation_VV(rx_symbols, n_taps=21, filter_shape='wiener', mth_power=4, rho=.3)
 rx_symbols = cpe_results['rec_symbols']
 est_phase = cpe_results['phi_est']
+
+# calc EVM
+evm = comm.rx.calc_evm(rx_symbols, sig_tx.constellation[0], norm='max')
+print("EVM: {:2.2%}".format(evm))
+
 
 comm.visualizer.plot_signal(est_phase)
 comm.visualizer.plot_constellation(rx_symbols)
