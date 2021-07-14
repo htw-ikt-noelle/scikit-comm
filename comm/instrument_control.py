@@ -164,6 +164,9 @@ def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250
     
     # clip samples and format to list of int16 numbers
     samples = np.round(np.clip(samples, -1.0, 1.0) * 32767).astype(int)
+    # ensure that samples is a nested list, even if ndim == 1
+    if samples.ndim == 1:
+        samples = samples[np.newaxis,...]
     samples = samples.tolist()
     
     #loop over up to 2 channels
