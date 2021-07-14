@@ -28,6 +28,14 @@ comm.instrument\_control module
    :undoc-members:
    :show-inheritance:
 
+comm.pre\_distortion module
+---------------------------
+
+.. automodule:: comm.pre_distortion
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 comm.rx module
 --------------
 
@@ -67,7 +75,6 @@ comm.visualizer module
    :members:
    :undoc-members:
    :show-inheritance:
-
 
 Module contents
 ---------------
