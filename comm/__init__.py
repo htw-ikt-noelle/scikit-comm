@@ -14,3 +14,4 @@ from . import channel
 from . import visualizer
 from . import instrument_control
 from . import signal
+from . import pre_distortion

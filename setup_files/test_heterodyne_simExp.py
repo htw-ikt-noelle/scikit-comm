@@ -20,8 +20,9 @@ import comm as comm
 # signal parameters
 LASER_LINEWIDTH = 200e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
-EXPERIMENT = False
-UPLOAD_SAMPLES = False
+EXPERIMENT = True
+UPLOAD_SAMPLES = True
+USE_PREDIST = True
 SNR = 200
 
 # contruct signal
@@ -65,6 +66,9 @@ sig_tx.center_frequency = f_if
 # TODO: equalization of cosine MZM transfer function
 
 # TODO: pre-equalization of AWG frequency response
+if USE_PREDIST:
+    filtershape = np.load('preDistFilter.npy')
+    sig_tx.samples[0] = comm.filters.filter_arbitrary(sig_tx.samples[0], filtershape, sample_rate=sig_tx.symbol_rate[0]*TX_UPSAMPLE_FACTOR)
 
 # sig_tx.plot_spectrum(0)
 
@@ -80,7 +84,7 @@ samples = np.concatenate((np.real(samples), np.imag(samples)))
 
 ##################### Experiment ###########################################
 if EXPERIMENT:
-    if UPLOAD_SAMPLES:
+    if UPLOAD_SAMPLES:                    
         # write samples to AWG
         comm.instrument_control.write_samples_AWG33522A(samples, ip_address='192.168.1.45',
                                                         sample_rate=[sig_tx.symbol_rate[0]*TX_UPSAMPLE_FACTOR]*2,
@@ -101,7 +105,7 @@ else:
     samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=int(sig_tx.sample_rate[0]/sig_tx.symbol_rate[0]), seed=None)
 
     ## phase noise emulation
-    samples, phaseAcc, varPN = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=None)
+    samples, phaseAcc, varPN = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)
     sr = sig_tx.sample_rate[0]
     # plt.figure(1); plt.plot(phaseAcc); plt.show()
     
