@@ -210,8 +210,8 @@ def moving_average(samples, average=4, domain='freq'):
     elif domain == 'freq':
         # generate causal impulse response
         h = np.zeros(samples.shape)
-        h[0:np.int(np.ceil(average/2))] = 1/average
-        h[-np.int(np.floor(average/2))::] = 1/average
+        h[0:int(np.ceil(average/2))] = 1/average
+        h[-int(np.floor(average/2))::] = 1/average
         # calc frequency response
         H = np.fft.ifftshift(np.fft.fft(h))
         samples_out = filter_samples(samples, H, domain)    
