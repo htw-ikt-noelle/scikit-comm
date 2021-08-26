@@ -101,6 +101,9 @@ def count_errors(bits_tx, bits_rx):
     Count the bit error rate (BER) by comparing two bit sequences. Additionally
     also the position of the bit errors is returned as a bool array of size
     bits_tx.size, where True indicates a bit error.
+    
+    If the bit sequence bits_rx is longer than the sent sequency, the sent sequence
+    is repeated in order to match both lengths.
      
 
     Parameters
@@ -120,11 +123,21 @@ def count_errors(bits_tx, bits_rx):
             array indicating the bit error positions as True.
 
     """
-    if (bits_rx.ndim > 2) | (bits_tx.ndim > 2):
-        raise ValueError('number of dimensions of bits should be <= 2')
-
+    if (bits_rx.ndim > 1) | (bits_tx.ndim > 1):
+        raise ValueError('number of dimensions of bits must not exceed 1!')
+        
+    if bits_tx.size > bits_rx.size:
+        raise ValueError('number of bits transmitted must not exceed number of received bits!')
+    
+    # if bit sequences are of unequal length, repeat bits_tx accordingly
+    if bits_tx.size < bits_rx.size:
+        ratio_base = bits_rx.size // bits_tx.size
+        ratio_rem = bits_rx.size % bits_tx.size        
+        bits_tx = np.concatenate((np.tile(bits_tx, ratio_base), bits_tx[:ratio_rem]), axis=0)
+    
+    # count errors
     err_idx = np.not_equal(bits_tx, bits_rx)
-    ber = np.sum(err_idx, axis=-1) / bits_tx.shape[-1]
+    ber = np.sum(err_idx) / bits_tx.size
     
     # generate output dict
     results = dict()
