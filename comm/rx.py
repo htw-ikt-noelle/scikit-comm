@@ -7,96 +7,129 @@ from . import visualizer
 
 
 def demapper(samples, constellation):
+    """    
+    Demap samples to bits using a given constellation alphabet.
+
+    samples are compared to a given constellation alphabet and the index
+    of the corresponding constellation (integer) is
+    converted to the corresponding bit value.   
+    
+    The resulting bit sequence is therefore of length: 
+    np.log2(constellation.size)*samples.size.
+
+    Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        sampled input signal.
+    constellation : 1D numpy array, real or complex
+        possible constellation points of the input signal.    
+
+    Returns
+    -------
+    bits : 1D numpy array, bool
+        converted bit sequence.
+
     """
-    Demap decided samples to bits using a given constellation alphabet.
-
-    samples are compared to a given constellation constellation alphabet
-    array and the position of the corresponding constellation (integer) is
-    converted to the corresponding bit value.
-
-    TODO: change function so that samples is not allowed to have ndim > 1!!!
-
-    """
-
     samples = np.asarray(samples)
     constellation = np.asarray(constellation)
 
     if constellation.ndim > 1:
-        raise ValueError('multiple, different constellations not allowed yet...')
+        raise ValueError('number of dimensions of constellation must not exceed 1!')
 
-    if samples.ndim > 2:
-        raise ValueError('number of dimensions of samples should be <= 2')
-
-    if samples.ndim == 1:
-        # promote to 2D array for processing
-        samples = samples[np.newaxis, :]
+    if samples.ndim > 1:
+        raise ValueError('number of dimensions of samples must not exceed 1!')
 
     decimals = np.full_like(samples.real, np.nan)
-    n_bits = np.int(np.log2(constellation.size))
-    bits = np.full((samples.shape[0], samples.shape[1]*n_bits), np.nan)
-
-    for idx_row, row in enumerate(samples):
-        for idx_const, cost_point in enumerate(constellation):
-            decimals[idx_row, row == cost_point] = idx_const
-        bits[idx_row] = utils.dec_to_bits(decimals[idx_row], n_bits)
-
-
-    # ## TODO: CHECK!!! for higher order constellations!!!
-    # bits = np.reshape(bits, (-1,), order='c').astype(int)
-    return bits.squeeze()
+    bps = np.int(np.log2(constellation.size))    
+    
+    for const_idx, const_point in enumerate(constellation):
+        decimals[samples == const_point] = const_idx
+    
+    # convert constellation index (decimal) to bits
+    bits = utils.dec_to_bits(decimals, bps)        
+  
+    return bits
 
 
 
 def decision(samples, constellation):
-    """ Decide samples samples to a given constellation alphabet.
-
-    Find for every samples sample the closest constellation point in a
-    constellations array and return this value.
-
-    TODO: change function so that samples is not allowed to have ndim > 1!!!
-
     """
+    Decide samples to a given constellation alphabet.
+
+    Find for every sample the closest constellation point in a
+    constellations array and return this value.    
+
+    Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        sampled input signal.
+    constellation : 1D numpy array, real or complex
+        possible constellation points of the input signal.
+
+    Returns
+    -------
+    dec_symbols : 1D numpy array, real or complex
+        clostest constellation point for every input sample.
+
+    """    
     if constellation.ndim > 1:
-        raise ValueError('multiple, different constellations not allowed yet...')
+        raise ValueError('number of dimensions of constellation must not exceed 1!')
 
-    if samples.ndim > 2:
-        raise ValueError('number of dimensions of samples should be <= 2')
-
-    if samples.ndim == 1:
-        # promote to 2D array for processing
-        samples = samples[np.newaxis, :]
+    # if samples.ndim > 2:
+    #     raise ValueError('number of dimensions of samples should be <= 2')
+    if samples.ndim > 1:
+        raise ValueError('number of dimensions of samples must not exceed 1!')        
 
     # normalize samples to mean magnitude of original constellation
     mag_const = np.mean(abs(constellation))
-    mag_samples = np.mean(abs(samples), axis=-1).reshape(-1,1)
+    # mag_samples = np.mean(abs(samples), axis=-1).reshape(-1,1)
+    mag_samples = np.mean(abs(samples))
     samples_norm = samples * mag_const / mag_samples
 
-    # shape to 2D array and repeat in order to match size of samples
-    const = np.tile(constellation.reshape(-1,1), (1, samples_norm.shape[1]))
+    idx = np.argmin(np.abs(samples_norm - constellation.reshape(-1,1)), axis=0)
+    dec_symbols = constellation[idx]
+    return dec_symbols
 
-    dec_symbols = np.full_like(samples_norm, np.nan)
-    for row_idx, row in enumerate(samples_norm):
-        const_idx = np.argmin(np.abs(row-const), axis=0)
-        dec_symbols[row_idx] = constellation[const_idx]
-
-    return dec_symbols.squeeze()
-
+    
 
 
 def count_errors(bits_tx, bits_rx):
-    """ Count bit errors and return the bit error rate.
+    """
+    Count bit errors.
+    
+    Count the bit error rate (BER) by comparing two bit sequences. Additionally
+    also the position of the bit errors is returned as a bool array of size
+    bits_tx.size, where True indicates a bit error.
+     
+
+    Parameters
+    ----------
+    bits_tx : 1D numpy array, bool
+        first bits sequence.
+    bits_rx : 1D numpy array, bool
+        first bits sequence.
+
+
+    Returns
+    -------
+    results : dict containing following keys
+        ber : float
+            bit error rate (BER)
+        err_idx : 1D numpy array, bool
+            array indicating the bit error positions as True.
 
     """
-
     if (bits_rx.ndim > 2) | (bits_tx.ndim > 2):
         raise ValueError('number of dimensions of bits should be <= 2')
 
     err_idx = np.not_equal(bits_tx, bits_rx)
     ber = np.sum(err_idx, axis=-1) / bits_tx.shape[-1]
-
-    return ber, err_idx
-
-
+    
+    # generate output dict
+    results = dict()
+    results['ber'] = ber
+    results['err_idx'] = err_idx
+    return results
 
 def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, shift_dir='both'):
     """

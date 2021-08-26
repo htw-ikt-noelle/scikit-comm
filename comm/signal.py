@@ -269,6 +269,26 @@ class Signal():
         for i, (b, c) in enumerate(zip(self.bits, self.constellation)):
             self.symbols[i] = tx.mapper(bits=b, constellation=c)
 
+    def demapper(self):
+        """
+        Demap samples to bits using a given constellation alphabet.
+        
+        For detailed documentation see comm.rx.demapper.        
+        """
+        for i, (s, c) in enumerate(zip(self.samples, self.constellation)):
+            self.samples[i] = rx.demapper(samples=s, constellation=c)
+    
+
+    def decision(self):
+        """
+        Decide samples to a given constellation alphabet.
+        
+        For detailed documentation see comm.rx.decision.        
+        """
+        for i, (s, c) in enumerate(zip(self.samples, self.constellation)):
+            self.samples[i] = rx.decision(samples=s, constellation=c)
+
+
 
     def raised_cosine_filter(self, roll_off=0.0, root_raised=False, **kargs):
         """
