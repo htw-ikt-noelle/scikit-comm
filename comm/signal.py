@@ -58,9 +58,6 @@ class Signal():
         None.
 
         """
-
-
-
         self.n_dims = n_dims
         self.samples = [np.empty(0, dtype=complex)] * n_dims
         self.center_frequency = [0.0] * n_dims
@@ -106,11 +103,8 @@ class Signal():
                 raise ValueError('Signal attributes have to be lists of length n_dims...');
         # try to convert to list
         else:
-            if (isinstance(value, (int, float, str, bool)) or (value == None)):
-                # set all dimensions at once by generating list of correct
-                # length form salar integers, floats, strings, bool or None
-                value = [value] * self.n_dims
-            elif isinstance(value, np.ndarray):
+            # ...for arrays
+            if isinstance(value, np.ndarray):
                 if (value.ndim == 1):
                     # set all dimensions at once by generating list of correct
                     # length having the ndarray in each element
@@ -120,7 +114,12 @@ class Signal():
                     # the given ndarray
                     value = list(value)
                 else:
-                    raise ValueError('attribute has to be a ndarray of dimension 1 or has to of shape (n_dims,X)...')
+                    raise ValueError('attribute has to be a ndarray of dimension 1 or has to be of shape (n_dims,X)...')
+            # ...for single vlaues                    
+            elif (isinstance(value, (int, float, str, bool)) or (value == None)):
+                # set all dimensions at once by generating list of correct
+                # length form salar integers, floats, strings, bool or None
+                value = [value] * self.n_dims
             else:
                 raise TypeError('Cannot reasonably convert attribute type to list...')
 
@@ -265,10 +264,9 @@ class Signal():
         None.
 
         """
-
         for i, (b, c) in enumerate(zip(self.bits, self.constellation)):
             self.symbols[i] = tx.mapper(bits=b, constellation=c)
-
+    
     def demapper(self):
         """
         Demap samples to bits using a given constellation alphabet.
@@ -287,7 +285,6 @@ class Signal():
         """
         for i, (s, c) in enumerate(zip(self.samples, self.constellation)):
             self.samples[i] = rx.decision(samples=s, constellation=c)
-
 
 
     def raised_cosine_filter(self, roll_off=0.0, root_raised=False, **kargs):
@@ -334,7 +331,6 @@ class Signal():
         None.
 
         """
-        
         for i, (s, sr, symr) in enumerate(zip(self.samples,
                                                       self.sample_rate,
                                                       self.symbol_rate)):
@@ -389,7 +385,6 @@ class Signal():
         None.
 
         """
-
         format = self._check_attribute(format)
         order = self._check_attribute(order)
 
