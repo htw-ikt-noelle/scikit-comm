@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.signal as signal
 import matplotlib.pyplot as plt
+import warnings
 from . import utils
 from . import filters
 from . import visualizer
@@ -176,8 +177,7 @@ def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, shift_d
         est_shift : float
             estimated (and inversely applied) temporal shift.
 
-    """
-    
+    """    
     # do all dsp on a copy of the samples
     samples_tmp = samples
     # sample rate of dsp (must be at least 3 time symbol rate)
@@ -294,7 +294,12 @@ def sampling_clock_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, block_s
             tmp.append(sampling_phase_adjustment(block, sample_rate=sample_rate,
                                                              symbol_rate=symbol_rate, 
                                                              shift_dir='both'))
-        
+            
+        # Warning in case samples have to be dropped due to non-ideal block size
+        if n_samples_new < n_samples:
+            warnings.warn('Due to n_samples not being a multiple of the samples_per_block, {}  samples had to be dropped!'.format((n_samples - n_samples_new)))
+
+            
     # generate output dict containing samples and estimated time shifts per block
     results = dict()
     results['samples_out'] = np.asarray([block['samples_out'] for block in tmp]).reshape(-1)
@@ -324,7 +329,7 @@ def sampling_clock_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, block_s
             tmp.append(sampling_phase_adjustment(samples_block, sample_rate=sample_rate, symbol_rate=symbol_rate, shift_dir='advance'))
             
             
-    MATHOD 2: estimate slope of sampling clock offset over blocks and do resampling (only works in case of almost constant sampling frequency missmatch)
+    METHOD 2: estimate slope of sampling clock offset over blocks and do resampling (only works in case of almost constant sampling frequency missmatch)
         
         tmp = list()
         # run sampling_phase_adjustment multiple times, once for every block
