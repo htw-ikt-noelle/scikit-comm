@@ -64,7 +64,7 @@ def dec_to_bits(decimals, m):
         bits[:, bit] = tmp % 2
         tmp = tmp // 2
                         
-    bits = bits.reshape(decimals.size*m).astype(int)
+    bits = bits.reshape(decimals.size*m).astype(bool)
     
     return bits
 
