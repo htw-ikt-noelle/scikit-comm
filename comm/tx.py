@@ -73,7 +73,36 @@ def mapper(bits, constellation):
 
 
 def pulseshaper(samples, upsampling=2, pulseshape='rc', roll_off=0.2):
-        
+    """
+    Upsample and pulseshape a given sample sequence.
+    
+    The provided samples are upsampled by the factor upsampling ([upsampling-1] 
+    zeros are inserted between each sample).
+    
+    A pulseshaping filter is applied to the upsampled sequence afterwards. (Root) 
+    raised cosine and rectangular filter impulse respnses are available. 
+    pulseshape = None does not apply any filter to the upsampled sequence.
+
+    Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        input signal.
+    upsampling : int, optional
+        upsampling factor. The default is 2.
+    pulseshape : sting, optional
+        pulseshaping filter, can either be 'rc', 'rrc', 'rect' or 'None', 
+        meaning raised cosine filter, root raised cosine filter, erctangular 
+        filter or no filter, respectively. The default is 'rc'.
+    roll_off : float, optional
+        rolloff factor in case of (root) raised consine filter. The default is 0.2.
+
+    
+    Returns
+    -------
+    samples_out : 1D numpy array, real or complex
+        upsampled and pulseshaped signal samples.
+
+    """ 
     if samples.ndim > 1:
         raise ValueError('number of dimensions of samples should be 1...')   
         
@@ -112,10 +141,6 @@ def pulseshaper(samples, upsampling=2, pulseshape='rc', roll_off=0.2):
     elif pulseshape == 'None':
         samples_out = samples_up
     else:
-        raise ValueError('puseshape can only be either rc, rrc, None or rect...')   
-        
-            
-    
-    
+        raise ValueError('puseshape can only be either rc, rrc, None or rect...')  
     
     return samples_out
