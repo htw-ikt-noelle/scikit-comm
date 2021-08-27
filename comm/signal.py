@@ -397,23 +397,9 @@ class Signal():
         """
         Upsample and pulseshape the modulated symbols and write them to samples.
 
-        For detailed documentation see comm.tx.pulseshaper()
-
-        Parameters
-        ----------
-        upsampling : TYPE, optional
-            DESCRIPTION. The default is [2].
-        pulseshape : TYPE, optional
-            DESCRIPTION. The default is ['rc'].
-        roll_off : TYPE, optional
-            DESCRIPTION. The default is [0.2].
-
-        Returns
-        -------
-        None.
+        For detailed documentation see comm.tx.pulseshaper()       
 
         """
-
         upsampling = self._check_attribute(upsampling)
         pulseshape = self._check_attribute(pulseshape)
         roll_off = self._check_attribute(roll_off)
