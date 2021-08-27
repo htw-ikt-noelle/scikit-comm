@@ -52,6 +52,7 @@ sig_rx.samples = sig_rx.samples[0][delay:]
 # sig_rx.samples = sig_rx.samples[0] * np.exp(-1j*np.pi/2)
 # sig_rx.samples = np.conj(sig_rx.samples) * np.exp(-1j*1.58)
 
+# TODO: implement once link performance is satisfactory without any noise
 # AWGN
 
 # phase noise
@@ -64,9 +65,14 @@ sig_rx.samples = comm.filters.raised_cosine_filter(sig_rx.samples[0], sample_rat
                                                    root_raised=True)
 
 # artificially delay received samples (cut away delay leading symbols)
-cut_lead = 1000*sps
-cut_trail = 1000*sps
-sig_rx.samples = sig_rx.samples[0][cut_lead:-cut_trail]
+# cut_lead = 1000*sps
+# cut_trail = 1000*sps
+# sig_rx.samples = sig_rx.samples[0][cut_lead:-cut_trail]
+crop = 10*sps
+if crop != 0:
+    sig_rx.samples = sig_rx.samples[0][crop:-crop]
+else:
+    sig_rx.samples = sig_rx.samples
 
 comm.visualizer.plot_eye(sig_rx.samples[0][:500*sps],sample_rate=sig_rx.sample_rate[0], 
                           bit_rate=sig_rx.symbol_rate[0])
@@ -121,19 +127,24 @@ print('conjugated:{}, delay={}, phase={}'.format(symbols_conj, symbol_delay_est,
 # manipulate logical reference symbol sequence in order to compensate for 
 # delay and ambiguity
 if symbols_conj:
-    # symbols: only delay compensation
-    sig_rx.symbols = np.roll(np.conj(sig_rx.symbols[0]), -int(symbol_delay_est)) * np.exp(-1j*phase_est)
-     # samples: ambituity compensation
-     sig_rx.samples = ???
+    # symbols: only delay compensation is performed, symbols are then
+    # independently decided and decided before counting errors against
+    # rx.samples
+    # sig_rx.symbols = np.roll(np.conj(sig_rx.symbols[0]), -int(symbol_delay_est)) * np.exp(-1j*phase_est)
+    sig_rx.symbols = np.roll(np.conj(sig_rx.symbols[0]), -int(symbol_delay_est)) 
+    # samples: ambiguity compensation
+    # TODO: continue here
+    sig_rx.samples = ???
 else:
     # symbols: only delay compensation
-    sig_rx.symbols = np.roll(sig_rx.symbols[0], -int(symbol_delay_est)) * np.exp(1j*phase_est)
-    # samples: ambituity compensation
+    # sig_rx.symbols = np.roll(sig_rx.symbols[0], -int(symbol_delay_est)) * np.exp(1j*phase_est)
+    sig_rx.symbols = np.roll(sig_rx.symbols[0], -int(symbol_delay_est))
+    # samples: ambiguity compensation
     sig_rx.samples = ???
     
 # generate reference bit sequence from manipulated symbol sequence by decision and demapping
-# sig_rx.symbols = comm.rx.decision(sig_rx.symbols[0], sig_rx.constellation[0])
-# sig_rx.bits = comm.rx.demapper(sig_rx.symbols[0], sig_rx.constellation[0])
+sig_rx.symbols = comm.rx.decision(sig_rx.symbols[0], sig_rx.constellation[0])
+sig_rx.bits = comm.rx.demapper(sig_rx.symbols[0], sig_rx.constellation[0])
 
 ########################################################################################
 
