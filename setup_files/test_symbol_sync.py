@@ -9,6 +9,10 @@ import scipy.signal as ssignal
 import matplotlib.pyplot as plt
 import scipy.interpolate as sinterp
 import comm as comm
+import copy
+
+
+sps = 8 # samples per modulation symobol
 
 
 # contruct signal
@@ -26,24 +30,60 @@ sig_tx.modulation_info = 'QPSK'
 # create symbols
 sig_tx.mapper()
 # pulse shaping
-sig_tx.samples = sig_tx.symbols[0]
+# sig_tx.samples = sig_tx.symbols[0]
+sig_tx.pulseshaper(upsampling=sps, pulseshape='rrc', roll_off=0.2)
 
-############# Rx #####################
-sig_rx = sig_tx
+################ channel ###########################
+sig_rx = copy.deepcopy(sig_tx)
 
+
+# tmp = copy.deepcopy(sig_rx)
 # get samples from scope (repeat rx sequence)
-ext = 20000
+ext = 8192*sps + 4000*sps
 ratio_base = ext // sig_rx.samples[0].size
 ratio_rem = ext % sig_rx.samples[0].size        
 sig_rx.samples[0] = np.concatenate((np.tile(sig_rx.samples[0], ratio_base), sig_rx.samples[0][:ratio_rem]), axis=0)
 
 # artificially delay received samples (cut away delay leading symbols)
-delay = 1059
+delay = 10*sps
 sig_rx.samples = sig_rx.samples[0][delay:]
 
 # introduce ambiguity (phase shift / flip)
-sig_rx.samples = sig_rx.samples[0] * np.exp(-1j*1)
+# sig_rx.samples = sig_rx.samples[0] * np.exp(-1j*np.pi/2)
 # sig_rx.samples = np.conj(sig_rx.samples) * np.exp(-1j*1.58)
+
+# AWGN
+
+# phase noise
+
+
+############# Rx #####################
+# matched filter
+sig_rx.samples = comm.filters.raised_cosine_filter(sig_rx.samples[0], sample_rate=sig_rx.sample_rate[0],
+                                                   symbol_rate=sig_rx.symbol_rate[0], roll_off=0.2,
+                                                   root_raised=True)
+
+# artificially delay received samples (cut away delay leading symbols)
+cut_lead = 1000*sps
+cut_trail = 1000*sps
+sig_rx.samples = sig_rx.samples[0][cut_lead:-cut_trail]
+
+comm.visualizer.plot_eye(sig_rx.samples[0][:500*sps],sample_rate=sig_rx.sample_rate[0], 
+                          bit_rate=sig_rx.symbol_rate[0])
+
+# correct for sampling instant
+sig_rx.sampling_phase_adjustment()
+
+
+comm.visualizer.plot_eye(sig_rx.samples[0][:500*sps],sample_rate=sig_rx.sample_rate[0], 
+                         bit_rate=sig_rx.symbol_rate[0])
+
+# sampling to 1 sps
+sig_rx.samples = sig_rx.samples[0][::sps]
+
+
+# CPE
+
 
 ########################## compensation algorithm ########################################
 # TODO: put into rx function
@@ -81,14 +121,23 @@ print('conjugated:{}, delay={}, phase={}'.format(symbols_conj, symbol_delay_est,
 # manipulate logical reference symbol sequence in order to compensate for 
 # delay and ambiguity
 if symbols_conj:
+    # symbols: only delay compensation
     sig_rx.symbols = np.roll(np.conj(sig_rx.symbols[0]), -int(symbol_delay_est)) * np.exp(-1j*phase_est)
+     # samples: ambituity compensation
+     sig_rx.samples = ???
 else:
+    # symbols: only delay compensation
     sig_rx.symbols = np.roll(sig_rx.symbols[0], -int(symbol_delay_est)) * np.exp(1j*phase_est)
+    # samples: ambituity compensation
+    sig_rx.samples = ???
+    
 # generate reference bit sequence from manipulated symbol sequence by decision and demapping
-sig_rx.symbols = comm.rx.decision(sig_rx.symbols[0], sig_rx.constellation[0])
-sig_rx.bits = comm.rx.demapper(sig_rx.symbols[0], sig_rx.constellation[0])
+# sig_rx.symbols = comm.rx.decision(sig_rx.symbols[0], sig_rx.constellation[0])
+# sig_rx.bits = comm.rx.demapper(sig_rx.symbols[0], sig_rx.constellation[0])
 
 ########################################################################################
+
+sig_rx.plot_constellation()
 
 # decision and demapper
 sig_rx.decision()
