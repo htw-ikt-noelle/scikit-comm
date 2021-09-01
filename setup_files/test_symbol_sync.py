@@ -39,23 +39,35 @@ sig_rx = copy.deepcopy(sig_tx)
 
 # tmp = copy.deepcopy(sig_rx)
 # get samples from scope (repeat rx sequence)
-ext = 8192*sps + 4000*sps
+ext = 8192*sps + 6000*sps
 ratio_base = ext // sig_rx.samples[0].size
 ratio_rem = ext % sig_rx.samples[0].size        
 sig_rx.samples[0] = np.concatenate((np.tile(sig_rx.samples[0], ratio_base), sig_rx.samples[0][:ratio_rem]), axis=0)
 
-# artificially delay received samples (cut away delay leading symbols)
+# artificially delay received samples (cut away delay leading symbols, 
+# only positive integers allowed)
 delay = 10*sps
 sig_rx.samples = sig_rx.samples[0][delay:]
 
 # introduce ambiguity (phase shift / flip)
-# sig_rx.samples = sig_rx.samples[0] * np.exp(-1j*np.pi/2)
-# sig_rx.samples = np.conj(sig_rx.samples) * np.exp(-1j*1.58)
+### w/o conjugate
+sig_rx.samples = sig_rx.samples[0] * np.exp(1j*np.pi/3)
+### w/ conjugate
+# ATTENTION: if conj is applied before linear phase rotation (Version B), sign of the
+# additional phase is flipped and subsequently "misinterpreted" (but compensated
+# correctly) by ambiguity compensation
+# Version A
+# sig_rx.samples = np.conj(sig_rx.samples[0] * np.exp(-1j*np.pi/3))
+# Version B
+# sig_rx.samples = np.conj(sig_rx.samples[0]) * np.exp(1j*np.pi/3)
 
 # TODO: implement once link performance is satisfactory without any noise
 # AWGN
-
+SNR = 20
+sig_rx.set_snr(snr_dB=SNR,seed=1)
 # phase noise
+tmp = comm.channel.add_phase_noise(sig_rx.samples[0], s_rate=sig_rx.sample_rate[0], linewidth=5e2, seed=1)
+sig_rx.samples = tmp['samples']
 
 
 ############# Rx #####################
@@ -64,16 +76,16 @@ sig_rx.samples = comm.filters.raised_cosine_filter(sig_rx.samples[0], sample_rat
                                                    symbol_rate=sig_rx.symbol_rate[0], roll_off=0.2,
                                                    root_raised=True)
 
-# artificially delay received samples (cut away delay leading symbols)
+# crop samples to compensate for filter/DSP transients
 # cut_lead = 1000*sps
 # cut_trail = 1000*sps
 # sig_rx.samples = sig_rx.samples[0][cut_lead:-cut_trail]
-crop = 10*sps
+crop = 5*sps
 if crop != 0:
     sig_rx.samples = sig_rx.samples[0][crop:-crop]
 else:
-    sig_rx.samples = sig_rx.samples
-
+    sig_rx.samples = sig_rx.samples[0]
+# 
 comm.visualizer.plot_eye(sig_rx.samples[0][:500*sps],sample_rate=sig_rx.sample_rate[0], 
                           bit_rate=sig_rx.symbol_rate[0])
 
@@ -89,6 +101,7 @@ sig_rx.samples = sig_rx.samples[0][::sps]
 
 
 # CPE
+sig_rx.samples = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=21, filter_shape='wiener', mth_power=4, rho=0.3)['rec_symbols']
 
 
 ########################## compensation algorithm ########################################
@@ -118,33 +131,37 @@ if idx <= corr_len/2:
 else:
     symbol_delay_est = int(corr_len - idx + corr_len/2)
 
-print('conjugated:{}, delay={}, phase={}'.format(symbols_conj, symbol_delay_est, phase_est))
+print('conjugated:{}, delay in symbols={}, phase={}'.format(symbols_conj, symbol_delay_est, phase_est))
 
-# plt.plot(np.abs(corr_norm))
-# plt.plot(np.abs(corr_conj))
-# plt.show()
+plt.plot(np.abs(corr_norm))
+plt.plot(np.abs(corr_conj))
+plt.show()
 
-# manipulate logical reference symbol sequence in order to compensate for 
-# delay and ambiguity
+# manipulate logical reference symbol and bit sequences in order to compensate 
+# for delay 
+bps = np.log2(sig_rx.constellation[0].size)
+sig_rx.symbols = np.roll(sig_rx.symbols[0], -int(symbol_delay_est)) 
+sig_rx.bits = np.roll(sig_rx.bits[0], -int(symbol_delay_est*bps)) 
+
 if symbols_conj:
-    # symbols: only delay compensation is performed, symbols are then
-    # independently decided and decided before counting errors against
-    # rx.samples
+    # symbols: only delay compensation is performed to preserve logical sequence, 
+    # symbols are then independently decided and demapped before counting errors 
+    # against rx.samples
     # sig_rx.symbols = np.roll(np.conj(sig_rx.symbols[0]), -int(symbol_delay_est)) * np.exp(-1j*phase_est)
-    sig_rx.symbols = np.roll(np.conj(sig_rx.symbols[0]), -int(symbol_delay_est)) 
-    # samples: ambiguity compensation
-    # TODO: continue here
-    sig_rx.samples = ???
+    # samples: ambiguity and phase offset compensation is applied to physical samples
+    sig_rx.samples = np.conj(sig_rx.samples[0] * np.exp(1j*phase_est))
+    # equivalent equation
+    # sig_rx.samples = np.conj(sig_rx.samples[0]) * np.exp(-1j*phase_est)
 else:
     # symbols: only delay compensation
     # sig_rx.symbols = np.roll(sig_rx.symbols[0], -int(symbol_delay_est)) * np.exp(1j*phase_est)
-    sig_rx.symbols = np.roll(sig_rx.symbols[0], -int(symbol_delay_est))
-    # samples: ambiguity compensation
-    sig_rx.samples = ???
+    # samples: ambiguity and phase offset compensation
+    # sig_rx.samples = sig_rx.samples[0] * np.exp(1j*phase_est)
+    sig_rx.samples = sig_rx.samples[0] * np.exp(-1j*phase_est)
     
 # generate reference bit sequence from manipulated symbol sequence by decision and demapping
-sig_rx.symbols = comm.rx.decision(sig_rx.symbols[0], sig_rx.constellation[0])
-sig_rx.bits = comm.rx.demapper(sig_rx.symbols[0], sig_rx.constellation[0])
+# sig_rx.symbols = comm.rx.decision(sig_rx.symbols[0], sig_rx.constellation[0])
+# sig_rx.bits = comm.rx.demapper(sig_rx.symbols[0], sig_rx.constellation[0])
 
 ########################################################################################
 
@@ -156,7 +173,7 @@ sig_rx.demapper()
 
 # BER counting
 ber_res = comm.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
-print(ber_res['ber'])
+print('BER = {}'.format(ber_res['ber']))
 # print(np.sum(ber_res['err_idx']))
 
 # plt.plot(ber_res['err_idx'])
