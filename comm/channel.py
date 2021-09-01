@@ -72,12 +72,13 @@ def add_phase_noise(samples, s_rate=1.0, linewidth=1.0, seed=None):
 
     Returns
     -------
-    samples : numpy array, complex
-        complex singal including phase noise.
-    phaseAcc : numpy array, real
-        phase noise vector in rad.
-    varPN : float
-        variance of generated phase noise in rad**2.
+    results : dict containing following keys
+        samples : numpy array, complex
+            complex singal including phase noise.
+        phaseAcc : numpy array, real
+            phase noise vector in rad.
+        varPN : float
+            variance of generated phase noise in rad**2.
     """          
     # helper calculations
     dt = 1/s_rate   # [s] sample interval for discrete phase noise model
@@ -88,6 +89,11 @@ def add_phase_noise(samples, s_rate=1.0, linewidth=1.0, seed=None):
     phaseAcc = np.cumsum(phaseInc,0); # [rad] accumulated phase = random walks
     phaseAcc = phaseAcc - phaseAcc[0]    # [rad] rotate (shift) all phase processes back to initial zero phase
 
-    samples = samples * np.exp(1j*phaseAcc);    
+    samples = samples * np.exp(1j*phaseAcc); 
     
-    return samples, phaseAcc, varPN
+    results = dict()
+    results['samples'] = samples
+    results['phaseAcc'] = phaseAcc
+    results['varPN'] = varPN
+    
+    return results
