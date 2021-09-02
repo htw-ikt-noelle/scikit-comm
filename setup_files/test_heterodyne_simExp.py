@@ -203,10 +203,8 @@ sig_rx.samples[0] = samples_r - 1j * samples_i
 ############# From here: "standard" coherent complex baseband signal processing ############
 # Rx matched filter
 sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
-
 # sig_rx.plot_eye()
 
-# =============================================================================
 # crop samples here, if necessary
 sps = int(sig_rx.sample_rate[0] / sig_rx.symbol_rate[0])
 crop = 10*sps
@@ -214,12 +212,10 @@ if crop != 0:
     sig_rx.samples = sig_rx.samples[0][crop:-crop]
 else:
     sig_rx.samples = sig_rx.samples[0]
-# =============================================================================
 
 # sampling phase / clock adjustment
 BLOCK_SIZE = -1 # size of one block in SYMBOLS... -1 for only one block
 sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
-
 
 # sampling
 START_SAMPLE = 0
@@ -234,58 +230,8 @@ est_phase = cpe_results['phi_est']
 
 # sig_rx.plot_constellation()
 
-# =============================================================================
-# delay and phase ambiguity compensation
-
-
-# determine symbol delay and constellation ambiguity (phase rotation and conj)
-corr_len = sig_tx.symbols[0].size
-# complex correlation of rx_symbols and tx_smybols (only one symbol block needed)
-corr_norm = ssignal.correlate(sig_rx.samples[0][:corr_len], sig_tx.symbols[0], mode='same')
-# complex correlation of conjugated rx_symbols and tx_symbols (only one symbol block needed)
-corr_conj = ssignal.correlate(np.conj(sig_rx.samples[0][:corr_len]), sig_tx.symbols[0], mode='same')
-
-# decide which correlation is larger and determine delay index and phase
-if np.max(np.abs(corr_norm)) > np.max(np.abs(corr_conj)):
-    symbols_conj = False
-    idx = np.argmax(np.abs(corr_norm))    
-    phase_est = np.angle(corr_norm[idx])
-else:
-    symbols_conj = True
-    idx = np.argmax(np.abs(corr_conj))
-    phase_est = np.angle(corr_conj[idx])
-
-# determine symbol delay from index depending on the location of the 
-# correlation peak (either left or right from the center)
-if idx <= corr_len/2:
-    symbol_delay_est = int(corr_len/2 - idx)
-else:
-    symbol_delay_est = int(corr_len - idx + corr_len/2)
-
-# quantize phase to mulitples of 2*pi/M    
-phase_est = np.round(phase_est / (2*np.pi/4)) * (2*np.pi/4)
-
-print('conjugated:{}, delay in symbols={}, phase={}'.format(symbols_conj, symbol_delay_est, phase_est))
-
-plt.plot(np.abs(corr_norm))
-plt.plot(np.abs(corr_conj))
-plt.show()
-
-# manipulate logical reference symbol and bit sequences in order to compensate 
-# for delay 
-bps = np.log2(sig_rx.constellation[0].size)
-sig_rx.symbols = np.roll(sig_rx.symbols[0], -int(symbol_delay_est)) 
-sig_rx.bits = np.roll(sig_rx.bits[0], -int(symbol_delay_est*bps)) 
-
-if symbols_conj:    
-    # samples: ambiguity and phase offset compensation is applied to physical samples
-    sig_rx.samples = np.conj(sig_rx.samples[0] * np.exp(1j*phase_est))
-    # equivalent equation
-    # sig_rx.samples = np.conj(sig_rx.samples[0]) * np.exp(-1j*phase_est)
-else:
-    # symbols: only delay compensation    
-    # samples: ambiguity and phase offset compensation   
-    sig_rx.samples = sig_rx.samples[0] * np.exp(-1j*phase_est)
+# delay and phase ambiguity estimation and compensation
+sig_rx = comm.rx.symbol_sequence_sync(sig_rx, dimension=-1)
     
 # plot constellation and calc BER
 sig_rx.plot_constellation()
@@ -303,5 +249,3 @@ ber_res = comm.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
 print('BER = {}'.format(ber_res['ber']))
 
 # plt.plot(ber_res['err_idx'])
-
-# =============================================================================
