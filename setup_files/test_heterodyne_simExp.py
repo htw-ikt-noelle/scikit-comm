@@ -21,7 +21,7 @@ import comm as comm
 LASER_LINEWIDTH = 0*1e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
 EXPERIMENT = False
-UPLOAD_SAMPLES = True
+UPLOAD_SAMPLES = False
 USE_PREDIST = False
 SNR = 20
 
@@ -101,16 +101,39 @@ if EXPERIMENT:
 else:
     samples = samples[0] + 1j*samples[1] # build ideal complex signal from Tx samples (no ampl. and phase noise)
 
+    # =============================================================================
+    sps = int(sig_tx.sample_rate[0] / sig_tx.symbol_rate[0])
+    
+    # get samples from scope (repeat rx sequence)
+    ext = 8192*sps + 4000*sps
+    ratio_base = ext // samples.size
+    ratio_rem = ext % samples.size        
+    samples = np.concatenate((np.tile(samples, ratio_base), samples[:ratio_rem]), axis=0)
+    
+    # add artificial delay 
+    delay = 10*sps
+    samples = samples[delay:]
+    
+    # add phase ambiguity (phase rotation and conmplex conjugation)
+    ### w/o conjugate
+    # samples = samples * np.exp(1j*np.pi/3)
+    ### w/ conjugate
+    # ATTENTION: if conj is applied before linear phase rotation, sign of the
+    # additional phase is flipped and subsequently "misinterpreted" (but compensated
+    # correctly) by ambiguity compensation
+    samples = np.conj(samples * np.exp(-1j*np.pi/3))
+    # =============================================================================
+    
     ## add amplitude noise
     samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=int(sig_tx.sample_rate[0]/sig_tx.symbol_rate[0]), seed=None)
 
     ## phase noise emulation
-    samples, phaseAcc, varPN = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)
+    samples = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)['samples']
     sr = sig_tx.sample_rate[0]
     # plt.figure(1); plt.plot(phaseAcc); plt.show()
     
     # add artificial sample clock error
-    ratio = 1.00 # ratio of sampling frequency missmatch     
+    ratio = 1.0 # ratio of sampling frequency missmatch     
     n_old = np.size(samples, axis=0)
     t_old = np.arange(n_old) / sr
     n_new = int(np.round(ratio * n_old))
@@ -179,6 +202,16 @@ sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True)
 # TODO: compensate for the group delay of the filter???
 # sig_rx.plot_eye()
 
+# =============================================================================
+# crop samples here, if necessary
+
+crop = 5*sps
+if crop != 0:
+    sig_rx.samples = sig_rx.samples[0][crop:-crop]
+else:
+    sig_rx.samples = sig_rx.samples[0]
+# =============================================================================
+
 # sampling phase / clock adjustment
 BLOCK_SIZE = -1 # size of one block in SYMBOLS... -1 for only one block
 sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
@@ -198,15 +231,93 @@ rx_symbols = sig_rx.samples[0][START_SAMPLE::int(sps)]
 comm.visualizer.plot_constellation(rx_symbols)
 
 # CPE
-cpe_results = comm.rx.carrier_phase_estimation_VV(rx_symbols, n_taps=21, filter_shape='wiener', mth_power=4, rho=.3)
-rx_symbols = cpe_results['rec_symbols']
-est_phase = cpe_results['phi_est']
+# cpe_results = comm.rx.carrier_phase_estimation_VV(rx_symbols, n_taps=21, filter_shape='wiener', mth_power=4, rho=.3)
+# rx_symbols = cpe_results['rec_symbols']
+# est_phase = cpe_results['phi_est']
+
+# =============================================================================
+# delay and phase ambiguity compensation
+
+# pass recovered rx_symbols to sig_rx object
+sig_rx.samples = rx_symbols
+
+# determine symbol delay and constellation ambiguity (phase rotation and conj)
+corr_len = sig_tx.symbols[0].size
+# complex correlation of rx_symbols and tx_smybols (only one symbol block needed)
+corr_norm = ssignal.correlate(sig_rx.samples[0][:corr_len], sig_tx.symbols[0], mode='same')
+# complex correlation of conjugated rx_symbols and tx_symbols (only one symbol block needed)
+corr_conj = ssignal.correlate(np.conj(sig_rx.samples[0][:corr_len]), sig_tx.symbols[0], mode='same')
+
+# decide which correlation is larger and determine delay index and phase
+if np.max(np.abs(corr_norm)) > np.max(np.abs(corr_conj)):
+    symbols_conj = False
+    idx = np.argmax(np.abs(corr_norm))    
+    phase_est = np.angle(corr_norm[idx])
+else:
+    symbols_conj = True
+    idx = np.argmax(np.abs(corr_conj))
+    phase_est = np.angle(corr_conj[idx])
+
+# determine symbol delay from index depending on the location of the 
+# correlation peak (either left or right from the center)
+if idx <= corr_len/2:
+    symbol_delay_est = int(corr_len/2 - idx)
+else:
+    symbol_delay_est = int(corr_len - idx + corr_len/2)
+
+print('conjugated:{}, delay in symbols={}, phase={}'.format(symbols_conj, symbol_delay_est, phase_est))
+
+plt.plot(np.abs(corr_norm))
+plt.plot(np.abs(corr_conj))
+plt.show()
+
+# pass logical reference and constellation alphabet from tx to rx
+sig_rx.constellation = sig_tx.constellation
+sig_rx.bits = sig_tx.bits
+# manipulate logical reference symbol and bit sequences in order to compensate 
+# for delay 
+bps = np.log2(sig_rx.constellation[0].size)
+sig_rx.symbols = np.roll(sig_rx.symbols[0], -int(symbol_delay_est)) 
+sig_rx.bits = np.roll(sig_rx.bits[0], -int(symbol_delay_est*bps)) 
+
+if symbols_conj:
+    # symbols: only delay compensation is performed to preserve logical sequence, 
+    # symbols are then independently decided and demapped before counting errors 
+    # against rx.samples
+    # sig_rx.symbols = np.roll(np.conj(sig_rx.symbols[0]), -int(symbol_delay_est)) * np.exp(-1j*phase_est)
+    # samples: ambiguity and phase offset compensation is applied to physical samples
+    sig_rx.samples = np.conj(sig_rx.samples[0] * np.exp(1j*phase_est))
+    # equivalent equation
+    # sig_rx.samples = np.conj(sig_rx.samples[0]) * np.exp(-1j*phase_est)
+else:
+    # symbols: only delay compensation
+    # sig_rx.symbols = np.roll(sig_rx.symbols[0], -int(symbol_delay_est)) * np.exp(1j*phase_est)
+    # samples: ambiguity and phase offset compensation
+    # sig_rx.samples = sig_rx.samples[0] * np.exp(1j*phase_est)
+    sig_rx.samples = sig_rx.samples[0] * np.exp(-1j*phase_est)
+    
+# plot constellation and calc BER
+
+sig_rx.plot_constellation()
 
 # calc EVM
-evm = comm.rx.calc_evm(rx_symbols, sig_tx.constellation[0], norm='max')
+evm = comm.rx.calc_evm(sig_rx.samples[0], sig_tx.constellation[0], norm='max')
 print("EVM: {:2.2%}".format(evm))
 
+# decision and demapper
+sig_rx.decision()
+sig_rx.demapper()
 
-comm.visualizer.plot_signal(est_phase)
-comm.visualizer.plot_constellation(rx_symbols)
+# BER counting
+ber_res = comm.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
+print('BER = {}'.format(ber_res['ber']))
+
+# =============================================================================
+
+
+
+# sig_rx.plot_constellation()
+
+# comm.visualizer.plot_signal(est_phase)
+# comm.visualizer.plot_constellation(rx_symbols)
 # comm.visualizer.plot_signal(abs(rx_symbols))
