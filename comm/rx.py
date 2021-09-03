@@ -1,10 +1,11 @@
 import numpy as np
-import scipy.signal as signal
+import scipy.signal as ssignal
 import matplotlib.pyplot as plt
 import warnings
 from . import utils
 from . import filters
 from . import visualizer
+from . import signal
 
 
 def demapper(samples, constellation):
@@ -205,7 +206,7 @@ def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, shift_d
         len_dsp = sr_dsp / sample_rate * np.size(samples, axis=0)
         if len_dsp % 1:
             raise ValueError('DSP samplerate results in asynchronous sampling of the data symbols')
-        samples_tmp = signal.resample(samples_tmp, num=int(len_dsp), window=None)    
+        samples_tmp = ssignal.resample(samples_tmp, num=int(len_dsp), window=None)    
     
     # calc length of vector so that spectrum exactly includes the symbol rate
     tmp = np.floor(symbol_rate * np.size(samples_tmp, axis=0) / sr_dsp)
@@ -418,8 +419,7 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
         est_shift : float or 1D numpy array of floats
             estimated phase noise.
 
-    """
-    
+    """    
     if filter_shape == 'rect':
         # filter the unwraped phase
         phi_est = filters.moving_average(np.unwrap(mth_power * np.angle(symbols)) / mth_power, n_taps, domain='freq')
@@ -513,7 +513,106 @@ def calc_evm(symbols, constellation, norm='max'):
     evm = np.sqrt(np.mean(np.abs(error)**2)) / evm_norm_ref
     
     return evm
+
+def symbol_sequence_sync(sig, dimension=-1):
+    """
+    Estimate and compensate delay and phase shift between reference symbol / bit sequence and physical samples.
     
+    The sig.samples have to be sampled at a rate of one sample per symbol. 
+    
+    A complex correlation between sig.samples and sig.symbols is performed in 
+    order to find the delay and the phase shift between both signals. 
+    
+    Further also a complex correlation between conj(sig.samples) and sig.symbols 
+    is performed in order to detect a flip (inversion) of the imaginary part.
+    
+    The found dalay is compensated for by cyclic shift (roll) of the reference symbol
+    and bit sequence (sig.symobls and sig.bits, respectively) while the ambiguity 
+    (phase shift and flip of imaginary part) is compensated for by manipulating
+    the physical samples (sig.samples).
+    
+    This operation can be performed to one specific dimension of the signal or 
+    to all dimensions of the signal independently.
+    
+
+    Parameters
+    ----------
+    sig : comm.signal.Signal
+        signal containing the sequences to be synced.
+
+    dimension : int
+        dimension of the signal to operate on. If -1 the synchronization is performed
+        to all dimensions of the signal. The default is -1.
+
+    Returns
+    -------
+    sig : comm.signal.Signal
+        signal containing the synced sequences.
+
+    """    
+    if type(sig) != signal.Signal:
+        raise TypeError("input parameter must be of type 'comm.signal.Signal'")
+        
+    if dimension == -1:
+        dims = range(sig.n_dims)
+    elif (dimension >= sig.n_dims) or (dimension < -1):
+        raise ValueError("-1 <= dimension < sig.n_dims")
+    else:
+        dims = [dimension]
+    
+    # iterate over specified signal dimensions
+    for dim in dims:
+    
+        # use only one symbol sequence for correlation
+        corr_len = sig.symbols[dim].size
+        
+        # complex correlation of received, sampled signal and referece symbole sequence
+        corr_norm = ssignal.correlate(sig.samples[dim][:corr_len], sig.symbols[dim], mode='same')
+        # complex correlation of received, sampled and conjugated signal and referece symbole sequence
+        corr_conj = ssignal.correlate(np.conj(sig.samples[dim][:corr_len]), sig.symbols[dim], mode='same')
+        
+        # decide which of the correlations is larger and determine delay index and phase from it
+        if np.max(np.abs(corr_norm)) > np.max(np.abs(corr_conj)):
+            symbols_conj = False
+            idx = np.argmax(np.abs(corr_norm))    
+            phase_est = np.angle(corr_norm[idx])
+        else:
+            symbols_conj = True
+            idx = np.argmax(np.abs(corr_conj))
+            phase_est = np.angle(corr_conj[idx])
+        
+        # determine symbol delay from correlation peak index depending on the location of the 
+        # correlation peak (either left or right from the center)
+        if idx <= corr_len/2:
+            symbol_delay_est = int(corr_len/2 - idx)
+        else:
+            symbol_delay_est = int(corr_len - idx + corr_len/2)
+        
+        # quantize phase to mulitples of pi/2, because large noise can alter the phase of the correlation peak...
+        # quantization therefore ensures phase rotations to be only multiples of pi/2 
+        # TODO:CHECK if this is reasonable for every modulation format, if not, add a case decision here depending on modulation format!!!
+        phase_est = np.round(phase_est / (np.pi/2)) * (np.pi/2)
+        
+        # for debugging purpose
+        # print('conjugated:{}, delay in symbols={}, phase={}'.format(symbols_conj, symbol_delay_est, phase_est))
+        # plt.plot(np.abs(corr_norm))
+        # plt.plot(np.abs(corr_conj))
+        # plt.show()
+        
+        # manipulate logical reference symbol sequence and bit sequences in order to compensate 
+        # for delay 
+        bps = np.log2(sig.constellation[dim].size)
+        sig.symbols[dim] = np.roll(sig.symbols[dim], -int(symbol_delay_est)) 
+        sig.bits[dim] = np.roll(sig.bits[dim], -int(symbol_delay_est*bps)) 
+        
+        # manipulate physical samples in order to compensate for phase rotations and inversion 
+        # of real and / or imaginary part (optical modulator ambiguity)
+        if symbols_conj:    
+            sig.samples[dim] = np.conj(sig.samples[dim] * np.exp(1j*phase_est))        
+        else:        
+            sig.samples[dim] = sig.samples[dim] * np.exp(-1j*phase_est)
+    
+    return sig        
 
 
     
