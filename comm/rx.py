@@ -434,6 +434,7 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
         H_wiener = np.fft.ifftshift(np.fft.fft(h_wiener, n=symbols.size))
         # filter the unwraped phase        
         phi_est = filters.filter_samples(np.unwrap(mth_power*np.angle(symbols))/mth_power, H_wiener, domain='freq')
+        # phi_est = np.abs(phi_est)
         # undo group delay of Wiener filter
         phi_est = np.roll(phi_est,  -(n_taps//2))
     

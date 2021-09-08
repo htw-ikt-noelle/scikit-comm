@@ -23,7 +23,7 @@ LASER_LINEWIDTH = 0*1e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
 EXPERIMENT = True
 UPLOAD_SAMPLES = True
-USE_PREDIST = True
+USE_PREDIST = False
 SNR = 200
 
 # contruct signal
@@ -98,6 +98,7 @@ if EXPERIMENT:
     samples = samples[0] - samples[1]
     
     #TODO: maybe remove mean of signal
+    samples = samples - np.mean(samples)
 
 ###################### Simulation ###########################################
 else:
@@ -153,7 +154,6 @@ else:
 #############################################################################
 ######################## Rx #################################################
 #############################################################################
-    
 # contruct rx signal structure
 sig_rx = copy.deepcopy(sig_tx)
 sig_rx.samples = samples
@@ -173,7 +173,6 @@ sig_rx.samples = ssignal.resample(sig_rx.samples[0], num=int(len_dsp), window=No
 sig_rx.sample_rate = sr_dsp
 # #comm.visualizer.plot_spectrum(rx_samples, sample_rate=sr)
 sig_rx.plot_spectrum()
-
 
 # IQ-Downmixing and (ideal) lowpass filtering
 # ...either real signal processing
@@ -200,7 +199,14 @@ sig_rx.samples[0] = samples_r - 1j * samples_i
 #sig_rx.plot_spectrum()
 #sig_rx.plot_constellation()
 
-############# From here: "standard" coherent complex baseband signal processing ############
+# ############# From here: "standard" coherent complex baseband signal processing ############
+# # resample to 2 sps
+# sps = sig_rx.sample_rate[0]/sig_rx.symbol_rate[0]
+# new_length = int(sig_rx.samples[0].size/sps*2)
+# sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
+# sig_rx.sample_rate = 2*sig_rx.symbol_rate[0]
+
+
 adaptive_filter = True
 # blind adaptive filter....
 if adaptive_filter == True:
@@ -209,10 +215,10 @@ if adaptive_filter == True:
     # and [2] S. Savory, "Digital Coherent Optical Receivers: Algorithms and Subsystems", IEEE STQE, vol 16, no. 5, 2010
     
     # length of filter impuse resoponse
-    n_taps = 555 # has to be odd
+    n_taps = 551 # has to be odd
     sps = int(sig_rx.sample_rate[0] / sig_rx.symbol_rate[0])
     # step size for stochastic gradient method
-    mu = 4e-1
+    mu = 2e-2
     # init equalizer impulse response to delta
     h = np.zeros(n_taps, dtype=np.complex128)
     h[n_taps//2] = 1.0
@@ -220,16 +226,16 @@ if adaptive_filter == True:
     eps_tmp = []
     
     samples_in = sig_rx.samples[0]
-    samples_out = np.full_like(samples_in, np.nan)
+    samples_out = np.full(samples_in.size-n_taps, np.nan, dtype=np.complex128)
     
     # desired modulus for p=2, see [1], eq. (28) + 1
     r = np.mean(np.abs(samples_in)**4) / np.mean(np.abs(samples_in)**2)
     
     # comm.visualizer.plot_eye(samples_in[-500:], sample_rate = sig_rx.sample_rate[0], bit_rate = sig_rx.symbol_rate[0])
-    cut = 10000
+    cut = 10e3
     # comm.visualizer.plot_constellation(samples_in[cut*sps:-cut*sps:sps])
     
-    for sample in range(samples_out.size-n_taps):
+    for sample in range(samples_out.size):
         
         # filter the signal for each output sample (convolution)
         # see [1], eq. (5)
@@ -256,7 +262,7 @@ if adaptive_filter == True:
     # comm.visualizer.plot_constellation(samples_out[cut*sps:-cut*sps:sps])    
 
     # cut away first samples
-    sig_rx.samples = samples_out[cut*sps:]
+    sig_rx.samples = samples_out[int(cut)*sps:]
     
 
 # matched filtering
@@ -284,11 +290,13 @@ sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
 sig_rx.plot_constellation(0)
 
 # CPE
+# !!!! TODO: CHECK CPE!!!!!!
+# output of Wiener filtered phase is complex!!!!!
 cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, filter_shape='wiener', mth_power=4, rho=.3)
 sig_rx.samples = cpe_results['rec_symbols']
 est_phase = cpe_results['phi_est']
 
-# sig_rx.plot_constellation()
+sig_rx.plot_constellation()
 
 # delay and phase ambiguity estimation and compensation
 sig_rx = comm.rx.symbol_sequence_sync(sig_rx, dimension=-1)
