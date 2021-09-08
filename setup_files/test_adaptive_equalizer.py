@@ -19,9 +19,9 @@ import copy
 ############################################################
 
 # signal parameters
-LASER_LINEWIDTH = 0*1e3 # [Hz]
+LASER_LINEWIDTH = 1*1e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
-SNR = 200
+SNR = 20
 
 # contruct signal
 sig_tx = comm.signal.Signal(n_dims=1)
@@ -168,6 +168,10 @@ sig_rx.samples[0] = samples_r - 1j * samples_i
 # sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
 # sig_rx.plot_constellation(0)
 
+# add artificial low pass filter
+filtershape = np.asarray([[0, 0.0], [25e6, -10.0], [50e6, 2-0.0], [75e6, -30.0]])
+sig_rx.samples = comm.filters.filter_arbitrary(sig_rx.samples[0], filtershape, sample_rate=sig_rx.sample_rate[0])
+
 
 # blind adaptive equalizer
 # see [1] D. Godard, “Self-recovering equalization and carrier tracking in twodimensional data communication systems,” IEEE Trans. Commun., vol. 28, no. 11, pp. 1867–1875, Nov. 1980.
@@ -177,7 +181,7 @@ sig_rx.samples[0] = samples_r - 1j * samples_i
 n_taps = 555 # has to be odd
 sps = int(sig_rx.sample_rate[0] / sig_rx.symbol_rate[0])
 # step size for stochastic gradient method
-mu = 1e-1
+mu = 4e-1
 # init equalizer impulse response to delta
 h = np.zeros(n_taps, dtype=np.complex128)
 h[n_taps//2] = 1.0
@@ -191,7 +195,7 @@ samples_out = np.full_like(samples_in, np.nan)
 r = np.mean(np.abs(samples_in)**4) / np.mean(np.abs(samples_in)**2)
 
 # comm.visualizer.plot_eye(samples_in[-500:], sample_rate = sig_rx.sample_rate[0], bit_rate = sig_rx.symbol_rate[0])
-cut = 2000
+cut = 10000
 comm.visualizer.plot_constellation(samples_in[cut*sps:-cut*sps:sps])
 
 for sample in range(samples_out.size-n_taps):
