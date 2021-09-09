@@ -40,7 +40,7 @@ def filter_samples(samples, filter, domain='freq'):
     elif domain == 'freq':
         if samples.shape != filter.shape:
             raise TypeError('shape of samples and filter must be equal')
-        samples_out = np.fft.ifft(np.fft.ifftshift(np.fft.ifftshift(np.fft.fft(samples)) * filter))
+        samples_out = np.fft.ifft(np.fft.ifftshift(np.fft.fftshift(np.fft.fft(samples)) * filter))
     else:
         raise ValueError('filter_samples: domain must either be "time" or "freq" ...')  
     
@@ -140,7 +140,7 @@ def raised_cosine_filter(samples, sample_rate=1.0, symbol_rate=1.0, roll_off=0.0
     # frequency domain implementation
     elif domain == 'freq':
         
-        f = np.fft.ifftshift(np.fft.fftfreq(samples.size, 1/sample_rate))
+        f = np.fft.fftshift(np.fft.fftfreq(samples.size, 1/sample_rate))
         H = np.zeros(f.size)
         T = 1/symbol_rate
         
@@ -213,7 +213,7 @@ def moving_average(samples, average=4, domain='freq'):
         h[0:int(np.ceil(average/2))] = 1/average
         h[-int(np.floor(average/2))::] = 1/average
         # calc frequency response
-        H = np.fft.ifftshift(np.fft.fft(h))
+        H = np.fft.fftshift(np.fft.fft(h))
         samples_out = filter_samples(samples, H, domain)    
     
     return samples_out
@@ -314,7 +314,7 @@ def ideal_lp(samples, fc):
             actual applied cut off frequency (matching the frequency grid of the FFT)
     """ 
     # generate ideal frequency response
-    f = np.fft.ifftshift(np.fft.fftfreq(samples.size, d=0.5))
+    f = np.fft.fftshift(np.fft.fftfreq(samples.size, d=0.5))
     H = np.zeros_like(samples)
     H[np.abs(f) <= fc] = 1
     

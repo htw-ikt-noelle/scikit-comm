@@ -431,7 +431,7 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
         h_wiener = np.concatenate((np.flip(h_wiener[1:]), h_wiener)) # make symmetric
         h_wiener = h_wiener / np.sum(h_wiener) # normalize to unit sum (make unbiased estimator)        
        
-        H_wiener = np.fft.ifftshift(np.fft.fft(h_wiener, n=symbols.size))
+        H_wiener = np.fft.fftshift(np.fft.fft(h_wiener, n=symbols.size))
         # filter the unwraped phase        
         phi_est = filters.filter_samples(np.unwrap(mth_power*np.angle(symbols))/mth_power, H_wiener, domain='freq')
         # phi_est = np.abs(phi_est)
