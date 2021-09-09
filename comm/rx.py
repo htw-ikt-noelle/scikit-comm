@@ -613,16 +613,66 @@ def symbol_sequence_sync(sig, dimension=-1):
         else:        
             sig.samples[dim] = sig.samples[dim] * np.exp(-1j*phase_est)
     
-    return sig        
+    return sig    
 
-
+def blind_adaptive_equalizer(sig, n_taps=111, mu=2e-2, decimate=False, return_info=True, stop_adapting=-1):    
+    # blind adaptive equalizer
+    # see [1] D. Godard, “Self-recovering equalization and carrier tracking in twodimensional data communication systems,” IEEE Trans. Commun., vol. 28, no. 11, pp. 1867–1875, Nov. 1980.
+    # and [2] S. Savory, "Digital Coherent Optical Receivers: Algorithms and Subsystems", IEEE STQE, vol 16, no. 5, 2010
     
+    if type(sig) != signal.Signal:
+        raise TypeError("input parameter must be of type 'comm.signal.Signal'")
+        
+    if sig.n_dims != 1:
+        raise ValueError('equalizer only operates on one dimensional signals yet')
     
-    
-    
-    
-    
-    
-    
-
-
+    if n_taps % 2 == 0:
+        raise ValueError('n_taps need to be odd')       
+        
+    sps = int(sig.sample_rate[0] / sig.symbol_rate[0])
+    # init equalizer impulse response to delta
+    # TODO: add option to set impulse response from outside
+    h = np.zeros(n_taps, dtype=np.complex128)
+    h[n_taps//2] = 1.0
+    # generate lists for return info (evolution of impulse response and eps)
+    h_tmp = [h]
+    eps_tmp = []
+    # generate tmp arrays
+    samples_in = sig.samples[0]
+    samples_out = np.full(samples_in.size-n_taps, np.nan, dtype=np.complex128)
+    # desired modulus for p=2, see [1], eq. (28) + 1    
+    r = np.mean(np.abs(sig.constellation[0])**4) / np.mean(np.abs(sig.constellation[0])**2) 
+    # is output caluculated for each sample or only for each symbol?
+    if decimate:
+        shift = sps
+    else:
+        shift = 1
+    # will the equalizer stop adapting
+    if stop_adapting == -1:
+        stop_adapting = samples_out.size
+    # equalizer loop
+    for sample in range(0, samples_out.size, shift):        
+        # filter the signal for each desired output sample (convolution)
+        # see [1], eq. (5)
+        samples_out[sample] = np.sum(h * samples_in[n_taps+sample:sample:-1])        
+        # for each symbol, calculate error signal and update impulse response
+        if (sample % sps == 0) and (sample <= stop_adapting):            
+            # calc error, see [1], eq. (26)
+            eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r)            
+            # update impuse response, see [1], eq (28)
+            h -= mu * np.conj(samples_in[n_taps+sample:sample:-1]) * eps
+            # save return info, if necessary
+            if return_info:
+                h_tmp.append(h)
+                eps_tmp.append(eps)
+    # only take "valid" (actually calculated) output samples
+    if decimate:
+        samples_out = samples_out[::sps]
+        sig.sample_rate = sig.symbol_rate[0]
+    # generate output signal and result dict
+    sig.samples = samples_out
+    results = dict()
+    results['sig'] = sig
+    results['h'] = np.asarray(h_tmp)
+    results['eps'] = np.asarray(eps_tmp)
+    return results

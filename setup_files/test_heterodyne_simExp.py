@@ -211,59 +211,21 @@ sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
 adaptive_filter = True
 # blind adaptive filter....
 if adaptive_filter == True:
-    # blind adaptive equalizer
-    # see [1] D. Godard, “Self-recovering equalization and carrier tracking in twodimensional data communication systems,” IEEE Trans. Commun., vol. 28, no. 11, pp. 1867–1875, Nov. 1980.
-    # and [2] S. Savory, "Digital Coherent Optical Receivers: Algorithms and Subsystems", IEEE STQE, vol 16, no. 5, 2010
+    results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=333, mu=4e-3, decimate=False, return_info=True, stop_adapting=-1)
+    sig_rx = results['sig']
+    h = results['h']
+    eps = results['eps']
     
-    # length of filter impuse resoponse
-    n_taps = 111 # has to be odd
-    sps = int(sig_rx.sample_rate[0] / sig_rx.symbol_rate[0])
-    # step size for stochastic gradient method
-    mu = 2e-2
-    # init equalizer impulse response to delta
-    h = np.zeros(n_taps, dtype=np.complex128)
-    h[n_taps//2] = 1.0
-    h_tmp = [h]
-    eps_tmp = []
-    
-    samples_in = sig_rx.samples[0]
-    samples_out = np.full(samples_in.size-n_taps, np.nan, dtype=np.complex128)
-    
-    # desired modulus for p=2, see [1], eq. (28) + 1
-    r = np.mean(np.abs(samples_in)**4) / np.mean(np.abs(samples_in)**2)
-    
-    # comm.visualizer.plot_eye(samples_in[-500:], sample_rate = sig_rx.sample_rate[0], bit_rate = sig_rx.symbol_rate[0])
-    cut = 10e3
-    # comm.visualizer.plot_constellation(samples_in[cut*sps:-cut*sps:sps])
-    
-    for sample in range(0, samples_out.size, 1):
-        
-        # filter the signal for each output sample (convolution)
-        # see [1], eq. (5)
-        samples_out[sample] = np.sum(h * samples_in[n_taps+sample:sample:-1])
-        
-        # for each symbol, calculate error signal and update impulse response
-        if (sample % sps == 0):
-            # print('calc error \n')
-            # see [1], eq. (26)
-            eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r)
-            eps_tmp.append(eps)
-            # see [1], eq (28)
-            h -= mu * np.conj(samples_in[n_taps+sample:sample:-1]) * eps
-            h_tmp.append(h)        
-        
-        
-    plt.plot(np.abs(np.asarray(eps_tmp)))
+    plt.plot(np.abs(eps))
     plt.show()
     
-    plt.plot(np.abs(np.fft.fftshift(np.fft.fft(np.asarray(h_tmp[-1])))))
-    plt.show()
-            
-    # comm.visualizer.plot_eye(samples_out[-500:], sample_rate = sig_rx.sample_rate[0], bit_rate = sig_rx.symbol_rate[0]) 
-    # comm.visualizer.plot_constellation(samples_out[cut*sps:-cut*sps:sps])    
-
-    # cut away first samples
-    sig_rx.samples = samples_out[int(cut)*sps:]
+    plt.plot(np.abs(np.fft.fftshift(np.fft.fft(h[-1,:]))))
+    plt.show()            
+      
+    sps = int(sig_rx.sample_rate[0]/sig_rx.symbol_rate[0])
+    cut = 10000
+    # cut away init symbols
+    sig_rx.samples = sig_rx.samples[0][int(cut)*sps:]
     
 
 # matched filtering
@@ -281,10 +243,10 @@ else:
         sig_rx.samples = sig_rx.samples[0]
     
     # sampling phase / clock adjustment
-    BLOCK_SIZE = -1 # size of one block in SYMBOLS... -1 for only one block
+    BLOCK_SIZE = 1000 # size of one block in SYMBOLS... -1 for only one block
     sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
     
-# sampling
+# sampling (if necessary)
 START_SAMPLE = 0
 sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
 sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
