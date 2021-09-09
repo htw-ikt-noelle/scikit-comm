@@ -22,8 +22,8 @@ import copy
 LASER_LINEWIDTH = 0*1e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
 EXPERIMENT = True
-UPLOAD_SAMPLES = True
-USE_PREDIST = False
+UPLOAD_SAMPLES = False
+USE_PREDIST = True
 SNR = 200
 
 # contruct signal
@@ -199,12 +199,13 @@ sig_rx.samples[0] = samples_r - 1j * samples_i
 #sig_rx.plot_spectrum()
 #sig_rx.plot_constellation()
 
-# ############# From here: "standard" coherent complex baseband signal processing ############
-# # resample to 2 sps
-# sps = sig_rx.sample_rate[0]/sig_rx.symbol_rate[0]
-# new_length = int(sig_rx.samples[0].size/sps*2)
-# sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
-# sig_rx.sample_rate = 2*sig_rx.symbol_rate[0]
+############# From here: "standard" coherent complex baseband signal processing ############
+# resample to 2 sps
+sps_new = 2
+sps = sig_rx.sample_rate[0]/sig_rx.symbol_rate[0]
+new_length = int(sig_rx.samples[0].size/sps*sps_new)
+sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
+sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
 
 
 adaptive_filter = True
@@ -215,7 +216,7 @@ if adaptive_filter == True:
     # and [2] S. Savory, "Digital Coherent Optical Receivers: Algorithms and Subsystems", IEEE STQE, vol 16, no. 5, 2010
     
     # length of filter impuse resoponse
-    n_taps = 551 # has to be odd
+    n_taps = 111 # has to be odd
     sps = int(sig_rx.sample_rate[0] / sig_rx.symbol_rate[0])
     # step size for stochastic gradient method
     mu = 2e-2
@@ -235,7 +236,7 @@ if adaptive_filter == True:
     cut = 10e3
     # comm.visualizer.plot_constellation(samples_in[cut*sps:-cut*sps:sps])
     
-    for sample in range(samples_out.size):
+    for sample in range(0, samples_out.size, 1):
         
         # filter the signal for each output sample (convolution)
         # see [1], eq. (5)
@@ -289,9 +290,8 @@ sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
 sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
 sig_rx.plot_constellation(0)
 
+
 # CPE
-# !!!! TODO: CHECK CPE!!!!!!
-# output of Wiener filtered phase is complex!!!!!
 cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, filter_shape='wiener', mth_power=4, rho=.3)
 sig_rx.samples = cpe_results['rec_symbols']
 est_phase = cpe_results['phi_est']
