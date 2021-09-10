@@ -43,20 +43,22 @@ def generate_qam_constellation(order):
 
     Returns
     -------
-    const_order : list of complex
-        list of complex symbols to map bits to.
+    constellation : list of complex
+        List of complex symbols to map bits to.
+    bits: list of unicode
+        List of binary representations of constellation indices in unicode
+        for labeling purposes.
 
     """
     # algorithm for generating gray-coded qam constellation alphabet
     
-    # first implementation for qam with even powers of 2 (4,16,64,256...)
-
-    # recursive one-dimensional gray-code implementation
-    
+    # check for a reasonable order parameter
+    if np.log2(order)%1:
+        raise ValueError('Order must be a power of 2.')
+    if type(order) != int:
+        raise TypeError('Order parameter must be passed as integer.')
     # derive number of bits encoded in one symbol from QAM order
     n = int(np.log2(order))
-    # generate Gray code with n bits
-    L1 = generate_gray_code(n)
     
     # for odd-bit QAM constellations:
     if int(np.log2(order))%2:
@@ -65,41 +67,44 @@ def generate_qam_constellation(order):
         
         # generate separate Gray codes for I and Q, with [(n/2)+1] bits in I
         # and [n/2] bits in Q branch
-        gray_I = [i[:-(-len(i) // 2)] for i in L1]
-        gray_Q = [i[-(-len(i) // 2):] for i in L1]
-        
+        gray_I = generate_gray_code(int(-(-n // 2)))
+        gray_Q = generate_gray_code(int(n // 2))
         # convert into indices
-        gray_I_idx = [int(i,base=2) for i in gray_I]
-        gray_Q_idx = [int(i,base=2) for i in gray_Q]
-        
+        gray_I_dec = np.array([int(i,base=2) for i in gray_I])
+        gray_Q_dec = np.array([int(i,base=2) for i in gray_Q])
+        # generate indices for I and Q values to build matrix to project 
+        # constellation points onto later
+        x_I = np.arange(int(2**(-(-n // 2))))
+        y_Q = np.arange(int(2**(n // 2)))
+        # combine into meshgrid
+        xx,yy = np.meshgrid(x_I,y_Q)
+        # build matrix of decimal values whose binary representations have
+        # a Hamming distance of 1 in both vertical and horizontal direction by
+        # shifting bits of I-branch Gray code left by (n/2) and adding bits of 
+        # Q-branch Gray code
+        bits = (gray_I_dec[xx]<<int(n // 2)) + gray_Q_dec[yy]
+        # convert to binary for control purposes
+        # change dtype if needed in case more than 8 bits are encoded per symbol
+        bits_bin = np.full_like(bits,0,dtype='<U8')
+        for i in range(0,np.size(bits,axis=0)):
+            for j in range(0,np.size(bits,axis=1)):
+                bits_bin[i,j] =  np.binary_repr(bits[i,j], width=int(n))
         # generate evenly spaced values for I and Q branches
         values_I = 2*np.linspace(-1,1,2**(int(-(-n // 2))))
         values_Q = np.linspace(-1,1,2**(int(n // 2)))
-        
-        # reorder values with Gray code
-        # values_I = values_I[[int(i,base=2) for i in gray_I]]
-        # values_Q = values_Q[[int(i,base=2) for i in gray_Q]]
-        
-        # promote to matrix with np.tile() to facilitate building complex signals
-        # values_I = np.tile(values_I,(len(gray_Q),1))
-        # values_Q = np.transpose(np.tile(values_Q,(len(gray_I),1)))
-        
-        # index (reordered) evenly spaced values and build complex symbols
-        const = (values_I[gray_I_idx] + 1j*values_Q[gray_Q_idx])
-        const = const.flatten() # ATTN: not correct, continue here!
-        # const = values_I[gray_I_idx,gray_Q_idx] + 1j*values_Q[gray_I_idx,gray_Q_idx]
-        # const_order = const
-        
-        # bring bits and complex symbols into correct order
-        tmp = [int(i,base=2) for i in L1]
-            
+        II,QQ = np.meshgrid(values_I,values_Q)
+        symbols = II + 1j*QQ
+        # initialize lists for return values
         constellation = []
-        bits = []
-        for i in range(0,len(tmp)):
-            constellation.append(const[tmp.index(i)])
-            bits.append(L1[tmp.index(i)])
-        # raise ValueError('Currently, only QAM orders equal to even powers of 2 are supported!')
-    
+        bits_tmp = []
+        # iterate over flattened symbols and bits matrices and append complex
+        # constellation points and binary number labels to respective lists
+        for i in range(order):
+            constellation.append(symbols.flatten()[np.argwhere(bits.flatten() == i)][0][0])
+            bits_tmp.append(bits_bin.flatten()[np.argwhere(bits.flatten() == i)][0][0])
+        # reassing to bits variable
+        bits = bits_tmp
+        
     # for even-bit QAM constellations:
     else:
         ### for even bit qam constellations
@@ -121,8 +126,8 @@ def generate_qam_constellation(order):
         # Q-branch Gray code
         bits = (gray_I_dec[xx]<<int(n/2)) + gray_Q_dec[yy]
         # convert to binary for control purposes
-        # change dtype if needed to make scatter plot more legible
-        bits_bin = np.full_like(bits,0,dtype='<U6')
+        # change dtype if needed in case more than 8 bits are encoded per symbol
+        bits_bin = np.full_like(bits,0,dtype='<U8')
         for i in range(0,np.size(bits,axis=1)):
             for j in range(0,np.size(bits,axis=0)):
                 bits_bin[i,j] =  np.binary_repr(bits[i,j], width=int(n))
@@ -137,7 +142,7 @@ def generate_qam_constellation(order):
         bits_tmp = []
         # iterate over flattened symbols and bits matrices and append complex
         # constellation points and binary number labels to respective lists
-        for i in range(len(L1)):
+        for i in range(order):
             constellation.append(symbols.flatten()[np.argwhere(bits.flatten() == i)][0][0])
             bits_tmp.append(bits_bin.flatten()[np.argwhere(bits.flatten() == i)][0][0])
         # reassing to bits variable
@@ -148,7 +153,7 @@ def generate_qam_constellation(order):
 
 # =============================================================================
 # generate constellation 
-order = 64
+order = 32
 gray_symbols, gray_bits = generate_qam_constellation(order)
 
 # plot constellation
