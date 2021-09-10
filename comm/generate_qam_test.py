@@ -102,86 +102,53 @@ def generate_qam_constellation(order):
     
     # for even-bit QAM constellations:
     else:
-        # # for even bit qam constellations
-        # # split Gray coded list elements (strings) in half
-        # L1re = [i[:len(i)//2] for i in L1]
-        # L1im = [i[len(i)//2:] for i in L1]
-        
-        # # convert into indices
-        # L1re_idx = [int(i,base=2) for i in L1re]
-        # L1im_idx = [int(i,base=2) for i in L1im]
-        
-        # # generate evenly spaced values
-        # values = np.linspace(-1,1,int(np.sqrt(order)))
-        # # generate Gray code with order n/2
-        # G1 = generate_gray_code(int(n/2))
-        # # reorder values with gray code
-        # values = values[[int(i,base=2) for i in G1]]
-        
-        # # index (reordered) evenly spaced values and build complex symbols
-        # const = values[L1re_idx] + 1j*values[L1im_idx]
-        # # bring bits and complex symbols into correct order
-        # tmp = [int(i,base=2) for i in L1]
-        
+        ### for even bit qam constellations
+        # generate individual Gray codes for I and Q branch
         gray_I = generate_gray_code(int(n/2))
         gray_Q = generate_gray_code(int(n/2))
-        
+        # convert into decimals to allow for bit manipulation later on
         gray_I_dec = np.array([int(i,base=2) for i in gray_I])
         gray_Q_dec = np.array([int(i,base=2) for i in gray_Q])
-            
-        # first half of bits denote I position, latter half of bits denote Q
-        # use np.meshgrid??
-        
+        # generate indices for I and Q values to build matrix to project 
+        # constellation points onto later
         x_I = np.arange(int(np.sqrt(order)))
         y_Q = np.arange(int(np.sqrt(order)))
+        # combine into meshgrid
         xx,yy = np.meshgrid(x_I,y_Q)
-        
         # build matrix of decimal values whose binary representations have
-        # a Hamming distance of 1 in both vertical and horizontal direction
-        bits = (gray_I_dec[xx]<<2) + gray_Q_dec[yy]
+        # a Hamming distance of 1 in both vertical and horizontal direction by
+        # shifting bits of I-branch Gray code left by (n/2) and adding bits of 
+        # Q-branch Gray code
+        bits = (gray_I_dec[xx]<<int(n/2)) + gray_Q_dec[yy]
         # convert to binary for control purposes
-        bits_bin = np.full_like(bits,0)
+        # change dtype if needed to make scatter plot more legible
+        bits_bin = np.full_like(bits,0,dtype='<U6')
         for i in range(0,np.size(bits,axis=1)):
             for j in range(0,np.size(bits,axis=0)):
-                bits_bin[i,j] =  np.binary_repr(bits[i,j], width=int(np.sqrt(order)))
-        
+                bits_bin[i,j] =  np.binary_repr(bits[i,j], width=int(n))
         # generate evenly space values for I and Q and build matrix of complex
         # symbols
         values_I = np.linspace(-1,1,int(np.sqrt(order)))
         values_Q = np.linspace(-1,1,int(np.sqrt(order)))
         II,QQ = np.meshgrid(values_I,values_Q)
-        
         symbols = II + 1j*QQ
-        
+        # initialize lists for return values
         constellation = []
-        tmp = []
-        # bits = []
-        # for i in range(0,int(np.log2(order))):
-            # tmp = zip(np.where(bits == i))
-            # constellation.append(symbols[zip(np.where(bits == i))])
-            # bits.append(L1[tmp.index(i)])
-            # constellation.append(const[L1_tmp.index(i)])
-            # bits.append(L1[L1_idx.index(i)])
-        
-        # TODO: append symbols to constellation vector whose indices match
-        # those of incrementing number in bits
-        # --> bits[i,j] == 0 --> constellation.append(symbols[i,j])
-        # --> bits[k,l] == 1 --> constellation.append(symbols[k,l])
-        # ...
-        # --> bits[x,y] == order --> constellation.append(symbols[x,y])
-        for i in range(order):
-            tmp.append(np.argwhere(bits == i))
-        
-        for i in tmp:
-            constellation.append(symbols[tuple(tmp)])
+        bits_tmp = []
+        # iterate over flattened symbols and bits matrices and append complex
+        # constellation points and binary number labels to respective lists
+        for i in range(len(L1)):
+            constellation.append(symbols.flatten()[np.argwhere(bits.flatten() == i)][0][0])
+            bits_tmp.append(bits_bin.flatten()[np.argwhere(bits.flatten() == i)][0][0])
+        # reassing to bits variable
+        bits = bits_tmp
     
     return constellation,bits
 
 
 # =============================================================================
 # generate constellation 
-# TODO: fix imperfect Gray code for orders above 16!
-order = 16
+order = 64
 gray_symbols, gray_bits = generate_qam_constellation(order)
 
 # plot constellation
