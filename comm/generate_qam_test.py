@@ -40,13 +40,20 @@ def generate_qam_constellation(order):
     ----------
     order : int
         number of symbols in the constellation.
+        
+    Raises
+    ------
+    ValueError
+        If 'order' is not a power of 2.
+    TypeError
+        If 'order' is not an integer.
 
     Returns
     -------
-    constellation : list of complex
-        List of complex symbols to map bits to.
-    bits: list of unicode
-        List of binary representations of constellation indices in unicode
+    constellation : array of complex
+        Array of complex symbols to map bits to.
+    bits: array of str
+        Array of binary representations of constellation indices as strings
         for labeling purposes.
 
     """
@@ -102,8 +109,9 @@ def generate_qam_constellation(order):
         for i in range(order):
             constellation.append(symbols.flatten()[np.argwhere(bits.flatten() == i)][0][0])
             bits_tmp.append(bits_bin.flatten()[np.argwhere(bits.flatten() == i)][0][0])
-        # reassing to bits variable
-        bits = bits_tmp
+        # convert into arrays
+        bits = np.asarray(bits_tmp)
+        constellation = np.asarray(constellation)
         
     # for even-bit QAM constellations:
     else:
@@ -145,8 +153,9 @@ def generate_qam_constellation(order):
         for i in range(order):
             constellation.append(symbols.flatten()[np.argwhere(bits.flatten() == i)][0][0])
             bits_tmp.append(bits_bin.flatten()[np.argwhere(bits.flatten() == i)][0][0])
-        # reassing to bits variable
-        bits = bits_tmp
+        # convert into arrays
+        bits = np.asarray(bits_tmp)
+        constellation = np.asarray(constellation)
     
     return constellation,bits
 
