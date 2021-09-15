@@ -159,10 +159,43 @@ def generate_qam_constellation(order):
     
     return constellation,bits
 
+def generate_psk_constellation(order):
+    """
+    Generates a Gray coded PSK constellation of the specified order
+
+    Parameters
+    ----------
+    order : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    # check for a reasonable order parameter
+    if np.log2(order)%1:
+        raise ValueError('Order must be a power of 2.')
+    if type(order) != int:
+        raise TypeError('Order parameter must be passed as integer.')
+    # derive number of bits encoded in one symbol from QAM order
+    n = int(np.log2(order))
+    # generate Gray code
+    gray = np.asarray(generate_gray_code(n))
+    gray_bin = np.asarray([int(i,base=2) for i in gray])
+    # build constellation points
+    symbols = np.asarray([np.exp(1j*2*np.pi*i/order) for i in range(len(gray))]) 
+    # reorder symbols and label vector
+    constellation = []
+    bits = []
+    for i in range(order):
+        constellation.append(symbols.flatten()[np.argwhere(gray_bin.flatten()==i)][0][0])
+        bits.append(gray.flatten()[np.argwhere(gray_bin.flatten()==i)][0][0])
+    return constellation, bits
 
 # =============================================================================
-# generate constellation 
-order = 32
+### QAM constellation 
+order = 16
 gray_symbols, gray_bits = generate_qam_constellation(order)
 
 # plot constellation
@@ -175,4 +208,13 @@ for i, txt in enumerate(gray_bits):
 # calculate packing coefficient C_p
 C_p = np.sum(np.abs(gray_symbols)**2)/len(gray_symbols)
 print('Packing coefficient C_p = {}'.format(C_p))
+
+### PSK constellation
+psk_symbols, psk_bits = generate_psk_constellation(order)
+# plot constellation
+fig, ax = plt.subplots()
+ax.scatter(np.real(psk_symbols), np.imag(psk_symbols))
+# label constellation points with their associated bit sequences
+for i, txt in enumerate(psk_bits):
+    ax.annotate(txt, (np.real(psk_symbols)[i], np.imag(psk_symbols)[i]))
 # =============================================================================
