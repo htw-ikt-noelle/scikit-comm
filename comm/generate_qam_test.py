@@ -1,37 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def generate_gray_code(nbits):
-    """
-    'Recursively' generates a Gray-coded bit sequence with [nbits] bits.
-
-    Parameters
-    ----------
-    nbits : int
-        number of bits per element
-
-    Returns
-    -------
-    gray_alphabet : list of str
-        list of Gray-coded binary representations of all numbers from 0 to (2**nbits)-1.
-
-    """
-    L1 = ['0','1']
-    # generate n-bit Gray code alphabet
-    for i in range(1,nbits):
-        # reverse L1
-        L2 = L1[::-1]
-        # prefix 0 to L1 list elements
-        L1 = ['0' + i for i in L1]
-        # prefix 1 to L2 list elements
-        L2 = ['1' + i for i in L2]
-        # concatenate lists
-        L1 = L1+L2
-    
-    gray_alphabet = L1
-    
-    return gray_alphabet
-
 def generate_qam_constellation(order):
     """
     Generates a Gray-coded [order]-QAM constellation.
@@ -57,8 +26,6 @@ def generate_qam_constellation(order):
         for labeling purposes.
 
     """
-    # algorithm for generating gray-coded qam constellation alphabet
-    
     # check for a reasonable order parameter
     if np.log2(order)%1:
         raise ValueError('Order must be a power of 2.')
@@ -69,16 +36,13 @@ def generate_qam_constellation(order):
     
     # for odd-bit QAM constellations:
     if int(np.log2(order))%2:
-        # so far, rectangular QAM constellation is generated
-        # TODO: implement symmetrical QAM (see paper by Smith, 1975)
-        
-        # generate separate Gray codes for I and Q, with [(n/2)+1] bits in I
-        # and [n/2] bits in Q branch
-        gray_I = generate_gray_code(int(-(-n // 2)))
-        gray_Q = generate_gray_code(int(n // 2))
-        # convert into indices
-        gray_I_dec = np.array([int(i,base=2) for i in gray_I])
-        gray_Q_dec = np.array([int(i,base=2) for i in gray_Q])
+        ### build rectangular matrix of gray-coded bit words
+        # generate separate Gray codes for I and Q using XOR with [(n/2)+1]
+        # bits in I and [n/2] bits in Q branch
+        width_bit = int(-(-n // 2))
+        height_bit = int(n // 2)
+        gray_I_dec = np.arange(2**width_bit) ^ ((np.arange(2**width_bit))>>1)
+        gray_Q_dec = np.arange(2**height_bit) ^ ((np.arange(2**height_bit))>>1)
         # generate indices for I and Q values to build matrix to project 
         # constellation points onto later
         x_I = np.arange(int(2**(-(-n // 2))))
@@ -90,25 +54,62 @@ def generate_qam_constellation(order):
         # shifting bits of I-branch Gray code left by (n/2) and adding bits of 
         # Q-branch Gray code
         bits = (gray_I_dec[xx]<<int(n // 2)) + gray_Q_dec[yy]
-        # convert to binary for control purposes
-        # change dtype if needed in case more than 8 bits are encoded per symbol
-        bits_bin = np.full_like(bits,0,dtype='<U8')
-        for i in range(0,np.size(bits,axis=0)):
-            for j in range(0,np.size(bits,axis=1)):
-                bits_bin[i,j] =  np.binary_repr(bits[i,j], width=int(n))
-        # generate evenly spaced values for I and Q branches
-        values_I = 2*np.linspace(-1,1,2**(int(-(-n // 2))))
-        values_Q = np.linspace(-1,1,2**(int(n // 2)))
-        II,QQ = np.meshgrid(values_I,values_Q)
-        symbols = II + 1j*QQ
+
+        ### build symmetrical matrix of complex symbols
+        # calc dimension for symmetrical constellation matrix
+        cross_dim = int((2**(-(- n // 2)) + 2**(n // 2)) / 2)
+        # generate evenly spaced values with euclidean distance of 2
+        cross_values = np.linspace(-cross_dim + 1, cross_dim - 1, cross_dim)
+        # generate meshgrid
+        cross_I, cross_Q = np.meshgrid(cross_values,cross_values)
+        # build complex symbols
+        cross_symbols = cross_I + 1j*cross_Q
+        # cut away corners
+        cut = int(cross_dim / 6)
+        cross_symbols[:cut,:cut] = 0
+        cross_symbols[-cut:,:cut] = 0
+        cross_symbols[:cut,-cut:] = 0
+        cross_symbols[-cut:,-cut:] = 0
+        # copy matrix for assigning gray-coded decimal values to
+        bits_symm = np.full_like(cross_symbols,0,dtype='int')
+        # write 'middle block' of rectangular constellation into symmetrical
+        # matrix
+        bits_symm[cut:-cut,:] = bits[:,cut:-cut]
+        # manipulate the 8 'end blocks' of rectangular constellation and 
+        # write them into new positions in the symmetrical matrix
+        # top left block
+        bits_symm[:cut,cut:2*cut] = np.flipud(bits[:cut,:cut])
+        # upper middle left block
+        bits_symm[:cut,2*cut:3*cut] = np.fliplr(bits[cut:2*cut,:cut])
+        # lower middle left block
+        bits_symm[-cut:,2*cut:3*cut] = np.fliplr(bits[-(2*cut):-cut,:cut])
+        # bottom left block
+        bits_symm[-cut:,cut:2*cut] = np.flipud(bits[-cut:,:cut])
+        # top right block
+        bits_symm[:cut,-(2*cut):-cut] = np.flipud(bits[:cut,-cut:])
+        # upper middle right block
+        bits_symm[:cut,-(3*cut):-(2*cut)] = np.fliplr(bits[cut:2*cut,-cut:])
+        # lower middle right block
+        bits_symm[-cut:,-(3*cut):-(2*cut)] = np.fliplr(bits[-(2*cut):-cut,-cut:])
+        # bottom right block
+        bits_symm[-cut:,-(2*cut):-cut] = np.flipud(bits[-cut:,-cut:])
+        
+        ### manipulate and reshape symmetrical matrix into array of connstellation points
+        # flatten matrices out and delete entries at indices where
+        # cross_symbols == 0 (the corners that were cut away)
+        bits_symm = np.delete(bits_symm.flatten(),np.argwhere(cross_symbols.flatten()==0))
+        bits_bin = np.full_like(bits_symm,0,dtype='<U8')
+        for i in range(len(bits_symm)):
+            bits_bin[i] = np.binary_repr(bits_symm[i],width=int(n))
+        cross_symbols = np.delete(cross_symbols.flatten(),np.argwhere(cross_symbols.flatten()==0))
         # initialize lists for return values
         constellation = []
         bits_tmp = []
         # iterate over flattened symbols and bits matrices and append complex
         # constellation points and binary number labels to respective lists
         for i in range(order):
-            constellation.append(symbols.flatten()[np.argwhere(bits.flatten() == i)][0][0])
-            bits_tmp.append(bits_bin.flatten()[np.argwhere(bits.flatten() == i)][0][0])
+            constellation.append(cross_symbols[np.argwhere(bits_symm == i)][0][0])
+            bits_tmp.append(bits_bin[np.argwhere(bits_symm == i)][0][0])
         # convert into arrays
         bits = np.asarray(bits_tmp)
         constellation = np.asarray(constellation)
@@ -117,11 +118,10 @@ def generate_qam_constellation(order):
     else:
         ### for even bit qam constellations
         # generate individual Gray codes for I and Q branch
-        gray_I = generate_gray_code(int(n/2))
-        gray_Q = generate_gray_code(int(n/2))
-        # convert into decimals to allow for bit manipulation later on
-        gray_I_dec = np.array([int(i,base=2) for i in gray_I])
-        gray_Q_dec = np.array([int(i,base=2) for i in gray_Q])
+        width_bit = int(-(-n // 2))
+        height_bit = int(n // 2)
+        gray_I_dec = np.arange(2**width_bit) ^ ((np.arange(2**width_bit))>>1)
+        gray_Q_dec = np.arange(2**height_bit) ^ ((np.arange(2**height_bit))>>1)
         # generate indices for I and Q values to build matrix to project 
         # constellation points onto later
         x_I = np.arange(int(np.sqrt(order)))
@@ -141,8 +141,8 @@ def generate_qam_constellation(order):
                 bits_bin[i,j] =  np.binary_repr(bits[i,j], width=int(n))
         # generate evenly space values for I and Q and build matrix of complex
         # symbols
-        values_I = np.linspace(-1,1,int(np.sqrt(order)))
-        values_Q = np.linspace(-1,1,int(np.sqrt(order)))
+        values_I = np.linspace(-(np.sqrt(order))+1,np.sqrt(order)-1,int(np.sqrt(order)))
+        values_Q = np.linspace(-(np.sqrt(order))+1,np.sqrt(order)-1,int(np.sqrt(order)))
         II,QQ = np.meshgrid(values_I,values_Q)
         symbols = II + 1j*QQ
         # initialize lists for return values
@@ -181,21 +181,71 @@ def generate_psk_constellation(order):
     # derive number of bits encoded in one symbol from QAM order
     n = int(np.log2(order))
     # generate Gray code
-    gray = np.asarray(generate_gray_code(n))
-    gray_bin = np.asarray([int(i,base=2) for i in gray])
+    gray = np.arange(2**n) ^ (np.arange(2**n)>>1)
+    gray_bin = np.full_like(gray,0,dtype='<U8')
+    for i in range(len(gray)):
+        gray_bin[i] = np.binary_repr(gray[i],width=int(n))
     # build constellation points
     symbols = np.asarray([np.exp(1j*2*np.pi*i/order) for i in range(len(gray))]) 
     # reorder symbols and label vector
     constellation = []
     bits = []
     for i in range(order):
-        constellation.append(symbols.flatten()[np.argwhere(gray_bin.flatten()==i)][0][0])
-        bits.append(gray.flatten()[np.argwhere(gray_bin.flatten()==i)][0][0])
+        constellation.append(symbols.flatten()[np.argwhere(gray.flatten()==i)][0][0])
+        bits.append(gray_bin.flatten()[np.argwhere(gray.flatten()==i)][0][0])
     return constellation, bits
 
+def Smith_bit_manip(value,nbits):
+    """
+    Performs bit manipulation on an input integer with odd number of bits
+    according to the paper by Smith.
+
+    Parameters
+    ----------
+    value : int
+        Integer value to potentially have its bits manipulated.
+    nbits : int
+        Number of bits encoded per symbol.
+
+    Returns
+    -------
+    None.
+
+    """
+    # check for reasonable input parameters
+    if type(nbits) != int or type(value) != int:
+        raise TypeError('Parameters must be passed as integer.')
+    if not nbits%2 or nbits<5:
+        raise ValueError('nbits must be an odd integer >= 5')
+    if value < 0 or value > 2**nbits:
+        raise ValueError('Value must be within the interval [0, 2**nbits]')
+    # add an extra zero bit to input word
+    value = value << 1
+    # obtain floored half of input bit length
+    n = nbits // 2
+    # model: two half-words with n+1 bits each (for total length of 2n+2 bits)
+    x_n_complement = ((value >> (n+2)) ^ 1) & 1
+    x_nPlus1 = (value >> (n+1)) & 1
+    y_n = (value >> 1) & 1
+    y_n_complement = ((value >> 1) ^ 1) & 1
+    # if X_n* and X_(n+1) =/= 1
+    if not (x_n_complement & x_nPlus1):
+        print('no change performed')
+    # if X_n* and X_(n+1) and Y_n = 1
+    elif x_n_complement & x_nPlus1 & y_n:
+        print('complement x_n, x_nPlus1, y_nPlus1')
+        value = value ^ ((1<<(n+2)) + (1<<(n+1)) + 1)
+    # if X_n and X_(n+1) and Y_n* = 1
+    elif x_n_complement & x_nPlus1 & y_n_complement:
+        print('complement x_nPlus1, y_n, y_nPlus1')
+        value = value ^ ((1<<(n+1)) + (1<<1) + 1)
+    # if none of these conditions apply (shouldn't happen!)
+    else:
+        raise ValueError('Unexpected bit sequence encountered.')
+    return value
 # =============================================================================
 ### QAM constellation 
-order = 16
+order = 32
 gray_symbols, gray_bits = generate_qam_constellation(order)
 
 # plot constellation
@@ -206,8 +256,8 @@ for i, txt in enumerate(gray_bits):
     ax.annotate(txt, (np.real(gray_symbols)[i], np.imag(gray_symbols)[i]))
 
 # calculate packing coefficient C_p
-C_p = np.sum(np.abs(gray_symbols)**2)/len(gray_symbols)
-print('Packing coefficient C_p = {}'.format(C_p))
+# C_p = np.sum(np.abs(gray_symbols)**2)/len(gray_symbols)
+# print('Packing coefficient C_p = {}'.format(C_p))
 
 ### PSK constellation
 psk_symbols, psk_bits = generate_psk_constellation(order)
@@ -217,4 +267,10 @@ ax.scatter(np.real(psk_symbols), np.imag(psk_symbols))
 # label constellation points with their associated bit sequences
 for i, txt in enumerate(psk_bits):
     ax.annotate(txt, (np.real(psk_symbols)[i], np.imag(psk_symbols)[i]))
+
+### Bit manipulation test    
+a = 23
+abin = bin(a)
+b = Smith_bit_manip(a,5)
+print(b)
 # =============================================================================
