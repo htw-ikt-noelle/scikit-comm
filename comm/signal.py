@@ -214,26 +214,8 @@ class Signal():
         """
         Generate an array of size (n_bits,) binary values.
 
-        Parameters
-        ----------
-        n_bits : TYPE, optional
-            DESCRIPTION. The default is [2**15].
-        type : TYPE, optional
-            DESCRIPTION. The default is ['random'].
-        seed : TYPE, optional
-            DESCRIPTION. The default is [None].
-
-        Raises
-        ------
-        TypeError
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
+        For detailed documentation see comm.tx.generate_bits.     
         """
-
         n_bits = self._check_attribute(n_bits)
         type = self._check_attribute(type)
         seed = self._check_attribute(seed)
@@ -242,10 +224,12 @@ class Signal():
             self.bits[i] = tx.generate_bits(n_bits=b, type=t, seed=s)
 
 
-
-
     def set_snr(self, snr_dB=10, seed=None):
-
+        """
+        Set the SNR of the signal.
+        
+        For detailed documentation see comm.channel.set_snr.       
+        """
         snr_dB = self._check_attribute(snr_dB)
         seed = self._check_attribute(seed)
 
@@ -259,10 +243,7 @@ class Signal():
         """
         Generate sig.symbols from sig.bits and sig.constellation.
 
-        Returns
-        -------
-        None.
-
+        For detailed documentation see comm.tx.mapper.     
         """
         for i, (b, c) in enumerate(zip(self.bits, self.constellation)):
             self.symbols[i] = tx.mapper(bits=b, constellation=c)
@@ -291,21 +272,7 @@ class Signal():
         """
         Filter samples with a raised cosine filter.
 
-        For detailed documentation see comm.filters.raised_cosine_filter
-
-        Parameters
-        ----------
-        roll_off : TYPE, optional
-            DESCRIPTION. The default is 0.0.
-        root_raised : TYPE, optional
-            DESCRIPTION. The default is False.
-        **kargs : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
+        For detailed documentation see comm.filters.raised_cosine_filter.      
         """
         roll_off = self._check_attribute(roll_off)
         root_raised = self._check_attribute(root_raised)
@@ -325,11 +292,6 @@ class Signal():
         Estimate the sampling phase offset and compensate for it.
         
         For detailed documentation see comm.rx.sampling_phase_adjustment.
-
-        Returns
-        -------
-        None.
-
         """
         for i, (s, sr, symr) in enumerate(zip(self.samples,
                                                       self.sample_rate,
@@ -344,11 +306,6 @@ class Signal():
         Estimate the sampling clock offset and compensate for it.
         
         For detailed documentation see comm.rx.sampling_clock_adjustment.
-
-        Returns
-        -------
-        None.
-
         """
         block_size = self._check_attribute(block_size)
         
@@ -368,22 +325,7 @@ class Signal():
         """
         Set sig.constellation and sig.modulation_info.
 
-        Parameters
-        ----------
-        format : TYPE, optional
-            DESCRIPTION. The default is ['QAM'].
-        order : TYPE, optional
-            DESCRIPTION. The default is [4].
-
-        Raises
-        ------
-        TypeError
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
+        For detailed documentation see comm.utils.generate_constellation.    
         """
         format = self._check_attribute(format)
         order = self._check_attribute(order)
@@ -397,8 +339,7 @@ class Signal():
         """
         Upsample and pulseshape the modulated symbols and write them to samples.
 
-        For detailed documentation see comm.tx.pulseshaper()       
-
+        For detailed documentation see comm.tx.pulseshaper
         """
         upsampling = self._check_attribute(upsampling)
         pulseshape = self._check_attribute(pulseshape)
@@ -416,16 +357,6 @@ class Signal():
         Plot spectum of the signal samples of a given dimension.
 
         For further documentation see comm.visualizer.plot_spectrum.
-
-        Parameters
-        ----------
-        dimension : TYPE, optional
-            DESCRIPTION. The default is 0.
-
-        Returns
-        -------
-        None.
-
         """
         visualizer.plot_spectrum(self.samples[dimension], self.sample_rate[dimension], **kwargs)
 
@@ -434,18 +365,6 @@ class Signal():
         Plot constellation of signal samples of a given dimension.
 
         For further documentation see comm.visualizer.plot_constellation.
-
-        Parameters
-        ----------
-        dimension : TYPE, optional
-            DESCRIPTION. The default is 0.
-        decimation : TYPE, optional
-            DESCRIPTION. The default is 1.
-
-        Returns
-        -------
-        None.
-
         """
         visualizer.plot_constellation(self.samples[dimension], decimation=decimation, **kwargs)
 
@@ -455,18 +374,6 @@ class Signal():
         Plot eye diagramm of signal samples of a given dimension.
 
         For further documentation see comm.visualizer.plot_eye
-
-        Parameters
-        ----------
-        dimension : TYPE, optional
-            DESCRIPTION. The default is 0.
-        offset : TYPE, optional
-            DESCRIPTION. The default is 0.
-
-        Returns
-        -------
-        None.
-
         """
 
         visualizer.plot_eye(self.samples[dimension], self.sample_rate[dimension],
