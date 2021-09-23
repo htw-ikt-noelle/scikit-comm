@@ -10,16 +10,16 @@ import matplotlib.pyplot as plt # Version 3.3.4
 import comm as comm
 import time
 
-# Setting AWG for test signal
-n = 1000
-phi = np.arange(n)/n * np.pi*2
-samples = np.array([np.cos(phi),np.sin(phi)])
+# # Setting AWG for test signal
+# n = 1000
+# phi = np.arange(n)/n * np.pi*2
+# samples = np.array([np.cos(phi),np.sin(phi)])
 
-# write samples to AWG
-comm.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21',
-                                                sample_rate=[500e6],
-                                                amp_pp=[0.5,0.3], channels=[1,2], 
-                                                out_filter=['normal'],log_mode=True)
+# # write samples to AWG
+# comm.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21',
+#                                                 sample_rate=[500e6],
+#                                                 amp_pp=[0.5,0.3], channels=[1,2], 
+#                                                 out_filter=['normal'],log_mode=True)
 
 # Reading data form scope (only one channel)
 sample_rate, wfm = comm.instrument_control.get_samples_Tektronix_MSO6B(word_length = 1)
