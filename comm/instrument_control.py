@@ -567,6 +567,8 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
         logger.error('No connection possible. Check TCP/IP connection \n  {0}'.format(e))
         exit()
     
+    # Setting timeout
+    awg.timeout = 20000
 
     logger.info("Device properties: " + str(awg.query('*IDN?')))
 
@@ -611,8 +613,8 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
     # Setting sample rate
     logger.info("Set sample rate to: " + str(sample_rate[0]))
     awg.write('CLOCK:SRATE {0:f}'.format(sample_rate[0]))
-    while  not awg.query('*OPC?',delay = 1):
-        pass
+    awg.query('*OPC?')[0]
+
 
     for ch_idx, ch in enumerate(channels):
         logger.info("\n---Channel {0:d}---".format(ch))
