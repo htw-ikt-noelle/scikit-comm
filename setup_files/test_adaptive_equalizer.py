@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import scipy.interpolate as sinterp
 import comm as comm
 import copy
+import time
 #from scipy.signal.signaltools import wiener as wiener
 
 
@@ -21,7 +22,7 @@ import copy
 # signal parameters
 LASER_LINEWIDTH = 1*1e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
-SNR = 20
+SNR = 30
 
 # contruct signal
 sig_tx = comm.signal.Signal(n_dims=1)
@@ -90,13 +91,24 @@ samples = np.concatenate((np.tile(samples, ratio_base), samples[:ratio_rem]), ax
 delay = 10*sps
 samples = samples[delay:]
 
-## add amplitude noise
-samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=int(sig_tx.sample_rate[0]/sig_tx.symbol_rate[0]), seed=None)
+## add noise
+samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=int(sig_tx.sample_rate[0]/sig_tx.symbol_rate[0]), seed=1)
 
 ## phase noise emulation
 samples = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)['samples']
 sr = sig_tx.sample_rate[0]
 # plt.figure(1); plt.plot(phaseAcc); plt.show()
+
+# add artificial sample clock error
+ratio = 1.0 # ratio of sampling frequency missmatch     
+n_old = np.size(samples, axis=0)
+t_old = np.arange(n_old) / sr
+n_new = int(np.round(ratio * n_old))
+t_new = np.linspace(start=t_old[0], stop=t_old[-1], num=n_new, endpoint=True)
+sr_new = 1 / (t_new[1] - t_new[0])
+# interpolate signal at different timing / sampling instants
+f = sinterp.interp1d(t_old, samples, kind='cubic')
+samples = f(t_new)
 
 # after heterodyne detection and balanced detection
 samples = np.real(samples)
@@ -154,79 +166,40 @@ sig_rx.samples[0] = samples_r - 1j * samples_i
 #sig_rx.plot_constellation()
 
 ############# From here: "standard" coherent complex baseband signal processing ############
-# # Rx matched filter
-# sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
-# # sig_rx.plot_eye()
-
-# # sampling phase / clock adjustment
-# BLOCK_SIZE = -1 # size of one block in SYMBOLS... -1 for only one block
-# sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
-
-# # sampling
-# START_SAMPLE = 0
-# sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
-# sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
-# sig_rx.plot_constellation(0)
+# resample to 2 sps
+sps_new = 2
+sps = sig_rx.sample_rate[0]/sig_rx.symbol_rate[0]
+new_length = int(sig_rx.samples[0].size/sps*sps_new)
+sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
+sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
 
 # add artificial low pass filter
 filtershape = np.asarray([[0, 0.0], [25e6, -10.0], [50e6, 2-0.0], [75e6, -30.0]])
 sig_rx.samples = comm.filters.filter_arbitrary(sig_rx.samples[0], filtershape, sample_rate=sig_rx.sample_rate[0])
 
+start = time.time()
+results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=111, mu=1e-2, 
+                                           decimate=False, return_info=True, 
+                                           stop_adapting=-1)
+end = time.time()
+print('equalizer took {:1.1f} s'.format(end - start))
 
-# blind adaptive equalizer
-# see [1] D. Godard, “Self-recovering equalization and carrier tracking in twodimensional data communication systems,” IEEE Trans. Commun., vol. 28, no. 11, pp. 1867–1875, Nov. 1980.
-# and [2] S. Savory, "Digital Coherent Optical Receivers: Algorithms and Subsystems", IEEE STQE, vol 16, no. 5, 2010
+sig_rx = results['sig']
+h = results['h']
+eps = results['eps']
 
-# length of filter impuse resoponse
-n_taps = 555 # has to be odd
-sps = int(sig_rx.sample_rate[0] / sig_rx.symbol_rate[0])
-# step size for stochastic gradient method
-mu = 4e-1
-# init equalizer impulse response to delta
-h = np.zeros(n_taps, dtype=np.complex128)
-h[n_taps//2] = 1.0
-h_tmp = [h]
-eps_tmp = []
-
-samples_in = sig_rx.samples[0]
-samples_out = np.full_like(samples_in, np.nan)
-
-# desired modulus for p=2, see [1], eq. (28) + 1
-r = np.mean(np.abs(samples_in)**4) / np.mean(np.abs(samples_in)**2)
-
-# comm.visualizer.plot_eye(samples_in[-500:], sample_rate = sig_rx.sample_rate[0], bit_rate = sig_rx.symbol_rate[0])
-cut = 10000
-comm.visualizer.plot_constellation(samples_in[cut*sps:-cut*sps:sps])
-
-for sample in range(samples_out.size-n_taps):
-    
-    # filter the signal for each output sample (convolution)
-    # see [1], eq. (5)
-    samples_out[sample] = np.sum(h * samples_in[n_taps+sample:sample:-1])
-    
-    # for each symbol, calculate error signal and update impulse response
-    if (sample % sps == 0):
-        # print('calc error \n')
-        # see [1], eq. (26)
-        eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r)
-        eps_tmp.append(eps)
-        # see [1], eq (28)
-        h -= mu * np.conj(samples_in[n_taps+sample:sample:-1]) * eps
-        h_tmp.append(h)        
-    
-    
-plt.plot(np.abs(np.asarray(eps_tmp)))
+plt.plot(np.abs(eps))
 plt.show()
 
-plt.plot(np.abs(np.fft.fftshift(np.fft.fft(np.asarray(h_tmp[-1])))))
-plt.show()
-        
-# comm.visualizer.plot_eye(samples_out[-500:], sample_rate = sig_rx.sample_rate[0], bit_rate = sig_rx.symbol_rate[0]) 
-comm.visualizer.plot_constellation(samples_out[cut*sps:-cut*sps:sps])    
-
-# sampling
-sig_rx.samples = samples_out[cut*sps:-cut*sps:sps]
-
+plt.plot(np.abs(np.fft.fftshift(np.fft.fft(h[-1,:]))))
+plt.show()            
+  
+sps = int(sig_rx.sample_rate[0]/sig_rx.symbol_rate[0])
+cut = 30000
+# cut away init symbols and sample signal
+sig_rx.samples = sig_rx.samples[0][int(cut)*sps::sps]
+sig_rx.sample_rate = sig_rx.symbol_rate[0]
+  
 # CPE
 cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, filter_shape='wiener', mth_power=4, rho=.3)
 sig_rx.samples = cpe_results['rec_symbols']

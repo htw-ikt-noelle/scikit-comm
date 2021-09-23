@@ -616,10 +616,59 @@ def symbol_sequence_sync(sig, dimension=-1):
     return sig    
 
 def blind_adaptive_equalizer(sig, n_taps=111, mu=2e-2, decimate=False, return_info=True, stop_adapting=-1):    
-    # blind adaptive equalizer
-    # see [1] D. Godard, “Self-recovering equalization and carrier tracking in twodimensional data communication systems,” IEEE Trans. Commun., vol. 28, no. 11, pp. 1867–1875, Nov. 1980.
-    # and [2] S. Savory, "Digital Coherent Optical Receivers: Algorithms and Subsystems", IEEE STQE, vol 16, no. 5, 2010
+    """
+    Equalize the signal using a blind adaptive equalizer filter.
     
+    A complex valued filter is initialized with a dirac impulse as impulse 
+    response of length n_taps samples. Then the first signal sample is filtered.
+    
+    Once each SYMBOL, the error (eps) to the desired output radius is calculated 
+    and the filter impulse response is updated using the steepest gradient descent method [1]. 
+    A step size parameter (mu) is used to determine the adaptation speed. 
+    
+    The equalizer can output every filtered SAMPLE or only every filtered 
+    SYMBOL, which is controlled with the parameter decimate. 
+    
+    Further, the adaptation of the impulse response / equalizer can be stopped after 
+    stop_adapting SYMBOLS.
+   
+    [1] D. Godard, “Self-recovering equalization and carrier tracking in twodimensional data communication systems,” IEEE Trans. Commun., vol. 28, no. 11, pp. 1867–1875, Nov. 1980.
+    [2] S. Savory, "Digital Coherent Optical Receivers: Algorithms and Subsystems", IEEE STQE, vol 16, no. 5, 2010
+   
+    
+    
+
+    Parameters
+    ----------
+    sig : comm.signal.Signal
+        input signal to be equalized.
+    n_taps : int, optional
+        length of the equalizers impulse response in samples. Has to be odd. 
+        The default is 111.
+    mu : float, optional
+        adaptation step size of the the steepest gradient descent method. 
+        The default is 2e-2.
+    decimate : bool, optional
+        output every SAMPLE or every SYMBOL. The default is False.
+    return_info : bool, optional
+        should the evolution of the impulse response and the error be recorded 
+        and returned. The default is True.
+    stop_adapting : int, optional
+        equaliter adaptation is stopped after stop_adapting SYMBOLS. -1 results 
+        in a continous adaptation untill the last symbol of the input signal. 
+        The default is -1.
+
+    
+    Returns
+    -------
+    results :  dict containing following keys
+        sig : comm.signal.Signal
+            equalized output signal.
+        h : list, each element consists of a np.array of size n_taps
+            evolution of the equalizers impulse response
+        eps : list of floats
+            evolution of the error signal.
+    """
     if type(sig) != signal.Signal:
         raise TypeError("input parameter must be of type 'comm.signal.Signal'")
         
@@ -649,18 +698,20 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu=2e-2, decimate=False, return_in
         shift = 1
     # will the equalizer stop adapting
     if stop_adapting == -1:
-        stop_adapting = samples_out.size
+        stop_adapting = int(samples_out.size/sps)
     # equalizer loop
     for sample in range(0, samples_out.size, shift):        
         # filter the signal for each desired output sample (convolution)
         # see [1], eq. (5)
         samples_out[sample] = np.sum(h * samples_in[n_taps+sample:sample:-1])        
-        # for each symbol, calculate error signal and update impulse response
-        if (sample % sps == 0) and (sample <= stop_adapting):            
+        # for each symbol, calculate error signal... 
+        if (sample % sps == 0):            
             # calc error, see [1], eq. (26)
-            eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r)            
-            # update impuse response, see [1], eq (28)
-            h -= mu * np.conj(samples_in[n_taps+sample:sample:-1]) * eps
+            eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r)
+            # ...and update impulse response, if necessary
+            if (int(sample/sps) <= stop_adapting):
+                # update impuse response, see [1], eq (28)
+                h -= mu * np.conj(samples_in[n_taps+sample:sample:-1]) * eps
             # save return info, if necessary
             if return_info:
                 h_tmp.append(h)
