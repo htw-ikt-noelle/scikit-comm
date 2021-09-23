@@ -1,9 +1,10 @@
-
+import sys
 import visa
 import numpy as np
 import matplotlib.pyplot as plt
 #import math
 import time
+import logging
 
 
 def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
@@ -206,3 +207,221 @@ def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250
         
     awg.close() # closing AWG
     rm.close()  # closing resource manager 
+
+
+
+def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample_rate=[250e6], amp_pp=[0.5], channels=[1], out_filter=['normal'],log_mode = False):
+    
+    # TODO: Write/change the docstring for the method. Find Filter
+    # TODO: Change float to integer (Maybe?)
+
+    """
+    write_samples_AWG70002B
+    
+    Function for writing samples to an Tektronix AWG70002B Series 20GHz Function/Arbitrary Waveform Generator
+
+    Parameters
+    ----------
+    samples : numpy array, n_outputs x n_samples , float
+        samples to output, to be scaled between -1 and 1 (values outside this range are clipped).
+    ip_address : string, optional
+        DESCRIPTION. The default is '192.168.1.21'. Currently, only LAN connection is supported.
+    sample_rate : list of floats, optional
+        sample rate of the outputs. The default is [250e6]. Must be between 1.49 kSamples/s and 8 GSsamples/s
+    amp_pp : list of floats, optional
+        peak-to-peak output amplitude of individual channels in units of Volt. The default is [0.5].
+    channels : list of int, optional
+        channels to be programmed and output. The default is [1]. For two channels input [1,2]
+    out_filter : list of strings, optional
+        used output filter of each channel ['normal', 'off', 'step']. The default is ['normal'].
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    # =============================================================================
+    #  Create logger which writes to file
+    # ============================================================================= 
+    # Create logger
+    logger = logging.getLogger(__name__)
+
+    # Set the log level
+    logger.setLevel(logging.INFO)
+
+    # Create file handler and standard output handler (terminal output)
+    file_handler = logging.FileHandler('{0}.log'.format(__name__))
+    if log_mode == False:
+        file_handler.setLevel(51)
+    else:
+        file_handler.setLevel(logging.INFO)
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.ERROR)
+
+    # Set format of the logs with formatter
+    formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(name)s :: Line No %(lineno)d:: %(message)s')
+
+    # Adding formatter to handler
+    file_handler.setFormatter(formatter)
+    stdout_handler.setFormatter(formatter)
+
+    # Adding handler to logger
+    logger.addHandler(file_handler)
+    logger.addHandler(stdout_handler)
+
+
+
+    # =============================================================================
+    #  Check inputs of correctnes
+    # ============================================================================= 
+    
+    try:
+        if not (isinstance(sample_rate, list) and 
+            isinstance(amp_pp, list) and isinstance(channels, list) and 
+            isinstance(out_filter, list)):
+            raise TypeError('Input parameters are not lists...')
+
+        if len(channels) > 2:
+            raise ValueError('To much channels ({0}). The AWG has only 2 output channels'.format(
+                                                                                         len(channels)))
+
+        if np.iscomplex(samples[0:2]).any():
+            raise TypeError('No complex numbers allowed. If you want to use complex values, assign the real part and imaginary part seperately to channel 1 and channel 2')
+
+        if np.isnan(samples[0:2]).any() or np.isinf(samples[0:2]).any():
+            raise ValueError('No NaN or Inf values are allowed in the sample vector!')
+
+        if not(len(channels) == len(samples) == len(amp_pp)):
+            raise ValueError('Number of channels ({0}), number of signal vectors ({1}) and number of amplitudes ({2}) must be the same!'.format(
+                                                                                                                                        len(channels),
+                                                                                                                                        len(samples),
+                                                                                                                                        len(amp_pp)))
+
+        if sample_rate[0] > 8e9 or sample_rate[0] < 1.49e3:
+            raise ValueError('Sample rate must be between 1.49 kSamples/s and 8 GSsamples/s')
+
+        if any(ch_amp > 0.5 for ch_amp in amp_pp) or any(ch_amp < 0.25 for ch_amp in amp_pp):
+            raise ValueError('Amplitudes must be between 0.25 and 0.5 (peak to peak)')
+
+        if not isinstance(samples, np.ndarray):
+            raise TypeError('Samples has to be from type numpy array. Actual type: {0}'.format(
+                                                                                       type(samples)))
+
+        
+
+    except Exception as e:
+        logger.error('{0}'.format(e))
+        exit()
+
+
+    # TODO: Search for min and max possible sample rate of the AWG and write an if statement to catch a correct input of sample rate
+    # TODO: Find the maximum of the samples vector and write an if statement to catch a correct input
+    # TODO: Check for correct input data types 
+    # TODO: Writing some query commands to get feedback from the scope
+
+
+    # =============================================================================
+    #  importing visa for communication with the AWG device
+    # ============================================================================= 
+    # create resource 
+    rm = visa.ResourceManager('@py')
+    # open connection to AWG
+    logger.info("Create IP connection with " + str(ip_address))
+    try:
+        awg = rm.open_resource('TCPIP::' + ip_address + '::INSTR')
+    except Exception as e:
+        logger.error('No connection possible. Check TCP/IP connection \n  {0}'.format(e))
+        exit()
+    
+
+    logger.info("Device properties: " + str(awg.query('*IDN?')))
+
+    # =============================================================================
+    #  Clipping the signal vector (Range from -1 to 1)
+    # ============================================================================= 
+    if np.amax(np.amax(np.abs(samples))) > 1:
+        logger.warning("Samples have been clipped")
+    else:
+        logger.info("Samples have not been clipped")
+    
+    samples_clipped =(np.clip(samples,-1,1))
+
+    if samples_clipped.ndim == 1:
+        samples_clipped = samples_clipped[np.newaxis,...]
+    #samples_clipped = samples_clipped.tolist()
+    
+    logger.debug(type(samples_clipped[0]))
+
+    # =============================================================================
+    #  Settings for the AWG
+    # =============================================================================  
+
+    # Setting AWG to STOP
+    logger.info("Set AWG to stop")
+    awg.write('AWGCONTROL:STOP:IMMEDIATE')
+    
+    # Delete old waveform
+    logger.info("Delete old waveform")
+    awg.write('WLIST:WAVEFORM:DELETE "Python_waveform_AWG_1"')
+    awg.write('WLIST:WAVEFORM:DELETE "Python_waveform_AWG_2"')
+
+    # decoupling of the two channels
+    logger.info("Decouple channels")
+    awg.write('INSTrument:COUPLe:SOURce OFF')
+    
+    # Output deactivate
+    logger.info("Deactivate output")
+    awg.write('OUTPUT1:STATE OFF')
+    awg.write('OUTPUT2:STATE OFF')
+
+    # Setting sample rate
+    logger.info("Set sample rate to: " + str(sample_rate[0]))
+    awg.write('CLOCK:SRATE {0:f}'.format(sample_rate[0]))
+    while  not awg.query('*OPC?',delay = 1):
+        pass
+
+    for ch_idx, ch in enumerate(channels):
+        logger.info("\n---Channel {0:d}---".format(ch))
+        
+        # Output deactivate
+        logger.info("Deactivate output")
+        awg.write('OUTPUT{0:d}:STATE OFF'.format(ch))
+
+        # Create new waveform
+        logger.info("Create new waveform")
+        logger.info("Name of new waveform: Python_waveform_AWG_{0:d}".format(ch))
+        logger.info("Length of new waveform: {0:d}".format(len(samples_clipped[ch_idx])))
+
+        # Send data to AWG
+        length_of_samples = len(samples_clipped[ch_idx])
+        awg.write('WLISt:WAVeform:NEW "Python_waveform_AWG_{0:d}",{1:d}'.format(ch,length_of_samples))
+        logger.info("Write data to waveform")
+            
+        awg.write_binary_values('WLIST:WAVEFORM:DATA "Python_waveform_AWG_{0:d}",'.format(ch), samples_clipped[ch_idx], datatype='f')
+        print(awg.query('WLIST:WAVEFORM:DATA? "Python_waveform_AWG_{0:d}",0'))
+        # WLISt:WAVeform:DATA[:I]? <wfm_name>[,<StartIndex>[,<Size>]])
+
+        # Adding the waveform to an output
+        logger.info("Add Python_waveform_AWG_{0:d} to output {0:d}".format(ch))
+        awg.write('SOURCE{0:d}:CASSET:WAVEFORM "Python_waveform_AWG_{0:d}"'.format(ch)) 
+
+        # Setting parameters of the waveform
+        #  Amplitude (peak to peak)
+        logger.info("Set amplitude (peak to peak) of output {0:d} to {1:f}".format(ch,amp_pp[ch_idx]))
+        awg.write('SOURCE{0:d}:VOLTAGE:LEVel:IMMediate:AMPLITUDE {1:f}'.format(ch,amp_pp[ch_idx]))
+
+        # Activating outputs
+        logger.info("Activate output {0:d}".format(ch))
+        awg.write('OUTPUT{0:d}:STATE ON'.format(ch))
+
+    # Starting playback 
+    logger.info("\nSet AWG to run")
+    awg.write('AWGCONTROL:RUN:IMMEDIATE')
+
+    # closing AWG connection
+    awg.close()
+   
+    # closing resource manager 
+    rm.close()  
