@@ -209,9 +209,9 @@ def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250
     rm.close()  # closing resource manager 
 
 
-def get_samples_Tektronix_MSO68(channels=[1], ip_address='192.168.1.20',word_length = 1,log_mode = False):   
+def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',word_length = 1,log_mode = False):   
     """
-    get_samples_Tektronix_MSO68
+    get_samples_Tektronix_MSO6B
     
     Function for reading samples from  Tektronix MSO68 Scope
 
