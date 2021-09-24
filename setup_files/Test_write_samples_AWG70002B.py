@@ -11,17 +11,17 @@ import comm as comm
 import time
 
 
-#--- Test with one signal
+# #--- Test with one signal
 # n = 1000
 # phi = np.arange(n)/n * np.pi*2
-# samples = np.array([np.cos(phi)])
+# samples = 2*np.array([np.cos(phi)])
 
 
 # # write samples to AWG
 # comm.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21',
 #                                                 sample_rate=[1e6],
 #                                                 amp_pp=[0.5], channels=[1], 
-#                                                 out_filter=['normal'],log_mode=True)
+#                                                 log_mode=True)
 
 
 #--- Test with different sampling rates
@@ -35,7 +35,7 @@ import time
 #     comm.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21',
 #                                                     sample_rate=[srates*10**6],
 #                                                     amp_pp=[0.5,0.3], channels=[1,2], 
-#                                                     out_filter=['normal'],log_mode=True)
+#                                                     log_mode=True)
 
 #--- Test with two signals
 
@@ -47,7 +47,7 @@ import time
 # comm.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21',
 #                                                 sample_rate=[500e6],
 #                                                 amp_pp=[0.5,0.3], channels=[1,2], 
-#                                                 out_filter=['normal'],log_mode=True)
+#                                                 log_mode=True)
 
 
 #--- Test with NaN in sample vector
@@ -60,7 +60,7 @@ import time
 # comm.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21',
 #                                                 sample_rate=[500e6],
 #                                                 amp_pp=[0.5], channels=[1], 
-#                                                 out_filter=['normal'],log_mode=True)
+#                                                 log_mode=True)
 
 # Result: The NaN will be played by the AWG with maximum amplitude.
 #         Also the AWG will give a warning: "Waveform contains invalid sample values" at his HOME screen.
@@ -78,7 +78,7 @@ import time
 # comm.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21',
 #                                                 sample_rate=[500e6],
 #                                                 amp_pp=[0.5], channels=[1], 
-#                                                 out_filter=['normal'],log_mode=True)
+#                                                 log_mode=True)
 
 # Result: The inf will be played by the AWG with maximum amplitude.
 #         The driver should prevent this by not accepting inf values
@@ -89,26 +89,52 @@ import time
 # Maximum Bytes for one command : 999,999,999 Bytes          
 # Bytes per float = 4 Bytes
 # Total length of signal for one command : 249999999 Samples  
-                     
-start = time.time()
-print("START")
-n = 200000000
-#n = 10000000
-phi = np.arange(n)/n * np.pi*2
-samples = np.array([np.ones(n)])
-end = time.time()
-print("END")
-print(end - start)
-
-start = time.time()
-print("START")
-# write samples to AWG
-comm.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21',
-                                                sample_rate=[500e6],
-                                                amp_pp=[0.5], channels=[1], 
-                                                out_filter=['normal'],log_mode=True)
-end = time.time()
-print("END")
-print(end - start)
+# Programm crashed between 230_000_000 and 240_000_000 samples
 
 
+numpy_time = []
+trans_time = []
+#number_of_samples = list(range(200_000_000,240_000_001,10_000_000))
+# number_of_samples = list(range(230_000_000,240_000_001,2_000_000))
+number_of_samples = list(range(234_010_000,234_100_001,10_000))
+#number_of_samples.append(249_999_999)
+#number_of_samples = list(range(20000,24000,500))
+
+for n in number_of_samples:
+
+    start = time.time()
+    print("START")
+    phi = np.arange(n)/n * np.pi*2
+    samples = np.array([np.ones(n)])
+    end = time.time()
+    print("END")
+    numpy_time.append(end - start)
+    print(end - start)
+    start = time.time()
+    print("START")
+    # write samples to AWG
+    try:
+        comm.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21',
+                                                        sample_rate=[500e6],
+                                                        amp_pp=[0.5], channels=[1], 
+                                                        log_mode=True)
+    except Exception as e:
+        print(e)
+        print('Error by n = ' + str(n))
+
+    end = time.time()
+    print("END")
+    trans_time.append(end - start)
+    print(end - start)
+
+plt.figure(1)
+plt.plot(number_of_samples,numpy_time)
+plt.xlabel('samples')
+plt.ylabel('time[s]')
+
+plt.figure(2)
+plt.plot(number_of_samples,trans_time)
+plt.xlabel('samples')
+plt.ylabel('time[s]')
+
+plt.show()
