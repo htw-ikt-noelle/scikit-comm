@@ -1,5 +1,5 @@
 import sys
-import visa
+import pyvisa as visa
 import numpy as np
 import matplotlib.pyplot as plt
 #import math
@@ -210,10 +210,8 @@ def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250
 
 
 
-def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample_rate=[250e6], amp_pp=[0.5], channels=[1], out_filter=['normal'],log_mode = False):
-    
-    # TODO: Write/change the docstring for the method. Find Filter
-    # TODO: Change float to integer (Maybe?)
+def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample_rate=[250e6], amp_pp=[0.5], channels=[1],log_mode = False):
+
 
     """
     write_samples_AWG70002B
@@ -224,20 +222,50 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
     ----------
     samples : numpy array, n_outputs x n_samples , float
         samples to output, to be scaled between -1 and 1 (values outside this range are clipped).
+        Without clipping the AWG would clip the waveform.
+        Only real numbers are allowed. To use complex numbers assign the real and imaginray part to different channels.
+        Maximum vector length is 234e6.
     ip_address : string, optional
-        DESCRIPTION. The default is '192.168.1.21'. Currently, only LAN connection is supported.
+        The default is '192.168.1.21'. Currently, only LAN connection is supported.
     sample_rate : list of floats, optional
         sample rate of the outputs. The default is [250e6]. Must be between 1.49 kSamples/s and 8 GSsamples/s
     amp_pp : list of floats, optional
         peak-to-peak output amplitude of individual channels in units of Volt. The default is [0.5].
+        For two channels enter format [x.x,y.y]
     channels : list of int, optional
         channels to be programmed and output. The default is [1]. For two channels input [1,2]
-    out_filter : list of strings, optional
-        used output filter of each channel ['normal', 'off', 'step']. The default is ['normal'].
+    log_mode : Bool, optional
+        When True a log file will be created (Default = False)
+        The log file includes error messages and infos about the program flow
 
     Returns
     -------
     None.
+
+    Errors
+    ------
+    Type Error: 
+        Will be raised when a wrong data type is used for the input parameter
+        -> Possible errors
+            -> Parameters are not of type list
+            -> Items of channels, amp_pp or sample_rate are not of type integer
+            -> Items of samples are not of type np.array
+            -> Items of samples are of type complex.
+            -> ip_address is not a string
+
+    Value Error:
+        Will be raised when the input parameter is in an wrong range
+        -> Possible errors
+            -> The samples np.arrays contains NaN or Inf
+            -> The lengths of amp_pp, channels and samples have not the same length
+            -> The peak to peak voltage is not between 0.25V and 0.5V
+            -> The sampling_rate ist not between 1.49e3 and 8e9
+            -> Channel designation is wrong
+
+    Exception:
+        Will be raised by diverse errors
+        -> Possible errors
+            -> No connection to the AWG
 
     """
     
@@ -279,13 +307,23 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
     
     try:
         if not (isinstance(sample_rate, list) and 
-            isinstance(amp_pp, list) and isinstance(channels, list) and 
-            isinstance(out_filter, list)):
+            isinstance(amp_pp, list) and isinstance(channels, list)):
             raise TypeError('Input parameters are not lists...')
 
-        if len(channels) > 2:
-            raise ValueError('To much channels ({0}). The AWG has only 2 output channels'.format(
-                                                                                         len(channels)))
+        if not all(isinstance(x, int) for x in amp_pp):
+            TypeError('amp_pp items must be of type integer')
+
+        if not all(isinstance(x, int) for x in sample_rate):
+            TypeError('sample_rate items must be of type integer')   
+
+        if not all(isinstance(x,int) for x in channels):
+            TypeError('channels items must be of type integer')     
+
+        if not isinstance(samples, np.ndarray):
+            raise TypeError('Samples has to be from type numpy array. Actual type: {0}'.format(type(samples)))
+
+        if not isinstance(ip_address,str):
+            raise TypeError('ip_address must be of type string')  
 
         if np.iscomplex(samples[0:2]).any():
             raise TypeError('No complex numbers allowed. If you want to use complex values, assign the real part and imaginary part seperately to channel 1 and channel 2')
@@ -293,11 +331,22 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
         if np.isnan(samples[0:2]).any() or np.isinf(samples[0:2]).any():
             raise ValueError('No NaN or Inf values are allowed in the sample vector!')
 
+        # if len(samples) > 234_000_000:
+        #     raise ValueError("Maximum length of sample vector is 234e6")
+
+
+        if len(channels) > 2:
+            raise ValueError('To much channels ({0}). The AWG has only 2 output channels'.format(
+                                                                                         len(channels)))
+
         if not(len(channels) == len(samples) == len(amp_pp)):
             raise ValueError('Number of channels ({0}), number of signal vectors ({1}) and number of amplitudes ({2}) must be the same!'.format(
                                                                                                                                         len(channels),
                                                                                                                                         len(samples),
                                                                                                                                         len(amp_pp)))
+
+        if any(ch_num > 2 for ch_num in channels) or any(ch_num < 1 for ch_num in channels):
+            raise ValueError('Channel designation must be between 1 and 2')
 
         if sample_rate[0] > 8e9 or sample_rate[0] < 1.49e3:
             raise ValueError('Sample rate must be between 1.49 kSamples/s and 8 GSsamples/s')
@@ -305,22 +354,12 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
         if any(ch_amp > 0.5 for ch_amp in amp_pp) or any(ch_amp < 0.25 for ch_amp in amp_pp):
             raise ValueError('Amplitudes must be between 0.25 and 0.5 (peak to peak)')
 
-        if not isinstance(samples, np.ndarray):
-            raise TypeError('Samples has to be from type numpy array. Actual type: {0}'.format(
-                                                                                       type(samples)))
 
         
 
     except Exception as e:
         logger.error('{0}'.format(e))
         exit()
-
-
-    # TODO: Search for min and max possible sample rate of the AWG and write an if statement to catch a correct input of sample rate
-    # TODO: Find the maximum of the samples vector and write an if statement to catch a correct input
-    # TODO: Check for correct input data types 
-    # TODO: Writing some query commands to get feedback from the scope
-
 
     # =============================================================================
     #  importing visa for communication with the AWG device
@@ -336,7 +375,7 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
         exit()
     
     # Setting timeout
-    awg.timeout = 20000
+    awg.timeout = 20_000
 
     logger.info("Device properties: " + str(awg.query('*IDN?')))
 
@@ -349,7 +388,7 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
         logger.info("Samples have not been clipped")
     
     samples_clipped =(np.clip(samples,-1,1))
-
+    
     if samples_clipped.ndim == 1:
         samples_clipped = samples_clipped[np.newaxis,...]
     #samples_clipped = samples_clipped.tolist()
@@ -403,7 +442,6 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
             
         awg.write_binary_values('WLIST:WAVEFORM:DATA "Python_waveform_AWG_{0:d}",'.format(ch), samples_clipped[ch_idx], datatype='f')
         print(awg.query('WLIST:WAVEFORM:DATA? "Python_waveform_AWG_{0:d}",0'))
-        # WLISt:WAVeform:DATA[:I]? <wfm_name>[,<StartIndex>[,<Size>]])
 
         # Adding the waveform to an output
         logger.info("Add Python_waveform_AWG_{0:d} to output {0:d}".format(ch))
