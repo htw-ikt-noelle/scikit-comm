@@ -209,7 +209,7 @@ def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250
     rm.close()  # closing resource manager 
 
 
-def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',word_length = 1,log_mode = False):   
+def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',number_of_bytes = 1,log_mode = False):   
     """
     get_samples_Tektronix_MSO6B
     
@@ -220,8 +220,17 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',word_len
     channels : list of integers, optional
         iterable containing the channel numbers to fetch data samples from device. The default is [1].
         For more chennels use [1,2,...]
+        Minimum number of channels is 1
+        Maximum number of channels is 4
+        Ensure that the acquired channels are activated at the scope
     address : string, optional
         IP Adress of device. The default is '192.168.1.20'.
+    number_of_bytes: integer, optional
+        Defines the length of the requested data from the scope in bytes.
+        Allowed are 
+        1 Byte (signed char), 2 Bytes (signed short) or 4 Bytes (long)
+    log_mode: boolean, optional
+        Specifies whether a log file should be created or not
 
     Returns
     -------
@@ -229,6 +238,30 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',word_len
         actual sample rate of returned samples.
     wfm : list of numpy arrays, float
         each list element constains the samples of a requested channel as numpy float array.
+
+    Errors
+    -------
+    Type Error: 
+        Will be raised when a wrong data type is used for the input parameter
+        -> Possible errors
+            -> Channels is not of type list
+            -> Items of channels are not of type integer
+            -> ip_address is not of type string
+            -> number_of_bytes is not integer
+
+    Value Error:
+        Will be raised when the input parameter is in an wrong range
+        -> Possible errors
+            -> Too much channels are used. Maximum is 4
+            -> Too less channels are used. Minimus is 1 
+            -> Channel numbers must be between 1 and 4
+            -> Wrong number of bytes (1 Byte (signed char), 2 Bytes (signed short) or 4 Bytes (long))
+
+    Exception:
+        Will be raised by diverse errors
+        -> Possible errors
+            -> No connection to the scope
+            -> Required channels are not activated at the scope
 
     """
 
@@ -268,16 +301,28 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',word_len
 
     try:
         if not isinstance(channels, list):
-            raise TypeError('Type of channels mus be list')
+            raise TypeError('Type of channels must be list')
+
+        if not isinstance(ip_address, str):
+            raise TypeError('Type of ip_address must be string')
+
+        if not all(isinstance(x, int) for x in channels):
+            raise TypeError('Type of channels items must be integers')
+
+        if not isinstance(number_of_bytes, int):
+            raise TypeError('Type of number_of_bytes must be integer')
 
         if len(channels) > 4:
-            raise ValueError('To much channels ({0}). The Scope has only 2 output channels'.format(len(channels)))
+            raise ValueError('Too much channels ({0}). The Scope has only 4 input channels'.format(len(channels)))
+
+        if len(channels) < 1:
+            raise ValueError('Too less channels ({0}). Use at least one channel'.format(len(channels)))
 
         if any(ch_number > 4 for ch_number in channels) > 4 or any(ch_number < 1 for ch_number in channels):
-            raise ValueError('Channel numbers must be integer and betwenn 1 and 4')
+            raise ValueError('Channel numbers must be betwenn 1 and 4')
 
-        if word_length not in [1,2,4]:
-            raise ValueError('Wrong word length. Onyly 1 (signed char), 2 (signed short) or 4 (long) are allowed')
+        if number_of_bytes not in [1,2,4]:
+            raise ValueError('Wrong number of bytes. Only 1 (signed char), 2 (signed short) or 4 (long) are allowed')
 
     except Exception as e:
         logger.error('{0}'.format(e))
@@ -337,9 +382,9 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',word_len
     # Set datatype for acquisition  ( b (signed char),h (signed short) or l (long) )
     # For information see documentation of struct module
 
-    if word_length == 1:
+    if number_of_bytes == 1:
         acq_data_type = 'b'
-    elif word_length == 2:
+    elif number_of_bytes == 2:
         acq_data_type = 'h'
     else:
         acq_data_type = 'l'
@@ -352,7 +397,7 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',word_len
         scope.write('DATA:SOURCE CH{0:d}'.format(ch))
 
         # Setting number of bytes per waveformpoint (sample) 
-        scope.write('WFMOutpre:BYT_Nr {0:d}'.format(word_length))
+        scope.write('WFMOutpre:BYT_Nr {0:d}'.format(number_of_bytes))
 
         # Reading waveform data and write them as numpy array to list
         #scope.write('Curve?')
@@ -362,6 +407,7 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',word_len
             logger.error('Channel {0:d} seems not activated \n '.format(ch))
             exit()
 
+        print(tmp)
 
         # Reading vertical scaling of the scope (Voltage per div)
         ver_scale = float(scope.query('CH{0:d}:SCAle?'.format(ch),delay = 0.5))
@@ -373,11 +419,11 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',word_len
         offset = float(scope.query('CH{0:d}:OFFSet?'.format(ch),delay = 0.5))
 
         # Scale amplitude
-        #wfm.append(5 * ver_scale / (2 ** (float(word_length) * 7)) * tmp  + ver_offset)
-        # if word_length == 4:
+        #wfm.append(5 * ver_scale / (2 ** (float(number_of_bytes) * 7)) * tmp  + ver_offset)
+        # if number_of_bytes == 4:
         #     wfm.append(ver_scale * (tmp - ver_position) + offset)
         # else:
-        wfm.append(ver_scale * (5 / (2 ** (float(word_length) * 8 - 1)) * tmp - ver_position) + offset)
+        wfm.append(ver_scale * (5 / (2 ** (float(number_of_bytes) * 8 - 1)) * tmp - ver_position) + offset)
     
 
     # Restart the scope
