@@ -22,7 +22,7 @@ import copy
 LASER_LINEWIDTH = 0*1e3 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
 EXPERIMENT = True
-UPLOAD_SAMPLES = True
+UPLOAD_SAMPLES = False
 USE_PREDIST = True
 SNR = 200
 
@@ -98,6 +98,7 @@ if EXPERIMENT:
     samples = samples[0] - samples[1]
     
     #TODO: maybe remove mean of signal
+    samples = samples - np.mean(samples)
 
 ###################### Simulation ###########################################
 else:
@@ -153,7 +154,6 @@ else:
 #############################################################################
 ######################## Rx #################################################
 #############################################################################
-    
 # contruct rx signal structure
 sig_rx = copy.deepcopy(sig_tx)
 sig_rx.samples = samples
@@ -173,7 +173,6 @@ sig_rx.samples = ssignal.resample(sig_rx.samples[0], num=int(len_dsp), window=No
 sig_rx.sample_rate = sr_dsp
 # #comm.visualizer.plot_spectrum(rx_samples, sample_rate=sr)
 sig_rx.plot_spectrum()
-
 
 # IQ-Downmixing and (ideal) lowpass filtering
 # ...either real signal processing
@@ -201,34 +200,65 @@ sig_rx.samples[0] = samples_r - 1j * samples_i
 #sig_rx.plot_constellation()
 
 ############# From here: "standard" coherent complex baseband signal processing ############
-# Rx matched filter
-sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
-# sig_rx.plot_eye()
+# resample to 2 sps
+sps_new = 2
+sps = sig_rx.sample_rate[0]/sig_rx.symbol_rate[0]
+new_length = int(sig_rx.samples[0].size/sps*sps_new)
+sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
+sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
 
-# crop samples here, if necessary
-sps = int(sig_rx.sample_rate[0] / sig_rx.symbol_rate[0])
-crop = 10*sps
-if crop != 0:
-    sig_rx.samples = sig_rx.samples[0][crop:-crop]
+
+adaptive_filter = True
+# blind adaptive filter....
+if adaptive_filter == True:
+    results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=333, mu=4e-3, decimate=False, return_info=True, stop_adapting=-1)
+    sig_rx = results['sig']
+    h = results['h']
+    eps = results['eps']
+    
+    plt.plot(np.abs(eps))
+    plt.show()
+    
+    plt.plot(np.abs(np.fft.fftshift(np.fft.fft(h[-1,:]))))
+    plt.show()            
+      
+    sps = int(sig_rx.sample_rate[0]/sig_rx.symbol_rate[0])
+    cut = 10000
+    # cut away init symbols
+    sig_rx.samples = sig_rx.samples[0][int(cut)*sps:]
+    
+
+# matched filtering
 else:
-    sig_rx.samples = sig_rx.samples[0]
-
-# sampling phase / clock adjustment
-BLOCK_SIZE = -1 # size of one block in SYMBOLS... -1 for only one block
-sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
-
-# sampling
+    # Rx matched filter
+    sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
+    # sig_rx.plot_eye()
+    
+    # crop samples here, if necessary
+    sps = int(sig_rx.sample_rate[0] / sig_rx.symbol_rate[0])
+    crop = 10*sps
+    if crop != 0:
+        sig_rx.samples = sig_rx.samples[0][crop:-crop]
+    else:
+        sig_rx.samples = sig_rx.samples[0]
+    
+    # sampling phase / clock adjustment
+    BLOCK_SIZE = 1000 # size of one block in SYMBOLS... -1 for only one block
+    sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
+    
+# sampling (if necessary)
 START_SAMPLE = 0
 sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
 sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
 sig_rx.plot_constellation(0)
+
 
 # CPE
 cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, filter_shape='wiener', mth_power=4, rho=.3)
 sig_rx.samples = cpe_results['rec_symbols']
 est_phase = cpe_results['phi_est']
 
-# sig_rx.plot_constellation()
+sig_rx.plot_constellation()
 
 # delay and phase ambiguity estimation and compensation
 sig_rx = comm.rx.symbol_sequence_sync(sig_rx, dimension=-1)

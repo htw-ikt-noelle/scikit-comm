@@ -431,9 +431,10 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
         h_wiener = np.concatenate((np.flip(h_wiener[1:]), h_wiener)) # make symmetric
         h_wiener = h_wiener / np.sum(h_wiener) # normalize to unit sum (make unbiased estimator)        
        
-        H_wiener = np.fft.ifftshift(np.fft.fft(h_wiener, n=symbols.size))
+        H_wiener = np.fft.fftshift(np.fft.fft(h_wiener, n=symbols.size))
         # filter the unwraped phase        
         phi_est = filters.filter_samples(np.unwrap(mth_power*np.angle(symbols))/mth_power, H_wiener, domain='freq')
+        # phi_est = np.abs(phi_est)
         # undo group delay of Wiener filter
         phi_est = np.roll(phi_est,  -(n_taps//2))
     
@@ -612,16 +613,168 @@ def symbol_sequence_sync(sig, dimension=-1):
         else:        
             sig.samples[dim] = sig.samples[dim] * np.exp(-1j*phase_est)
     
-    return sig        
+    return sig    
 
+def blind_adaptive_equalizer(sig, n_taps=111, mu=2e-2, decimate=False, return_info=True, stop_adapting=-1):    
+    """
+    Equalize the signal using a blind adaptive equalizer filter.
+    
+    A complex valued filter is initialized with a dirac impulse as impulse 
+    response of length n_taps samples. Then the first signal sample is filtered.
+    
+    Once each SYMBOL, the error (eps) to the desired output radius is calculated 
+    and the filter impulse response is updated using the steepest gradient descent method [1]. 
+    A step size parameter (mu) is used to determine the adaptation speed. 
+    
+    The equalizer can output every filtered SAMPLE or only every filtered 
+    SYMBOL, which is controlled with the parameter decimate. 
+    
+    Further, the adaptation of the impulse response / equalizer can be stopped after 
+    stop_adapting SYMBOLS.
+    
+    The equalizer operates on each signal dimension independently. The parameters
+    can be passed as 
+        * singular values [int, float or bool], which are broadcasted to every dimension, or
+        * lists of length n_dims to specify independent parameters for each signal dimension
+   
+    [1] D. Godard, “Self-recovering equalization and carrier tracking in twodimensional data communication systems,” IEEE Trans. Commun., vol. 28, no. 11, pp. 1867–1875, Nov. 1980.
+    [2] S. Savory, "Digital Coherent Optical Receivers: Algorithms and Subsystems", IEEE STQE, vol 16, no. 5, 2010
+   
+        
+    Parameters
+    ----------
+    sig : comm.signal.Signal
+        input signal to be equalized.
+    n_taps : int or list of ints, optional
+        length of the equalizers impulse response in samples for each dimension. Has to be odd. 
+        The default is 111.
+    mu : float or list of floats, optional
+        adaptation step size of the the steepest gradient descent method for each dimension. 
+        The default is 2e-2.
+    decimate : bool or list of bools, optional
+        output every SAMPLE or every SYMBOL. The default is False.
+    return_info : bool or list of bools, optional
+        should the evolution of the impulse response and the error be recorded 
+        and returned. The default is True.
+    stop_adapting : int or list of ints, optional
+        equaliter adaptation is stopped after stop_adapting SYMBOLS. -1 results 
+        in a continous adaptation untill the last symbol of the input signal. 
+        The default is -1.
 
     
+    Returns
+    -------
+    results :  dict containing following keys
+        sig : comm.signal.Signal
+            equalized output signal.
+        h : list of np.arrays 
+            each list element consists of either a np.array of shape 
+            (n_output_samples, n_taps) in case of return_info==True which
+            documents the evolution of the equalizers impulse response or of an
+            empty np.array in case of return_info==False
+        eps : list of np.arrays
+            each list element consists of either a np.array of shape 
+            (n_output_samples,) in case of return_info==True which
+            documents the evolution of the error signal or of an
+            empty np.array in case of return_info==False.
+    """
+    if type(sig) != signal.Signal:
+        raise TypeError("input parameter must be of type 'comm.signal.Signal'")
     
+    # parameter cheching
+    if type(n_taps) == list:
+        if len(n_taps) != sig.n_dims:
+            raise ValueError('if parameters are given as lists, their length has to match the number of dimensions of the signal (n_dims)')
+    else:
+        n_taps = [n_taps] * sig.n_dims
+        
+    if type(mu) == list:
+        if len(mu) != sig.n_dims:
+            raise ValueError('if parameters are given as lists, their length has to match the number of dimensions of the signal (n_dims)')
+    else:
+        mu = [mu] * sig.n_dims
+        
+    if type(decimate) == list:
+        if len(decimate) != sig.n_dims:
+            raise ValueError('if parameters are given as lists, their length has to match the number of dimensions of the signal (n_dims)')
+    else:
+        decimate = [decimate] * sig.n_dims
+        
+    if type(return_info) == list:
+        if len(return_info) != sig.n_dims:
+            raise ValueError('if parameters are given as lists, their length has to match the number of dimensions of the signal (n_dims)')
+    else:
+        return_info = [return_info] * sig.n_dims
+        
+    if type(stop_adapting) == list:
+        if len(stop_adapting) != sig.n_dims:
+            raise ValueError('if parameters are given as lists, their length has to match the number of dimensions of the signal (n_dims)')
+    else:
+        stop_adapting = [stop_adapting] * sig.n_dims
     
+    # generate lists for return info (evolution of impulse response and eps)
+    h_tmp = []
+    eps_tmp = []
     
-    
-    
-    
-    
+    # iterate over dimensions
+    for dim in range(sig.n_dims):
 
-
+        # generate new empty list for each dimension
+        h_tmp.append([]) 
+        eps_tmp.append([])
+    
+        if n_taps[dim] % 2 == 0:
+            raise ValueError('n_taps need to be odd')       
+            
+        sps = int(sig.sample_rate[dim] / sig.symbol_rate[dim])
+        # init equalizer impulse response to delta
+        # TODO: add option to set impulse response from outside
+        h = np.zeros(n_taps[dim], dtype=np.complex128)
+        h[n_taps[dim]//2] = 1.0
+        # append impulse respnse to dim-th list
+        # h_tmp[dim].append(h)
+        # generate tmp arrays
+        samples_in = sig.samples[dim]
+        samples_out = np.full(samples_in.size-n_taps[dim], np.nan, dtype=np.complex128)
+        # desired modulus for p=2, see [1], eq. (28) + 1    
+        r = np.mean(np.abs(sig.constellation[dim])**4) / np.mean(np.abs(sig.constellation[dim])**2) 
+        # is output caluculated for each sample or only for each symbol?
+        if decimate[dim]:
+            shift = sps
+        else:
+            shift = 1
+        # will the equalizer stop adapting
+        if stop_adapting[dim] == -1:
+            stop_adapting[dim] = int(samples_out.size/sps)
+        # equalizer loop
+        for sample in range(0, samples_out.size, shift):        
+            # filter the signal for each desired output sample (convolution)
+            # see [1], eq. (5)
+            samples_out[sample] = np.sum(h * samples_in[n_taps[dim]+sample:sample:-1])        
+            # for each symbol, calculate error signal... 
+            if (sample % sps == 0):            
+                # calc error, see [1], eq. (26)
+                eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r)
+                # ...and update impulse response, if necessary
+                if (int(sample/sps) <= stop_adapting[dim]):
+                    # update impuse response, see [1], eq (28)
+                    h -= mu[dim] * np.conj(samples_in[n_taps[dim]+sample:sample:-1]) * eps
+                # save return info, if necessary
+                if return_info[dim]:
+                    h_tmp[dim].append(h.copy())
+                    eps_tmp[dim].append(eps)
+        # only take "valid" (actually calculated) output samples
+        if decimate[dim]:
+            samples_out = samples_out[::sps]
+            sig.sample_rate[dim] = sig.symbol_rate[dim]
+        # generate output signal and return_info np.arrays
+        sig.samples[dim] = samples_out
+        h_tmp[dim] = np.asarray(h_tmp[dim])
+        eps_tmp[dim] = np.asarray(eps_tmp[dim])
+        
+    # generate result dict
+    results = dict()
+    results['sig'] = sig
+    results['h'] = h_tmp
+    results['eps'] = eps_tmp
+    return results
