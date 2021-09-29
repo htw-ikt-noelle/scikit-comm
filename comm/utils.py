@@ -6,16 +6,66 @@ import math
 
 
 def generate_constellation(format='QAM', order=4):
-    """ Generate constellation vector for given modulation format.
-	
     """
+    Generate array of constellation points for a given modulation format of a
+    given order.
+	
+    For QAM formats, a pure Gray-coded square QAM constellation is generated 
+    if order is an even power of 2 (even-bit), and Pseudo-Gray-coded symmetrical
+    QAM constellation is generated if order is an odd power of 2 (odd-bit). For
+    further information, see 'Odd-Bit Quadrature Amplitude-Shift Keying' by 
+    Joel G. Smith, 1975.
+    For PSK and PAM, pure Gray-Coded constellations are always generated, as
+    long as order is a power of 2.
+    
+    Constellation points in QAM and PAM modulation schemes are currently built
+    with a Euclidean distance of 2 between two neighbouring points, as per the
+    convention in Smith, 1975. This might require normalization of the const.
+    array.
+    
+    Parameters
+    ----------
+    format : string, optional
+        Modulation format to be used. Options are 'QAM', 'PAM', and 'PSK'.
+        The default is 'QAM'.
+    order : int, optional
+        Order of the modulation scheme to be generated. Only powers of 2 are
+        valid. The default is 4.
+
+    Raises
+    ------
+    ValueError
+        - if order is not a power of 2.
+        - if a QAM with order 2 or 8 is generated (for order == 2, ASK/PSK
+          should be used, for order == 8, Star-QAM should be used, which is 
+          not implemented yet
+    TypeError
+        - if order is not passed as integer.
+
+    Returns
+    -------
+    constellation : ndarray of complex
+        Array of complex constellation points to map bit words to.
+
+    """
+
+
     
     if ((np.log2(order) % 1) != 0) | (order == 1):
         raise ValueError('gen_constellation: order must be a power of two...')
     if type(order) != int:
-        raise TypeError('Order parameter must be passed as integer.')
-        
+        raise TypeError('gen_constellation: order must be passed as integer...')
+    
+    ### QAM
     if format == 'QAM':
+        # check for reasonable order for QAM (for order == 2, PSK or ASK should
+        # be used, for order == 8, Star QAM should be used, which is not 
+        # implemented here)
+        if order == 2:
+            raise ValueError('gen_constellation: for order == 2, use PSK or ASK instead of QAM...')
+        if order == 8:
+            raise ValueError('gen_constellation: Star-QAM for order == 8 is not implemented...')
+        
         # derive number of bits encoded in one symbol from QAM order
         n = int(np.log2(order))
         ### build rectangular matrix of gray-coded bit words
@@ -96,13 +146,12 @@ def generate_constellation(format='QAM', order=4):
             II,QQ = np.meshgrid(values_I,values_Q)
             symbols = (II + 1j*QQ).flatten()
             
-        
+        ### sort and output values as numpy arrays
         # convert gray-coded sequence to binary for control and labelling purposes
         # change dtype if more than 8 bits are encoded per symbol
         bits_bin = np.full_like(bits.flatten(),0,dtype='<U8')
         for i in range(len(bits.flatten())):
             bits_bin[i] =  np.binary_repr(bits.flatten()[i], width=int(n))
-        ### sort and output values as numpy arrays
         # initialize lists for return values
         constellation = []
         bits_tmp = []
@@ -116,12 +165,13 @@ def generate_constellation(format='QAM', order=4):
         constellation = np.asarray(constellation)
     ### PAM    
     elif format == 'PAM':
-        # TODO: not gray coded yet!!!
-        constellation = np.arange(0, order, 1)
-        constellation = constellation - np.mean(constellation)
-    ### ASK    
-    elif format == 'ASK':
-        raise ValueError('ASK not implemented yet')
+        # https://electronics.stackexchange.com/questions/158754/what-is-the-difference-between-pam-and-ask
+        n = int(np.log2(order))
+        gray = np.arange(2**n) ^ (np.arange(2**n)>>1)
+        symbols = np.linspace(-(2**n)+1,(2**n)-1,order)
+        constellation = []
+        for i in range(order):
+            constellation.append(symbols[np.argwhere(gray==i)][0][0])
     ### PSK    
     elif format == 'PSK':
         n = int(np.log2(order))
