@@ -615,16 +615,47 @@ def symbol_sequence_sync(sig, dimension=-1):
     
     return sig    
 
-def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=2e-2, mu_rde=2e-3, mu_dde=2e-3, decimate=False, return_info=True, stop_adapting=-1, start_rde=5000, start_dde=5000):    
+def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0.5, decimate=False, return_info=True, stop_adapting=-1, start_rde=5000, start_dde=5000):    
     """
     Equalize the signal using a blind adaptive equalizer filter.
     
     A complex valued filter is initialized with a dirac impulse as impulse 
     response of length n_taps samples. Then the first signal sample is filtered.
     
-    Once each SYMBOL, the error (eps) to the desired output radius is calculated 
-    and the filter impulse response is updated using the steepest gradient descent method [1]. 
-    A step size parameter (mu) is used to determine the adaptation speed. 
+    There exist tree operation modes:
+        
+        * constant modulus algorithm (CMA) operation [1]:
+             Once each SYMBOL, the error (eps) to the desired output radius is calculated 
+             and the filter impulse response is updated using the steepest gradient descent method [1]. 
+             A step size parameter (mu_cma) is used to determine the adaptation speed. 
+        * radially directed equalizer (RDE) operation [2]:
+            Once each SYMBOL, the output signal is decided to ONE  of the desired radii (the nearest one) [2] and [3].
+            The error (eps) between the output signal and this decided radius is calculated 
+            and the filter impulse response is updated using the steepest gradient descent method. 
+            A step size parameter (mu_rde) is used to determine the adaptation speed. 
+        * decision directed equalizer (DDE) [2]:
+            Once each SYMBOL, the output signal is decided to ONE, the nearest constellation point.
+            The error (eps) between the output signal and this decided constellation point is calculated 
+            and the filter impulse response is updated using the steepest gradient descent method. 
+            A step size parameter (mu_dde) is used to determine the adaptation speed. CAUTION: this option
+            works only very unreliable in case of phase noise!!!
+            
+    All three modes are in general run sequentially in the order CMA, RDE and DDE. 
+    The parameters start_rde and start_dde control when the modes are switched.
+    start_rde defines after how many SYMBOLS the RDE mode ist started after the 
+    start of CMA mode. start_rde=0 does not start this mode at all.
+    
+    start_dde defines after how many SYMBOLS the DDE mode is started AFTER the 
+    RDE mode has started. However, if the RDE mode is switched off (start_rde=0)
+    the parameter start_dde defindes after how many SYMBOLS the DDE mode is 
+    started AFTER the CMA mode has started. start_dde=0 does not start this mode at all.
+    
+    EXAMPLES:
+        start_rde=10e3, start_dde=0     -->     10e3 symbols CMA, rest RDE
+        start_rde=0, start_dde=0        -->     all samples filterd with CMA
+        start_rde=0, start_dde=10e3     -->    10e3 symbols CMA, rest DDE
+        start_rde=0, start_dde=1        -->    1 symbol CMA, rest DDE
+        start_rde=5e3, start_dde=10e3   -->     5e3 symbols CMA, 10e3 sybmosl RDE, rest DDE
     
     The equalizer can output every filtered SAMPLE or only every filtered 
     SYMBOL, which is controlled with the parameter decimate. 
@@ -639,7 +670,7 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=2e-2, mu_rde=2e-3, mu_dde=2
    
     [1] D. Godard, “Self-recovering equalization and carrier tracking in twodimensional data communication systems,” IEEE Trans. Commun., vol. 28, no. 11, pp. 1867–1875, Nov. 1980.
     [2] S. Savory, "Digital Coherent Optical Receivers: Algorithms and Subsystems", IEEE STQE, vol 16, no. 5, 2010
-   
+    [3] P. Winzer, A. Gnauck, C. Doerr, M. Magarini, and L. Buhl, “Spectrally efficient long-haul optical networking using 112-Gb/s polarizationmultiplexed16-QAM,” J. Lightw. Technol., vol. 28, no. 4, pp. 547–556, Feb. 15, 2010.
         
     Parameters
     ----------
@@ -648,9 +679,15 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=2e-2, mu_rde=2e-3, mu_dde=2
     n_taps : int or list of ints, optional
         length of the equalizers impulse response in samples for each dimension. Has to be odd. 
         The default is 111.
-    mu : float or list of floats, optional
-        adaptation step size of the the steepest gradient descent method for each dimension. 
-        The default is 2e-2.
+    mu_cma : float or list of floats, optional
+        adaptation step size of the steepest gradient descent method for CMA operation for each dimension. 
+        The default is 5e-3.
+    mu_rde : float or list of floats, optional
+        adaptation step size of the steepest gradient descent method for RDE operation for each dimension. 
+        The default is 5e-3.
+    mu_dde : float or list of floats, optional
+        adaptation step size of the steepest gradient descent method for DDE operation for each dimension. 
+        The default is 0.5.
     decimate : bool or list of bools, optional
         output every SAMPLE or every SYMBOL. The default is False.
     return_info : bool or list of bools, optional
@@ -660,6 +697,12 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=2e-2, mu_rde=2e-3, mu_dde=2
         equaliter adaptation is stopped after stop_adapting SYMBOLS. -1 results 
         in a continous adaptation untill the last symbol of the input signal. 
         The default is -1.
+    start_rde :  int or list of ints, optional
+        defines after how many CMA SYMBOLS the RDE mode is started. start_rde=0 means 
+        RDE mode does not start at all. See also examples above. The default is 5000.
+    start_dde :  int or list of ints, optional
+        defines after how many RDE SYMBOLS the DDE mode is started. start_rde=0 means 
+        DDE mode does not start at all. See also examples above. The default is 5000.
 
     
     Returns
@@ -693,6 +736,18 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=2e-2, mu_rde=2e-3, mu_dde=2
             raise ValueError('if parameters are given as lists, their length has to match the number of dimensions of the signal (n_dims)')
     else:
         mu_cma = [mu_cma] * sig.n_dims
+    
+    if type(mu_rde) == list:
+        if len(mu_rde) != sig.n_dims:
+            raise ValueError('if parameters are given as lists, their length has to match the number of dimensions of the signal (n_dims)')
+    else:
+        mu_rde = [mu_rde] * sig.n_dims
+        
+    if type(mu_dde) == list:
+        if len(mu_dde) != sig.n_dims:
+            raise ValueError('if parameters are given as lists, their length has to match the number of dimensions of the signal (n_dims)')
+    else:
+        mu_dde = [mu_dde] * sig.n_dims
         
     if type(decimate) == list:
         if len(decimate) != sig.n_dims:
@@ -711,6 +766,18 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=2e-2, mu_rde=2e-3, mu_dde=2
             raise ValueError('if parameters are given as lists, their length has to match the number of dimensions of the signal (n_dims)')
     else:
         stop_adapting = [stop_adapting] * sig.n_dims
+        
+    if type(start_rde) == list:
+        if len(start_rde) != sig.n_dims:
+            raise ValueError('if parameters are given as lists, their length has to match the number of dimensions of the signal (n_dims)')
+    else:
+        start_rde = [start_rde] * sig.n_dims
+        
+    if type(start_dde) == list:
+        if len(start_dde) != sig.n_dims:
+            raise ValueError('if parameters are given as lists, their length has to match the number of dimensions of the signal (n_dims)')
+    else:
+        start_dde = [start_dde] * sig.n_dims
     
     # generate lists for return info (evolution of impulse response and eps)
     h_tmp = []
@@ -725,40 +792,43 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=2e-2, mu_rde=2e-3, mu_dde=2
     
         if n_taps[dim] % 2 == 0:
             raise ValueError('n_taps need to be odd')       
-            
+        
+        # samples per symbol 
         sps = int(sig.sample_rate[dim] / sig.symbol_rate[dim])
+        
         # init equalizer impulse response to delta
         # TODO: add option to set impulse response from outside
         h = np.zeros(n_taps[dim], dtype=np.complex128)
         h[n_taps[dim]//2] = 1.0
-        # append impulse respnse to dim-th list
-        # h_tmp[dim].append(h)
+        
         # generate tmp arrays
         samples_in = sig.samples[dim]
         samples_out = np.full(samples_in.size-n_taps[dim], np.nan, dtype=np.complex128)
-        # desired modulus for p=2, see [1], eq. (28) + 1    
+        
+        # desired modulus for CMA for p=2, see [1], eq. (28) + 1    
         r = np.mean(np.abs(sig.constellation[dim])**4) / np.mean(np.abs(sig.constellation[dim])**2) 
-        # n_cma_symbols = samples_out.size - (start_rde + start_dde)
+        
         # desired radii for RDE, enhancement of [2], eq. (44)
-        if start_rde > 0:
-            radii = np.unique(np.abs(sig.constellation))**2
-        # calc number of CMA symbols:
+        if start_rde[dim] > 0:
+            radii = np.unique(np.abs(sig.constellation[dim]))**2
+        
         # convert symbols to samples
-        start_rde = start_rde * sps
-        start_dde = start_dde * sps
-        # no other equalizer mode
-        if start_rde == start_dde == 0:
+        start_rde[dim] = start_rde[dim] * sps
+        start_dde[dim] = start_dde[dim] * sps
+        # calc number of CMA symbols               
+        if start_rde[dim] == start_dde[dim] == 0:
             n_CMA = samples_out.size
         else:
-            n_CMA = start_rde if start_rde != 0 else start_dde
+            n_CMA = start_rde[dim] if start_rde[dim] != 0 else start_dde[dim]
         # calc number of DDE symbols:
-        n_DDE = 0 if start_dde == 0 else samples_out.size - (n_CMA + start_dde)
-        n_DDE = n_DDE if start_rde != 0 else samples_out.size - (n_CMA)
+        n_DDE = 0 if start_dde[dim] == 0 else samples_out.size - (n_CMA + start_dde[dim])
+        n_DDE = n_DDE if start_rde[dim] != 0 else samples_out.size - (n_CMA)
         # calc number of RDE symbols
         n_RDE = samples_out.size - (n_CMA + n_DDE)
-        
-        print('samples_out:{}, start_rde: {}, start_dde:{}'.format(samples_out.size, start_rde, start_dde))
-        print('n_CMA:{}, n_RDE: {}, n_DDE:{}\n'.format(n_CMA, n_RDE, n_DDE))
+       
+        # # DEBUG PRINTS
+        # print('samples_out:{}, start_rde: {}, start_dde:{}'.format(samples_out.size, start_rde[dim], start_dde[dim]))
+        # print('n_CMA:{}, n_RDE: {}, n_DDE:{}\n'.format(n_CMA, n_RDE, n_DDE))
             
         # is output caluculated for each sample or only for each symbol?
         if decimate[dim]:
@@ -768,42 +838,49 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=2e-2, mu_rde=2e-3, mu_dde=2
         # will the equalizer stop adapting
         if stop_adapting[dim] == -1:
             stop_adapting[dim] = int(samples_out.size/sps)
+        
         # equalizer loop
         for sample in range(0, samples_out.size, shift):        
             # filter the signal for each desired output sample (convolution)
             # see [1], eq. (5)
             samples_out[sample] = np.sum(h * samples_in[n_taps[dim]+sample:sample:-1])        
+            
             # for each symbol, calculate error signal... 
             if (sample % sps == 0):
                 # in CMA operation case
                 if sample <= n_CMA:
                     # calc error, see [1], eq. (26)
                     eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r) 
-                    mu = mu_cma
+                    mu = mu_cma[dim]
                 # in DDE operation case
                 elif sample > (n_CMA + n_RDE):
-                    # # decision (find closest point of original constellation)
-                    r_tmp = decision(samples_out[sample], sig.constellation[dim])[0]
-                    eps = (r_tmp - samples_out[sample])
-                    mu = -mu_dde
+                    # decision (find closest point of original constellation)                    
+                    idx = np.argmin(np.abs(samples_out[sample] - sig.constellation[dim]))
+                    const_point = sig.constellation[dim][idx]
+                    eps = (samples_out[sample] - const_point)
+                    mu = mu_dde[dim]
                 # in RDE operation case
                 else:
                     # decision (find closest radius of original constellation)                    
                     r_tmp = radii[np.argmin(np.abs(np.abs(samples_out[sample])**2 - radii))]
                     eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r_tmp)                         
-                    mu = mu_rde
+                    mu = mu_rde[dim]
+                
                 # ...and update impulse response, if necessary
                 if (int(sample/sps) <= stop_adapting[dim]):
                     # update impulse response, see [1], eq (28)
                     h -= mu * np.conj(samples_in[n_taps[dim]+sample:sample:-1]) * eps
+                
                 # save return info, if necessary
                 if return_info[dim]:
                     h_tmp[dim].append(h.copy())
                     eps_tmp[dim].append(eps)
+        
         # only take "valid" (actually calculated) output samples
         if decimate[dim]:
             samples_out = samples_out[::sps]
             sig.sample_rate[dim] = sig.symbol_rate[dim]
+        
         # generate output signal and return_info np.arrays
         sig.samples[dim] = samples_out
         h_tmp[dim] = np.asarray(h_tmp[dim])

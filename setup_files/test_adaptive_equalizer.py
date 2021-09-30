@@ -20,9 +20,9 @@ import time
 ############################################################
 
 # signal parameters
-LASER_LINEWIDTH = 0*5e2 # [Hz]
+LASER_LINEWIDTH = 20 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
-SNR = 30
+SNR = 25
 
 # contruct signal
 sig_tx = comm.signal.Signal(n_dims=1)
@@ -31,9 +31,15 @@ sig_tx.symbol_rate = 50e6 #50e6
 # generate bits
 sig_tx.generate_bits(n_bits=2**12, seed=1)
 
-# set constellation (modualtion format)
-sig_tx.generate_constellation(order=16)
-sig_tx.modulation_info = 'QAM'
+# set constellation to 16 QAM
+sig_tx.constellation = np.asarray([-3.-3.j, -3.-1.j, -3.+3.j, -3.+1.j, -1.-3.j, -1.-1.j, -1.+3.j,
+       -1.+1.j,  3.-3.j,  3.-1.j,  3.+3.j,  3.+1.j,  1.-3.j,  1.-1.j,
+        1.+3.j,  1.+1.j])
+sig_tx.modulation_info = '16-QAM'
+
+# # QPSK
+# sig_tx.constellation = np.asarray([-1.-1.j, -1.+1.j,  1.-1.j,  1.+1.j])
+# sig_tx.modulation_info = 'QPSK'
 
 # create symbols
 sig_tx.mapper()
@@ -82,7 +88,7 @@ samples = samples[0] + 1j*samples[1] # build ideal complex signal from Tx sample
 sps = int(sig_tx.sample_rate[0] / sig_tx.symbol_rate[0])
 
 # get samples from scope (repeat rx sequence)
-ext = 80000*sps + 4000*sps
+ext = 40000*sps + 4000*sps
 ratio_base = ext // samples.size
 ratio_rem = ext % samples.size        
 samples = np.concatenate((np.tile(samples, ratio_base), samples[:ratio_rem]), axis=0)
@@ -178,7 +184,7 @@ filtershape = np.asarray([[0, 0.0], [25e6, -10.0], [50e6, 2-0.0], [75e6, -30.0]]
 sig_rx.samples = comm.filters.filter_arbitrary(sig_rx.samples[0], filtershape, sample_rate=sig_rx.sample_rate[0])
 
 # copy first to second dim
-sig_rx.n_dims = 1
+sig_rx.n_dims = 2
 sig_rx.samples = sig_rx.samples[0]
 sig_rx.sample_rate = sig_rx.sample_rate[0]
 sig_rx.symbol_rate = sig_rx.symbol_rate[0]
@@ -186,12 +192,17 @@ sig_rx.constellation = sig_rx.constellation[0]
 
 
 start = time.time()
-results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=31, mu_cma=5e-3, mu_rde=5e-3, mu_dde=1e-3, 
+
+
+# results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=31, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0.1, 
+#                                             decimate=False, return_info=True, 
+#                                             stop_adapting=-1, start_rde=10000, start_dde=10000*1)
+
+results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=[31, 31], mu_cma=5e-3, mu_rde=[5e-3, 1e-3], mu_dde=[0.1, 0.05], 
                                             decimate=False, return_info=True, 
-                                            stop_adapting=-1, start_rde=20000, start_dde=20000)
-# results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=[111, 55], mu=[1e-2, 5e-3], 
-#                                             decimate=[True]*2, return_info=[True, True], 
-#                                             stop_adapting=[-1, -1])
+                                            stop_adapting=-1, start_rde=[10000, 15000], start_dde=[10000*1, 0])
+
+
 end = time.time()
 print('equalizer took {:1.1f} s'.format(end - start))
 
@@ -205,14 +216,14 @@ plt.show()
 plt.plot(np.abs(np.fft.fftshift(np.fft.fft(h[-1,:]))))
 plt.show()     
 
-# h = results['h'][1]
-# eps = results['eps'][1]     
+h = results['h'][1]
+eps = results['eps'][1]     
 
-# plt.plot(np.abs(eps))
-# plt.show()
+plt.plot(np.abs(eps))
+plt.show()
 
-# plt.plot(np.abs(np.fft.fftshift(np.fft.fft(h[-1,:]))))
-# plt.show() 
+plt.plot(np.abs(np.fft.fftshift(np.fft.fft(h[-1,:]))))
+plt.show() 
 
 # take only one dimension for further processing
 pick = 0
@@ -230,11 +241,12 @@ sig_rx.sample_rate = sig_rx.symbol_rate[0]
 
 sig_rx.plot_constellation()
   
-# CPE
-cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, filter_shape='wiener', mth_power=4, rho=.3)
-sig_rx.samples = cpe_results['rec_symbols']
-est_phase = cpe_results['phi_est']
+# # CPE
+# cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, filter_shape='wiener', mth_power=4, rho=.3)
+# sig_rx.samples = cpe_results['rec_symbols']
+# est_phase = cpe_results['phi_est']
 
+    
 # sig_rx.plot_constellation()
 
 # delay and phase ambiguity estimation and compensation
