@@ -506,7 +506,7 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     
     
     
-    samples_corrected = samples_norm * np.exp(1j * est_phase_noise_int)
+    samples_corrected = samples_norm[:n_blocks*n_taps] * np.exp(1j * est_phase_noise_int)
     
      # generate output dict containing recoverd symbols and estimated phase noise
     results = dict()

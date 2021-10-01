@@ -20,26 +20,20 @@ import time
 ############################################################
 
 # signal parameters
-LASER_LINEWIDTH = 333 # [Hz]
+LASER_LINEWIDTH = 600 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
 SNR = 30
+bps = 4
 
 # contruct signal
 sig_tx = comm.signal.Signal(n_dims=1)
 sig_tx.symbol_rate = 50e6 #50e6
 
 # generate bits
-sig_tx.generate_bits(n_bits=2**12, seed=1)
+sig_tx.generate_bits(n_bits=2**12*bps, seed=1)
 
-# set constellation to 16 QAM
-sig_tx.constellation = np.asarray([-3.-3.j, -3.-1.j, -3.+3.j, -3.+1.j, -1.-3.j, -1.-1.j, -1.+3.j,
-       -1.+1.j,  3.-3.j,  3.-1.j,  3.+3.j,  3.+1.j,  1.-3.j,  1.-1.j,
-        1.+3.j,  1.+1.j])
-sig_tx.modulation_info = '16-QAM'
-
-# # QPSK
-# sig_tx.constellation = np.asarray([-1.-1.j, -1.+1.j,  1.-1.j,  1.+1.j])
-# sig_tx.modulation_info = 'QPSK'
+# generate constellation
+sig_tx.generate_constellation(format='QAM', order=2**bps)
 
 # create symbols
 sig_tx.mapper()
@@ -222,7 +216,7 @@ sig_rx.plot_constellation()
 # sig_rx.samples[0] = sig_rx.samples[0] * np.exp(1j * np.pi/8)
 
 # BPS CPE
-cpe_results = comm.rx.carrier_phase_estimation_bps(sig_rx.samples[0], n_taps=10, n_test_phases=35, constellation=sig_rx.constellation[0])
+cpe_results = comm.rx.carrier_phase_estimation_bps(sig_rx.samples[0], n_taps=20, n_test_phases=35, constellation=sig_rx.constellation[0])
 samples_outs = cpe_results['samples_out']
 est_phase_noise = cpe_results['est_phase_noise']
 samples_corrected = cpe_results['samples_corrected']
