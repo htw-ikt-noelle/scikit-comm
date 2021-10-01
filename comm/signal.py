@@ -332,7 +332,7 @@ class Signal():
 
         for i, (f, o) in enumerate(zip(format, order)):
             self.constellation[i] = utils.generate_constellation(format=f, order=o)
-            self.modulation_info[i] = f
+            self.modulation_info[i] = str(o) + "-" + str(f)
 
 
     def pulseshaper(self, upsampling=2, pulseshape='rc', roll_off=0.2):

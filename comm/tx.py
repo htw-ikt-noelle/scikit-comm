@@ -137,7 +137,7 @@ def pulseshaper(samples, upsampling=2, pulseshape='rc', roll_off=0.2):
                                                    domain='freq')
     elif pulseshape == 'rect':
         samples_out = filters.moving_average(samples_up, upsampling, 
-                                             domain='time')
+                                             domain='freq')
     elif pulseshape == 'None':
         samples_out = samples_up
     else:
