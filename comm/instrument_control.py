@@ -697,3 +697,157 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
    
     # closing resource manager 
     rm.close()  
+
+
+def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False):
+
+    """
+    get_samples_HP_71450B_OSA
+    
+    Function for reading samples from a Tektronix HP_71450B optical spectrum analyzer
+    
+    Parameters
+    ----------
+        traces: Type list of stings, optional (default = ['A'])
+            Insert here the wanted traces from the OSA as a list of strings. 
+            The three traces of the OSA are A, B, and C. It is also possible to use lower case.
+
+        GPIB_address : string, optional (default = '4')
+            The address GPIB address of the OSA.
+        
+        log_mode: boolean, optional (default = False)
+            Enables a log file for this method.
+
+    Returns
+    -------
+
+        trace_information: dict
+            Consist of the acquired data per trace and other functions (WIP)
+
+    """
+    # =============================================================================
+    #  Create logger which writes to file
+    # ============================================================================= 
+    # Create logger
+    logger = logging.getLogger(__name__)
+
+    # Set the log level
+    logger.setLevel(logging.INFO)
+
+    # Create file handler and standard output handler (terminal output)
+    file_handler = logging.FileHandler('{0}.log'.format(__name__))
+    if log_mode == False:
+        file_handler.setLevel(51)
+    else:
+        file_handler.setLevel(logging.INFO)
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.ERROR)
+
+    # Set format of the logs with formatter
+    formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(name)s :: Line No %(lineno)d:: %(message)s')
+
+    # Adding formatter to handler
+    file_handler.setFormatter(formatter)
+    stdout_handler.setFormatter(formatter)
+
+    # Adding handler to logger
+    logger.addHandler(file_handler)
+    logger.addHandler(stdout_handler)
+
+
+
+    # =============================================================================
+    #  importing visa for communication with the OSA
+    # ============================================================================= 
+
+    rm = visa.ResourceManager('@py')
+
+    # open connection to AWG
+    logger.info("Create GPIB connection with " + str(GPIB_address))
+    try:
+        osa = rm.open_resource('GPIB0::' + GPIB_address + '::INSTR')
+    except Exception as e:
+        logger.error('No connection possible. Check TCP/IP connection \n  {0}'.format(e))
+        exit()
+
+
+    # =============================================================================
+    #  Settings for the analyzer
+    # =============================================================================  
+
+    # Query sweep mode 
+    # Page 7-477
+    current_sweepmode = osa.query('SWEEPMODE?;')
+    
+    # Check if OSA is sweeping
+    # Page 7-476
+    is_running = osa.query('SWEEP?;')
+
+    if is_running == '1' and current_sweepmode == 'CONTS':
+        # Start a single sweep
+        # Page 7-443
+        osa.write('SNGLS;')
+        # Wait till sweep is done
+        # Page 7-121
+        while not osa.query('DONE?'):
+            pass
+
+    # Set datatype of acquisition (Word -> 2 Bytes per sample)
+    # Page 7-232 -> 7-234
+    osa.write('MDS W;')
+
+    # Set type of transmission (Binary format)
+    # Page 7-478 -> 7-480
+    osa.write('TDF B;')
+
+    # Check amplitude unit
+    # Page 7-58 -> 7-59
+    amplitude_unit = osa.query('AUNITS?')
+
+    # Check if amplitude uni is logarithmic or linear
+    # TODO: Check the return value of AUNITS?. Writing if statement and check if the unit is in db or watts.
+    is_log = True
+
+    trace_information = dict.fromkeys(traces)
+
+    # Read start wave length
+    # Page 7-457 -> 7-458
+    start_wl = osa.query('STARTWL?;')
+
+    # Read stop wave length
+    # Page 7-464 -> 7-465
+    stop_wl = osa.query('STOPWL?;')
+
+    # Loop through traces
+    for trace_id,trace in enumerate(traces):
+
+        # Setting length of Trace
+        # Page 7-506 -> 7-507
+        osa.write('TRDEF TR{0:d},2048'.format(trace))
+
+        # Read trace
+        # Page 7-499 -> 7-502
+        # h is 2 bytes (signed short)
+        tmp = osa.query_binary_values('TR{0:d}?;'.format(trace),datatype='h' ,is_big_endian=False, container=np.array)
+
+        # Convert measument units to parameter units
+        # Page 2-8
+        if is_log:
+            trace_information[trace] = [tmp / 100]
+        else:
+            # Read reference level
+            reference_level = osa.query('RL?;')
+            trace_information[trace] = tmp / 10000 * reference_level
+
+        
+
+
+
+
+
+        
+
+
+
+
