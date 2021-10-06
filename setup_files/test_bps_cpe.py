@@ -22,8 +22,8 @@ import time
 # signal parameters
 LASER_LINEWIDTH = 600 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
-SNR = 25 
-bps = 4
+SNR = 30 
+bps = 5
 
 # contruct signal
 sig_tx = comm.signal.Signal(n_dims=1)
