@@ -419,7 +419,6 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
             recovered symbols.
         est_shift : float or 1D numpy array of floats
             estimated phase noise.
-
     """    
     if filter_shape == 'rect':
         # filter the unwraped phase
@@ -458,21 +457,64 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     return results
 
 
-def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phases=15):
-    
+def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phases=15, const_symmetry=np.pi/2):
     """
-    [1] T. Pfau, S. Hoffmann and R. Noe, "Hardware-Efficient Coherent Digital Receiver Concept With Feedforward Carrier Recovery for M -QAM Constellations," in Journal of Lightwave Technology, vol. 27, no. 8, pp. 989-999, April15, 2009, doi: 10.1109/JLT.2008.2010511.
-    """
+    "Blind phase search" carrier phase estimation and recovery.
     
+    This method implements a slight modification of the carrier phase estimation
+    and recovery method proposed in [1].
+    
+    A block of n_taps samples of the input signal (at 1 sample per symbol) is 
+    rotated by n_test_phases individual, equally spaced phases between 
+    -const_symmetry/2 and const_symmetry.
+    
+    The rotation phase producing a smallest squared error between these rotated 
+    samples and the decided constellation points of the original constellation
+    is assumed to be the phase error produced by the channel (or laser(s)).
+    
+    Additional to the decided (ideal) constellation per block (as proposed in [1]),
+    also the unwraped estimated random phase walk is calculated and interpolated.
+    This estimated phase walk is subtracted from the phases of the input samples
+    and therefore used to recover the carrier phase of the signal.    
+
+    [1] T. Pfau, S. Hoffmann and R. Noe, "Hardware-Efficient Coherent Digital 
+    Receiver Concept With Feedforward Carrier Recovery for M -QAM Constellations," 
+    in Journal of Lightwave Technology, vol. 27, no. 8, pp. 989-999, April15, 2009, 
+    doi: 10.1109/JLT.2008.2010511.
+
+    Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        input symbols.
+    constellation : 1D numpy array, real or complex
+        constellation points of the sent (original) signal.
+    n_taps : int, optional
+        numer of samples processed in one block. The default is 15.
+    n_test_phases : int, optional
+        number of phases which are tested. Defines the accuracy of the phase
+        estimation method. The default is 15.
+    const_symmetry : float, optional
+        symmetry (ambiguity) of the original constellation points. 
+        The default is pi/2.
+
+    Returns
+    -------
+     results : dict containing following keys
+        samples_out : 1D numpy array, real or complex
+            decided constellation points of the signal closest to the estimated
+            random phase walk.
+        samples_corrected : 1D numpy array, real or complex
+            input symbols with recovered carrier phase.
+        est_phase_noise : 1D numpy array, real
+            estimated (unwraped) random phase walk.
+    """    
     # normalize samples to constellation    
     mag_const = np.mean(abs(constellation))
     mag_samples = np.mean(abs(samples))
     samples_norm = samples * mag_const / mag_samples
     
-    const_symmetry = np.pi/2
-    
     n_blocks = samples_norm.size // n_taps
-    last_block = samples_norm.size % n_taps    
+    
     # only works for constellations with pi/2 rotation symmetrie
     rotations = np.exp(1j*np.arange(-const_symmetry/2, const_symmetry/2, const_symmetry/n_test_phases))
     
@@ -491,10 +533,8 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
             errors[idx] = np.sum(np.abs(rotated_samples - dec_samples[:,idx])**2)        
         samples_out.append(dec_samples[:,np.argmin(errors)])        
         est_phase_noise.append(np.angle(rotations[np.argmin(errors)]))
-        
     
     samples_out = np.asarray(samples_out).reshape(-1)
-    
     
     # interpolate phase nosie between blocks onto symbols
     # sample and hold
@@ -504,11 +544,9 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     f_int = interpolate.interp1d(np.arange(n_blocks)*n_taps, est_phase_noise, kind='linear', bounds_error=False, fill_value='extrapolate')
     est_phase_noise_int = f_int(np.arange(n_blocks*n_taps))
     
-    
-    
     samples_corrected = samples_norm[:n_blocks*n_taps] * np.exp(1j * est_phase_noise_int)
     
-     # generate output dict containing recoverd symbols and estimated phase noise
+    # generate output dict containing recoverd symbols and estimated phase noise
     results = dict()
     results['samples_out'] = samples_out
     results['samples_corrected'] = samples_corrected

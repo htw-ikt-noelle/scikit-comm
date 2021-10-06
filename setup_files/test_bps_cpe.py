@@ -22,7 +22,7 @@ import time
 # signal parameters
 LASER_LINEWIDTH = 600 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
-SNR = 30
+SNR = 25 
 bps = 4
 
 # contruct signal
@@ -216,7 +216,7 @@ sig_rx.plot_constellation()
 # sig_rx.samples[0] = sig_rx.samples[0] * np.exp(1j * np.pi/8)
 
 # BPS CPE
-cpe_results = comm.rx.carrier_phase_estimation_bps(sig_rx.samples[0], n_taps=20, n_test_phases=35, constellation=sig_rx.constellation[0])
+cpe_results = comm.rx.carrier_phase_estimation_bps(sig_rx.samples[0], n_taps=15, n_test_phases=35, constellation=sig_rx.constellation[0])
 samples_outs = cpe_results['samples_out']
 est_phase_noise = cpe_results['est_phase_noise']
 samples_corrected = cpe_results['samples_corrected']
@@ -225,6 +225,13 @@ sig_rx.samples[0] = samples_corrected
 
     
 sig_rx.plot_constellation()
+
+plt.hist2d(sig_rx.samples[0].real, sig_rx.samples[0].imag, bins=200, cmap=plt.get_cmap('jet'))
+# plt.xlim(-5,5)
+# plt.ylim(-5,5)
+plt.axis('equal')
+plt.show()
+
 
 comm.visualizer.plot_signal(est_phase_noise)
 
