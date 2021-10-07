@@ -723,7 +723,20 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
     -------
 
         trace_information: dict
-            Consist of the acquired data per trace and other functions (WIP)
+            Consist of dicts which contains the acquired trace data, the start and stop wave length
+            To access the dict use:
+            >Name of object<[>Name of trace<][>Name of data<]
+                -> Name of Trace: 
+                    -> A : Trace A
+                    -> B : Trace B
+                    -> C : Trace C
+                -> Name of data:
+                    -> Trace_data : (np.array) Contains numpy array with trace data
+                    -> Unit      : (string) Contains the unit of the trace data
+                    -> Start_WL   : (float) Contains the start wavelength of the spectrum
+                    -> Stop_WL    : (float) Contains the stop wavelength of the spectrum
+                    -> WL_vector  : (np.array) Contains a numpy array with an even spaced wavelength vector between Start_WL and Stop_WL
+            
 
     """
     # =============================================================================
@@ -836,20 +849,29 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
 
     # Check if amplitude uni is logarithmic or linear
     # TODO: Check the return value of AUNITS?. Writing if statement and check if the unit is in db or watts.
-    is_log = True
+    if any(amplitude_unit in ['V','W']):
+        is_log = False
+    else:
+        is_log = True
 
+    # Create dict with the traces
     trace_information = dict.fromkeys(traces)
 
     # Read start wave length
     # Page 7-457 -> 7-458
+    # TODO: Change to float
     start_wl = osa.query('STARTWL?;')
 
     # Read stop wave length
     # Page 7-464 -> 7-465
+    # TODO: Change to float
     stop_wl = osa.query('STOPWL?;')
 
     # Loop through traces
     for trace_id,trace in enumerate(traces):
+
+        # Create dictionary for trace data and wave length information
+        data_dict = {'Trace_data':[],'Unit':[],'Start_WL':[],'Stop_WL':[], 'WL_Vector':[]}
 
         # Setting length of Trace
         # Page 7-506 -> 7-507
@@ -865,17 +887,41 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
         if is_log:
             # One measurement unit is equal to one hundreth of a dBm
             # To get the dBm the trace data from the scope has to be divided by 100
-            trace_information[trace] = [tmp / 100]
+            data_dict['Trace_data']= tmp / 100
         else:
             # Read reference level
             # For linear the measurment units are between 0 and 10000
             # To convert theme to the real values, the measurment units has to be mapped to the reference level
             reference_level = osa.query('RL?;')
-            trace_information[trace] = tmp / 10000 * reference_level
+            data_dict['Trace_data'] = tmp / 10000 * reference_level
 
+        # Write unit infromation to data dict
+        data_dict['Unit'] = amplitude_unit
+
+        # Write wavelength informations to data_dict
+        data_dict['Start_WL'] = start_wl
+        data_dict['Stop_WL'] = stop_wl
+
+        # Create wavelength vector
+        data_dict['WL_Vector'] = np.linspace(start_wl, stop_wl, data_dict['Trace_data'].shape[0])
+
+        trace_information[trace]=data_dict
         
 
+    # Reset OSA to run if it was running before the acquisition
+    if is_running == '1' and current_sweepmode == 'CONTS':
+        # Start a single sweep
+        # Page 7-104
+        osa.write('CONTS;')
 
+
+    # closing OSA connection
+    osa.close()
+   
+    # closing resource manager 
+    rm.close()  
+
+    return trace_information
 
 
 
