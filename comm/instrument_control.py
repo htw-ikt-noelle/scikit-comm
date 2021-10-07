@@ -733,9 +733,9 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
                 -> Name of data:
                     -> Trace_data : (np.array) Contains numpy array with trace data
                     -> Unit      : (string) Contains the unit of the trace data
-                    -> Start_WL   : (float) Contains the start wavelength of the spectrum
-                    -> Stop_WL    : (float) Contains the stop wavelength of the spectrum
-                    -> WL_vector  : (np.array) Contains a numpy array with an even spaced wavelength vector between Start_WL and Stop_WL
+                    -> Start_WL   : (float) Contains the start wavelength of the spectrum (in nm)
+                    -> Stop_WL    : (float) Contains the stop wavelength of the spectrum (in nm)
+                    -> WL_vector  : (np.array) Contains a numpy array with an even spaced wavelength vector between Start_WL and Stop_WL (in nm)
             
 
     """
@@ -859,13 +859,13 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
 
     # Read start wave length
     # Page 7-457 -> 7-458
-    # TODO: Change to float
-    start_wl = osa.query('STARTWL?;')
+    # Convert from m to nm Page 1-14
+    start_wl = 10e9 * float(osa.query('STARTWL?;'))
 
     # Read stop wave length
     # Page 7-464 -> 7-465
-    # TODO: Change to float
-    stop_wl = osa.query('STOPWL?;')
+    # Convert from m to nm Page 1-14
+    stop_wl = 10e9 * float(osa.query('STOPWL?;'))
 
     # Loop through traces
     for trace_id,trace in enumerate(traces):
