@@ -515,7 +515,7 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     
     n_blocks = samples_norm.size // n_taps
     
-    # only works for constellations with pi/2 rotation symmetrie
+    # generate all requested rotation phases
     rotations = np.exp(1j*np.arange(-const_symmetry/2, const_symmetry/2, const_symmetry/n_test_phases))
     
     errors = np.full(n_test_phases,fill_value=np.nan, dtype=np.float64)
@@ -540,7 +540,8 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     # sample and hold
     # est_phase_noise_int = np.repeat(np.asarray(est_phase_noise), n_taps)
     # linear
-    est_phase_noise = np.unwrap(np.asarray(est_phase_noise)*4)/4
+    unwrap_limit = 2 * np.pi / const_symmetry
+    est_phase_noise = np.unwrap(np.asarray(est_phase_noise)*unwrap_limit)/unwrap_limit
     f_int = interpolate.interp1d(np.arange(n_blocks)*n_taps, est_phase_noise, kind='linear', bounds_error=False, fill_value='extrapolate')
     est_phase_noise_int = f_int(np.arange(n_blocks*n_taps))
     
