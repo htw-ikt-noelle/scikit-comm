@@ -7,11 +7,11 @@ import time
 import logging
 
 
-def get_samples_DLM2034(traces=(1), address='192.168.1.12'):
+def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
     """
     Parameters
     ----------
-    traces : iterable, int, optional
+    channels : iterable, int, optional
         iterable containing the channel numbers to fetch data samples from device. The default is (1).
     address : string, optional
         IP Adress of device. The default is '192.168.1.12'.
@@ -54,7 +54,7 @@ def get_samples_DLM2034(traces=(1), address='192.168.1.12'):
             
     wfm = []
     
-    for idx, channel in enumerate(traces):
+    for idx, channel in enumerate(channels):
         # set channel to retrieve
         scope.write('WAVeform:TRACe {:d}'.format(int(channel)))
         
@@ -103,7 +103,7 @@ def get_samples_DLM2034(traces=(1), address='192.168.1.12'):
     return sample_rate, wfm
 
 
-def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250e6], offset=[0.0], amp_pp=[1.0], traces=[1], out_filter=['normal']):
+def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250e6], offset=[0.0], amp_pp=[1.0], channels=[1], out_filter=['normal']):
     """
     write_samples_AWG33522A
     
@@ -118,11 +118,11 @@ def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250
     sample_rate : list of floats, optional
         sample rate of the individual outputs. The default is [250e6]. Range: 1µSa/s to 250 MSa/s, limited to 62.5 MSa/s if out_filter is OFF.
     offset : list of floats,, optional
-        output DC offset of individual traces in V. The default is [0.0].
+        output DC offset of individual channels in V. The default is [0.0].
     amp_pp : list of floats, optional
-        peak-to-peak output amplitude of individual traces in units of Volt. The default is [1.0].
-    traces : list of int, optional
-        traces to be programmed and output. The default is [1].
+        peak-to-peak output amplitude of individual channels in units of Volt. The default is [1.0].
+    channels : list of int, optional
+        channels to be programmed and output. The default is [1].
     out_filter : list of strings, optional
         used output filter of each channel ['normal', 'off', 'step']. The default is ['normal'].
 
@@ -133,12 +133,12 @@ def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250
     """
     
     if not (isinstance(sample_rate, list) and isinstance(offset, list) and 
-            isinstance(amp_pp, list) and isinstance(traces, list) and 
+            isinstance(amp_pp, list) and isinstance(channels, list) and 
             isinstance(out_filter, list)):
         raise TypeError('input parameters are not lists...')
         
     if not (len(sample_rate) == len(offset) == len(amp_pp) 
-            == len(traces) == len(out_filter)):
+            == len(channels) == len(out_filter)):
         raise TypeError('length of parameter lists are not equal...')
     
     if not isinstance(samples, np.ndarray):
@@ -170,8 +170,8 @@ def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250
         samples = samples[np.newaxis,...]
     samples = samples.tolist()
     
-    #loop over up to 2 traces
-    for ch_idx, ch in enumerate(traces):
+    #loop over up to 2 channels
+    for ch_idx, ch in enumerate(channels):
 
         # disable channel coupling
         awg.write(':SOUR{0:d}:VOLT:LEVel:IMMediate:COUP:STAT OFF'.format(ch))
@@ -203,13 +203,13 @@ def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250
         time.sleep(0.1)
         
                
-    awg.write(':SOUR{0:d}:FUNC:ARB:SYNC'.format(ch))  # synchronising traces
+    awg.write(':SOUR{0:d}:FUNC:ARB:SYNC'.format(ch))  # synchronising channels
         
     awg.close() # closing AWG
     rm.close()  # closing resource manager 
 
 
-def get_samples_Tektronix_MSO6B(traces=[1], ip_address='192.168.1.20',number_of_bytes = 1,log_mode = False):   
+def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',number_of_bytes = 1,log_mode = False):   
     """
     get_samples_Tektronix_MSO6B
     
@@ -217,12 +217,12 @@ def get_samples_Tektronix_MSO6B(traces=[1], ip_address='192.168.1.20',number_of_
 
     Parameters
     ----------
-    traces : list of integers, optional
+    channels : list of integers, optional
         iterable containing the channel numbers to fetch data samples from device. The default is [1].
         For more chennels use [1,2,...]
-        Minimum number of traces is 1
-        Maximum number of traces is 4
-        Ensure that the acquired traces are activated at the scope
+        Minimum number of channels is 1
+        Maximum number of channels is 4
+        Ensure that the acquired channels are activated at the scope
     address : string, optional
         IP Adress of device. The default is '192.168.1.20'.
     number_of_bytes: integer, optional
@@ -244,16 +244,16 @@ def get_samples_Tektronix_MSO6B(traces=[1], ip_address='192.168.1.20',number_of_
     Type Error: 
         Will be raised when a wrong data type is used for the input parameter
         -> Possible errors
-            -> traces is not of type list
-            -> Items of traces are not of type integer
+            -> channels is not of type list
+            -> Items of channels are not of type integer
             -> ip_address is not of type string
             -> number_of_bytes is not integer
 
     Value Error:
         Will be raised when the input parameter is in an wrong range
         -> Possible errors
-            -> Too much traces are used. Maximum is 4
-            -> Too less traces are used. Minimus is 1 
+            -> Too much channels are used. Maximum is 4
+            -> Too less channels are used. Minimus is 1 
             -> Channel numbers must be between 1 and 4
             -> Wrong number of bytes (1 Byte (signed char), 2 Bytes (signed short) or 4 Bytes (long))
 
@@ -261,7 +261,7 @@ def get_samples_Tektronix_MSO6B(traces=[1], ip_address='192.168.1.20',number_of_
         Will be raised by diverse errors
         -> Possible errors
             -> No connection to the scope
-            -> Required traces are not activated at the scope
+            -> Required channels are not activated at the scope
 
     """
 
@@ -300,25 +300,25 @@ def get_samples_Tektronix_MSO6B(traces=[1], ip_address='192.168.1.20',number_of_
     # ============================================================================= 
 
     try:
-        if not isinstance(traces, list):
-            raise TypeError('Type of traces must be list')
+        if not isinstance(channels, list):
+            raise TypeError('Type of channels must be list')
 
         if not isinstance(ip_address, str):
             raise TypeError('Type of ip_address must be string')
 
-        if not all(isinstance(x, int) for x in traces):
-            raise TypeError('Type of traces items must be integers')
+        if not all(isinstance(x, int) for x in channels):
+            raise TypeError('Type of channels items must be integers')
 
         if not isinstance(number_of_bytes, int):
             raise TypeError('Type of number_of_bytes must be integer')
 
-        if len(traces) > 4:
-            raise ValueError('Too much traces ({0}). The Scope has only 4 input traces'.format(len(traces)))
+        if len(channels) > 4:
+            raise ValueError('Too much channels ({0}). The Scope has only 4 input channels'.format(len(channels)))
 
-        if len(traces) < 1:
-            raise ValueError('Too less traces ({0}). Use at least one channel'.format(len(traces)))
+        if len(channels) < 1:
+            raise ValueError('Too less channels ({0}). Use at least one channel'.format(len(channels)))
 
-        if any(ch_number > 4 for ch_number in traces) > 4 or any(ch_number < 1 for ch_number in traces):
+        if any(ch_number > 4 for ch_number in channels) > 4 or any(ch_number < 1 for ch_number in channels):
             raise ValueError('Channel numbers must be betwenn 1 and 4')
 
         if number_of_bytes not in [1,2,4]:
@@ -391,8 +391,8 @@ def get_samples_Tektronix_MSO6B(traces=[1], ip_address='192.168.1.20',number_of_
         
     logger.info("Used datatype: " + acq_data_type)
 
-    # Read the traces
-    for ch in (traces):
+    # Read the channels
+    for ch in (channels):
         # Select waveform source
         scope.write('DATA:SOURCE CH{0:d}'.format(ch))
 
@@ -442,7 +442,7 @@ def get_samples_Tektronix_MSO6B(traces=[1], ip_address='192.168.1.20',number_of_
 
 
 
-def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample_rate=[250e6], amp_pp=[0.5], traces=[1],log_mode = False):
+def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample_rate=[250e6], amp_pp=[0.5], channels=[1],log_mode = False):
 
 
     """
@@ -455,17 +455,17 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
     samples : numpy array, n_outputs x n_samples , float
         samples to output, to be scaled between -1 and 1 (values outside this range are clipped).
         Without clipping the AWG would clip the waveform.
-        Only real numbers are allowed. To use complex numbers assign the real and imaginray part to different traces.
+        Only real numbers are allowed. To use complex numbers assign the real and imaginray part to different channels.
         Maximum vector length is 234e6.
     ip_address : string, optional
         The default is '192.168.1.21'. Currently, only LAN connection is supported.
     sample_rate : list of floats, optional
         sample rate of the outputs. The default is [250e6]. Must be between 1.49 kSamples/s and 8 GSsamples/s
     amp_pp : list of floats, optional
-        peak-to-peak output amplitude of individual traces in units of Volt. The default is [0.5].
-        For two traces enter format [x.x,y.y]
-    traces : list of int, optional
-        traces to be programmed and output. The default is [1]. For two traces input [1,2]
+        peak-to-peak output amplitude of individual channels in units of Volt. The default is [0.5].
+        For two channels enter format [x.x,y.y]
+    channels : list of int, optional
+        channels to be programmed and output. The default is [1]. For two channels input [1,2]
     log_mode : Bool, optional
         When True a log file will be created (Default = False)
         The log file includes error messages and infos about the program flow
@@ -480,7 +480,7 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
         Will be raised when a wrong data type is used for the input parameter
         -> Possible errors
             -> Parameters are not of type list
-            -> Items of traces, amp_pp or sample_rate are not of type integer
+            -> Items of channels, amp_pp or sample_rate are not of type integer
             -> Items of samples are not of type np.array
             -> Items of samples are of type complex.
             -> ip_address is not a string
@@ -489,7 +489,7 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
         Will be raised when the input parameter is in an wrong range
         -> Possible errors
             -> The samples np.arrays contains NaN or Inf
-            -> The lengths of amp_pp, traces and samples have not the same length
+            -> The lengths of amp_pp, channels and samples have not the same length
             -> The peak to peak voltage is not between 0.25V and 0.5V
             -> The sampling_rate ist not between 1.49e3 and 8e9
             -> Channel designation is wrong
@@ -539,7 +539,7 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
     
     try:
         if not (isinstance(sample_rate, list) and 
-            isinstance(amp_pp, list) and isinstance(traces, list)):
+            isinstance(amp_pp, list) and isinstance(channels, list)):
             raise TypeError('Input parameters are not lists...')
 
         if not all(isinstance(x, int) for x in amp_pp):
@@ -548,8 +548,8 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
         if not all(isinstance(x, int) for x in sample_rate):
             TypeError('sample_rate items must be of type integer')   
 
-        if not all(isinstance(x,int) for x in traces):
-            TypeError('traces items must be of type integer')     
+        if not all(isinstance(x,int) for x in channels):
+            TypeError('channels items must be of type integer')     
 
         if not isinstance(samples, np.ndarray):
             raise TypeError('Samples has to be from type numpy array. Actual type: {0}'.format(type(samples)))
@@ -567,17 +567,17 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
         #     raise ValueError("Maximum length of sample vector is 234e6")
 
 
-        if len(traces) > 2:
-            raise ValueError('To much traces ({0}). The AWG has only 2 output traces'.format(
-                                                                                         len(traces)))
+        if len(channels) > 2:
+            raise ValueError('To much channels ({0}). The AWG has only 2 output channels'.format(
+                                                                                         len(channels)))
 
-        if not(len(traces) == len(samples) == len(amp_pp)):
-            raise ValueError('Number of traces ({0}), number of signal vectors ({1}) and number of amplitudes ({2}) must be the same!'.format(
-                                                                                                                                        len(traces),
+        if not(len(channels) == len(samples) == len(amp_pp)):
+            raise ValueError('Number of channels ({0}), number of signal vectors ({1}) and number of amplitudes ({2}) must be the same!'.format(
+                                                                                                                                        len(channels),
                                                                                                                                         len(samples),
                                                                                                                                         len(amp_pp)))
 
-        if any(ch_num > 2 for ch_num in traces) or any(ch_num < 1 for ch_num in traces):
+        if any(ch_num > 2 for ch_num in channels) or any(ch_num < 1 for ch_num in channels):
             raise ValueError('Channel designation must be between 1 and 2')
 
         if sample_rate[0] > 8e9 or sample_rate[0] < 1.49e3:
@@ -640,8 +640,8 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
     awg.write('WLIST:WAVEFORM:DELETE "Python_waveform_AWG_1"')
     awg.write('WLIST:WAVEFORM:DELETE "Python_waveform_AWG_2"')
 
-    # decoupling of the two traces
-    logger.info("Decouple traces")
+    # decoupling of the two channels
+    logger.info("Decouple channels")
     awg.write('INSTrument:COUPLe:SOURce OFF')
     
     # Output deactivate
@@ -655,7 +655,7 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
     awg.query('*OPC?')[0]
 
 
-    for ch_idx, ch in enumerate(traces):
+    for ch_idx, ch in enumerate(channels):
         logger.info("\n---Channel {0:d}---".format(ch))
         
         # Output deactivate
@@ -723,7 +723,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
     -------
 
         trace_information: dict
-            Consist of dicts which contains the acquired trace data, the start and stop wave length
+            Consist of dicts which contains the acquired trace data, amplitude unit and wavelength information.
             To access the dict use:
             >Name of object<[>Name of trace<][>Name of data<]
                 -> Name of Trace: 
@@ -737,6 +737,29 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
                     -> Stop_WL    : (float) Contains the stop wavelength of the spectrum (in nm)
                     -> WL_vector  : (np.array) Contains a numpy array with an even spaced wavelength vector between Start_WL and Stop_WL (in nm)
             
+    Errors
+    -------
+    Type Error: 
+        Will be raised when a wrong data type is used for the input parameter
+        -> Possible errors
+            -> traces is not of type list
+            -> Items of traces are not of type integer
+            -> ip_address is not of type string
+            -> number_of_bytes is not integer
+
+    Value Error:
+        Will be raised when the input parameter is in an wrong range
+        -> Possible errors
+            -> Too much traces are used. Maximum is 4
+            -> Too less traces are used. Minimus is 1 
+            -> Channel numbers must be between 1 and 4
+            -> Wrong number of bytes (1 Byte (signed char), 2 Bytes (signed short) or 4 Bytes (long))
+
+    Exception:
+        Will be raised by diverse errors
+        -> Possible errors
+            -> No connection to the scope
+            -> Required traces are not activated at the scope
 
     """
     # =============================================================================
@@ -793,7 +816,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
         traces = [each_string.upper() for each_string in traces]
 
         if any((trace_name not in ['A','B','C']) for trace_name in traces):
-            raise ValueError('Wrong trace designation. Traces are designated with A,B or C. Lower case is also accepted')
+            raise ValueError('Wrong trace designation. Traces are designated with A, B or C. Lower case is also accepted')
 
     except Exception as e:
         logger.error('{0}'.format(e))
