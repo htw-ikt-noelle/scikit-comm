@@ -721,7 +721,6 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
 
     Returns
     -------
-
         trace_information: dict
             Consist of dicts which contains the acquired trace data, amplitude unit and wavelength information.
             To access the dict use:
@@ -739,27 +738,27 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
             
     Errors
     -------
-    Type Error: 
-        Will be raised when a wrong data type is used for the input parameter
-        -> Possible errors
-            -> traces is not of type list
-            -> Items of traces are not of type integer
-            -> ip_address is not of type string
-            -> number_of_bytes is not integer
+        Type Error: 
+            Will be raised when a wrong data type is used for the input parameter
+            -> Possible errors
+                -> traces is not of type list
+                -> Items of traces are not of type integer
+                -> ip_address is not of type string
+                -> number_of_bytes is not integer
 
-    Value Error:
-        Will be raised when the input parameter is in an wrong range
-        -> Possible errors
-            -> Too much traces are used. Maximum is 4
-            -> Too less traces are used. Minimus is 1 
-            -> Channel numbers must be between 1 and 4
-            -> Wrong number of bytes (1 Byte (signed char), 2 Bytes (signed short) or 4 Bytes (long))
+        Value Error:
+            Will be raised when the input parameter is in an wrong range
+            -> Possible errors
+                -> Too much traces are used. Maximum is 4
+                -> Too less traces are used. Minimus is 1 
+                -> Channel numbers must be between 1 and 4
+                -> Wrong number of bytes (1 Byte (signed char), 2 Bytes (signed short) or 4 Bytes (long))
 
-    Exception:
-        Will be raised by diverse errors
-        -> Possible errors
-            -> No connection to the scope
-            -> Required traces are not activated at the scope
+        Exception:
+            Will be raised by diverse errors
+            -> Possible errors
+                -> No connection to the scope
+                -> Required traces are not activated at the scope
 
     """
     # =============================================================================
@@ -803,11 +802,11 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
         if not isinstance(GPIB_address, str):
             raise TypeError('Type of GPIB_address must be string')
 
-        if not all(isinstance(x, int) for x in traces):
-            raise TypeError('Type of traces items must be integers')
+        if not all(isinstance(x, str) for x in traces):
+            raise TypeError('Type of traces items must be strings')
 
         if len(traces) > 3:
-            raise ValueError('Too much traces ({0}). The OSA has only 3 traces'.format(len(traces)))
+            raise ValueError('Too many traces ({0}). The OSA has maximal 3 traces'.format(len(traces)))
 
         if len(traces) < 1:
             raise ValueError('Too less traces ({0}). Use at least one trace'.format(len(traces)))
@@ -816,11 +815,11 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
         traces = [each_string.upper() for each_string in traces]
 
         if any((trace_name not in ['A','B','C']) for trace_name in traces):
-            raise ValueError('Wrong trace designation. Traces are designated with A, B or C. Lower case is also accepted')
+            raise ValueError('Wrong trace naming. Traces are named with A, B or C. Lower case is also accepted')
 
     except Exception as e:
         logger.error('{0}'.format(e))
-        exit()
+        return sys.exit(0)
 
     # =============================================================================
     #  importing visa for communication with the OSA
@@ -834,7 +833,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
         osa = rm.open_resource('GPIB0::' + GPIB_address + '::INSTR')
     except Exception as e:
         logger.error('No connection possible. Check TCP/IP connection \n  {0}'.format(e))
-        exit()
+        return sys.exit()
 
 
     # =============================================================================
