@@ -501,6 +501,11 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
 
     """
     
+    
+    
+    
+    
+    
     # =============================================================================
     #  Create logger which writes to file
     # ============================================================================= 
@@ -699,7 +704,7 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
     rm.close()  
 
 
-def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False):
+def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = False, single_sweep = False):
 
 
     """
@@ -713,11 +718,15 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
             Insert here the wanted traces from the OSA as a list of strings. 
             The three traces of the OSA are A, B, and C. It is also possible to use lower case.
 
-        GPIB_address : string, optional (default = '4')
+        GPIB_address : string, optional (default = '13')
             The address GPIB address of the OSA.
         
         log_mode: boolean, optional (default = False)
             Enables a log file for this method.
+            
+        single_sweep = boolean, optional (default = False)
+            Starts a new sweep and stops after acquisition. Keeps the OSA in Single mode.
+            Be careful, because saved traces can be overwritten by this!
 
     Returns
     -------
@@ -761,6 +770,13 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
                 -> Required traces are not activated at the scope
 
     """
+    
+    # TODO: Read out sensitivity
+    # TODO: Resolution Bandwidth
+    # TODO: Create a way to save the data from the scope to file
+    # TODO: File should be similar to LabView file
+    
+    
     # =============================================================================
     #  Create logger which writes to file
     # ============================================================================= 
@@ -825,15 +841,18 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
     #  importing visa for communication with the OSA
     # ============================================================================= 
 
-    rm = visa.ResourceManager('@py')
+    rm = visa.ResourceManager()
 
     # open connection to AWG
     logger.info("Create GPIB connection with " + str(GPIB_address))
     try:
         osa = rm.open_resource('GPIB0::' + GPIB_address + '::INSTR')
     except Exception as e:
-        logger.error('No connection possible. Check TCP/IP connection \n  {0}'.format(e))
+        logger.error('No connection possible. Check GPIB connection \n  {0}'.format(e))
         return sys.exit()
+
+    # Setting timeout
+    # osa.timeout = 20_000
 
 
     # =============================================================================
@@ -842,36 +861,46 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
 
     # Query sweep mode 
     # Page 7-477
-    current_sweepmode = osa.query('SWEEPMODE?;')
+    # current_sweepmode = osa.query('SWPMODE?').rstrip('\n')
     
     # Check if OSA is sweeping
     # Page 7-476
-    is_running = osa.query('SWEEP?;')
+    # is_running = osa.query('SWEEP?').rstrip('\n')
 
-    if is_running == '1' and current_sweepmode == 'CONTS':
+    if single_sweep:
         # Start a single sweep
         # Page 7-443
-        osa.write('SNGLS;')
+        osa.write('SNGLS')
         # Wait till sweep is done
         # Page 7-121
-        while not osa.query('DONE?'):
+        while not osa.query('DONE?').rstrip('\n') == '1':
             pass
+
+    # if is_running == '1' and current_sweepmode == 'CONTS':
+    #     # Start a single sweep
+    #     # Page 7-443
+    #     osa.write('SNGLS')
+    #     # Wait till sweep is done
+    #     # Page 7-121
+    #     while not osa.query('DONE?').rstrip('\n') == '1':
+    #         pass
 
     # Set datatype of acquisition (Word -> 2 Bytes per sample)
     # Page 7-232 -> 7-234
-    osa.write('MDS W;')
+    osa.write('MDS W')
 
-    # Set type of transmission (Binary format)
+    # Set type of transmission (I-Block Data field)
+    # The I block data field transmit the trace data in binary format
     # Page 7-478 -> 7-480
-    osa.write('TDF B;')
+    osa.write('TDF I')
 
     # Check amplitude unit
     # Page 7-58 -> 7-59
-    amplitude_unit = osa.query('AUNITS?')
+    amplitude_unit = osa.query('AUNITS?').rstrip('\n') 
 
     # Check if amplitude uni is logarithmic or linear
     # TODO: Check the return value of AUNITS?. Writing if statement and check if the unit is in db or watts.
-    if any(amplitude_unit in ['V','W']):
+    if amplitude_unit in ['V','W']:
         is_log = False
     else:
         is_log = True
@@ -882,12 +911,12 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
     # Read start wave length
     # Page 7-457 -> 7-458
     # Convert from m to nm Page 1-14
-    start_wl = 10e9 * float(osa.query('STARTWL?;'))
+    start_wl = 1e9 * float(osa.query('STARTWL?').rstrip('\n') )
 
     # Read stop wave length
     # Page 7-464 -> 7-465
     # Convert from m to nm Page 1-14
-    stop_wl = 10e9 * float(osa.query('STOPWL?;'))
+    stop_wl = 1e9 * float(osa.query('STOPWL?').rstrip('\n') )
 
     # Loop through traces
     for trace_id,trace in enumerate(traces):
@@ -897,12 +926,12 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
 
         # Setting length of Trace
         # Page 7-506 -> 7-507
-        osa.write('TRDEF TR{0:d},2048'.format(trace))
+        osa.write('TRDEF TR{0:s},2048'.format(trace))
 
         # Read trace
         # Page 7-499 -> 7-502
         # h is 2 bytes (signed short)
-        tmp = osa.query_binary_values('TR{0:d}?;'.format(trace),datatype='h' ,is_big_endian=False, container=np.array)
+        tmp = osa.query_binary_values('TR{0:s}?'.format(trace),datatype='h' ,is_big_endian=True, container=np.array,data_points = 2048)
 
         # Convert measument units to parameter units
         # Page 2-8
@@ -929,13 +958,6 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='4',log_mode = False
 
         trace_information[trace]=data_dict
         
-
-    # Reset OSA to run if it was running before the acquisition
-    if is_running == '1' and current_sweepmode == 'CONTS':
-        # Start a single sweep
-        # Page 7-104
-        osa.write('CONTS;')
-
 
     # closing OSA connection
     osa.close()
