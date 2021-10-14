@@ -125,7 +125,7 @@ plt.show()
 # test_to_many_traces = comm.instrument_control.get_samples_HP_71450B_OSA(traces = ['A','A','B','C'], GPIB_address='4', log_mode=False)
 
 
-# #### Test with to less traces
+# #### Test with to few traces
 # print('Test with too less traces')
 # test_to_less_traces = comm.instrument_control.get_samples_HP_71450B_OSA(traces = [], GPIB_address='4', log_mode=False)
 

@@ -710,11 +710,11 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     """
     get_samples_HP_71450B_OSA
     
-    Function for reading samples from a Tektronix HP_71450B optical spectrum analyzer
+    Function for reading samples from a HP_71450B optical spectrum analyzer
     
     Parameters
     ----------
-        traces: Type list of stings, optional (default = ['A'])
+        traces: list of stings, optional (default = ['A'])
             Insert here the wanted traces from the OSA as a list of strings. 
             The three traces of the OSA are A, B, and C. It is also possible to use lower case.
 
@@ -727,6 +727,8 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
         single_sweep = boolean, optional (default = False)
             Starts a new sweep and stops after acquisition. Keeps the OSA in Single mode.
             Be careful, because saved traces can be overwritten by this!
+            By default the program will acquire the traces, while the OSA is sweeping. The sweeping process is slow enough
+            for this.
 
     Returns
     -------
@@ -760,10 +762,9 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
         Value Error:
             Will be raised when the input parameter is in an wrong range
             -> Possible errors
-                -> Too much traces are used. Maximum is 4
-                -> Too less traces are used. Minimus is 1 
-                -> Channel numbers must be between 1 and 4
-                -> Wrong number of bytes (1 Byte (signed char), 2 Bytes (signed short) or 4 Bytes (long))
+                -> Too many traces are used. Maximum is 3
+                -> Too few traces are used. Minimus is 1 
+                -> Trace numbers must be between 1 and 3
 
         Exception:
             Will be raised by diverse errors
@@ -902,8 +903,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     # Page 7-58 -> 7-59
     amplitude_unit = osa.query('AUNITS?').rstrip('\n') 
 
-    # Check if amplitude uni is logarithmic or linear
-    # TODO: Check the return value of AUNITS?. Writing if statement and check if the unit is in db or watts.
+    # Check if amplitude unit is logarithmic or linear
     if amplitude_unit in ['V','W']:
         is_log = False
     else:
@@ -915,6 +915,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     # Read start wave length
     # Page 7-457 -> 7-458
     # Convert from m to nm Page 1-14
+    # With restrip(), the terminator \n will be removed
     start_wl = 1e9 * float(osa.query('STARTWL?').rstrip('\n') )
 
     # Read stop wave length
@@ -947,7 +948,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
             # Read reference level
             # For linear the measurment units are between 0 and 10000
             # To convert theme to the real values, the measurment units has to be mapped to the reference level
-            reference_level = osa.query('RL?;')
+            reference_level = float(osa.query('RL?').rstrip('\n'))
             data_dict['Trace_data'] = tmp / 10000 * reference_level
 
         # Write unit infromation to data dict
