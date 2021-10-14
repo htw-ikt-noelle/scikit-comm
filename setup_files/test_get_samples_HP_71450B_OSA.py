@@ -9,10 +9,12 @@ import numpy as np  # Version 1.20.1
 import matplotlib.pyplot as plt # Version 3.3.4
 import comm as comm
 
-wanted_trace = 'A'
 
 ##### Test with one trace
+wanted_trace = 'B'
+
 print('-----Test with one trace-----')
+print('Name of Trace: ' + wanted_trace)
 test_one_trace = comm.instrument_control.get_samples_HP_71450B_OSA(traces = [wanted_trace], GPIB_address='13', log_mode=False, single_sweep = False)
 # Get trace data
 test_one_trace_data = test_one_trace[wanted_trace]['Trace_data']
@@ -27,6 +29,12 @@ print('Start wavelength: ' + str(test_one_trace_Start_WL))
 # Get stop WL
 test_one_trace_Stop_WL = test_one_trace[wanted_trace]['Stop_WL']
 print('Stop wavelength: ' + str(test_one_trace_Stop_WL)) 
+# Get sensitivity
+test_one_trace_sens = test_one_trace[wanted_trace]['Sensitivity']
+print('Sensitivity [dBm]: ' + str(test_one_trace_sens)) 
+# Get resolution bandwidth
+test_one_trace_res_bw = test_one_trace[wanted_trace]['Resolution_BW']
+print('Resolution Bandwidth: ' + str(test_one_trace_res_bw)) 
 # Get wavelength vector
 test_one_trace_WL_vector = test_one_trace[wanted_trace]['WL_Vector']
 print('Size of wavelength vector: '+ str(test_one_trace_WL_vector.size))
@@ -43,6 +51,7 @@ plt.show()
 test_two_traces = comm.instrument_control.get_samples_HP_71450B_OSA(traces = ['A','B'], GPIB_address='13', log_mode=False)
 print('-----Test with two traces-----')
 for trace in test_two_traces:
+    print('Name of Trace: ' + trace)
     # Get trace data
     test_two_traces_data = test_two_traces[trace]['Trace_data']
     print('Size of trace data: '+ str(test_two_traces_data.size))
@@ -56,6 +65,12 @@ for trace in test_two_traces:
     # Get stop WL
     test_two_traces_Stop_WL = test_two_traces[trace]['Stop_WL']
     print('Stop wavelength: ' + str(test_two_traces_Stop_WL)) 
+    # Get sensitivity
+    test_two_traces_sens = test_two_traces[trace]['Sensitivity']
+    print('Sensitivity [dBm]: ' + str(test_two_traces_sens)) 
+    # Get resolution bandwidth
+    test_two_traces_res_bw = test_two_traces[trace]['Resolution_BW']
+    print('Resolution Bandwidth: ' + str(test_two_traces_res_bw)) 
     # Get wavelength vector
     test_two_traces_WL_vector = test_two_traces[trace]['WL_Vector']
     print('Size of wavelength vector: '+ str(test_two_traces_WL_vector.size))
@@ -73,7 +88,7 @@ plt.show()
 test_three_traces = comm.instrument_control.get_samples_HP_71450B_OSA(traces = ['A','B','C'], GPIB_address='13', log_mode=False)
 print('-----Test with three traces-----')
 for trace in test_three_traces:
-
+    print('Name of Trace: ' + trace)
     # Get trace data
     test_three_traces_data = test_three_traces[trace]['Trace_data']
     print('Size of trace data: '+ str(test_three_traces_data.size))
@@ -83,10 +98,16 @@ for trace in test_three_traces:
     print('Unit of trace data: ' + test_three_traces_unit)
     # Get start WL
     test_three_traces_Start_WL = test_three_traces[trace]['Start_WL']
-    print('Start wavelength: ' + str(test_one_trace_Start_WL)) 
+    print('Start wavelength: ' + str(test_three_traces_Start_WL)) 
     # Get stop WL
     test_three_traces_Stop_WL = test_three_traces[trace]['Stop_WL']
-    print('Stop wavelength: ' + str(test_one_trace_Stop_WL)) 
+    print('Stop wavelength: ' + str(test_three_traces_Stop_WL)) 
+      # Get sensitivity
+    test_three_traces_sens = test_three_traces[trace]['Sensitivity']
+    print('Sensitivity [dBm]: ' + str(test_three_traces_sens)) 
+    # Get resolution bandwidth
+    test_three_traces_res_bw = test_three_traces[trace]['Resolution_BW']
+    print('Resolution Bandwidth: ' + str(test_three_traces_res_bw)) 
     # Get wavelength vector
     test_three_traces_WL_vector = test_three_traces[trace]['WL_Vector']
     print('Size of wavelength vector: '+ str(test_three_traces_WL_vector.size))
