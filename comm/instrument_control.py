@@ -739,11 +739,13 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
                     -> B : Trace B
                     -> C : Trace C
                 -> Name of data:
-                    -> Trace_data : (np.array) Contains numpy array with trace data
-                    -> Unit      : (string) Contains the unit of the trace data
-                    -> Start_WL   : (float) Contains the start wavelength of the spectrum (in nm)
-                    -> Stop_WL    : (float) Contains the stop wavelength of the spectrum (in nm)
-                    -> WL_vector  : (np.array) Contains a numpy array with an even spaced wavelength vector between Start_WL and Stop_WL (in nm)
+                    -> Trace_data   : (np.array) Contains numpy array with trace data
+                    -> Unit         : (string) Contains the unit of the trace data
+                    -> Sensitivity  : (float) Contains the amplitude sensitivity of the spectrum. Is always in dBm
+                    -> Start_WL     : (float) Contains the start wavelength of the spectrum (in nm)
+                    -> Stop_WL      : (float) Contains the stop wavelength of the spectrum (in nm)
+                    -> Resolution_BW: (float) Contains the resolution bandwidth of the spectrum
+                    -> WL_vector    : (np.array) Contains a numpy array with an even spaced wavelength vector between Start_WL and Stop_WL (in nm)
             
     Errors
     -------
@@ -771,8 +773,6 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
 
     """
     
-    # TODO: Read out sensitivity
-    # TODO: Resolution Bandwidth
     # TODO: Create a way to save the data from the scope to file
     # TODO: File should be similar to LabView file
     
@@ -858,6 +858,10 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     # =============================================================================
     #  Settings for the analyzer
     # =============================================================================  
+    
+    ######
+    # The page numbers refer to Programmer's Guide of HP 71450B
+    ######
 
     # Query sweep mode 
     # Page 7-477
@@ -922,7 +926,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     for trace_id,trace in enumerate(traces):
 
         # Create dictionary for trace data and wave length information
-        data_dict = {'Trace_data':[],'Unit':[],'Start_WL':[],'Stop_WL':[], 'WL_Vector':[]}
+        data_dict = {'Trace_data':[],'Unit':[],'Sensitivity':[],'Start_WL':[],'Stop_WL':[],'Resolution_BW':[], 'WL_Vector':[]}
 
         # Setting length of Trace
         # Page 7-506 -> 7-507
@@ -949,6 +953,14 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
         # Write unit infromation to data dict
         data_dict['Unit'] = amplitude_unit
 
+        # Get sensitivity
+        # Page 7-438
+        data_dict['Sensitivity'] = float(osa.query('SENS?').rstrip('\n'))
+        
+        # Get resolution bandwidth
+        # Page 7-405
+        data_dict['Resolution_BW'] = float(osa.query('RB?').rstrip('\n'))
+        
         # Write wavelength informations to data_dict
         data_dict['Start_WL'] = start_wl
         data_dict['Stop_WL'] = stop_wl
