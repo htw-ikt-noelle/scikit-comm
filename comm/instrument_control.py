@@ -244,7 +244,7 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',number_o
     Type Error: 
         Will be raised when a wrong data type is used for the input parameter
         -> Possible errors
-            -> Channels is not of type list
+            -> channels is not of type list
             -> Items of channels are not of type integer
             -> ip_address is not of type string
             -> number_of_bytes is not integer
@@ -501,6 +501,11 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
 
     """
     
+    
+    
+    
+    
+    
     # =============================================================================
     #  Create logger which writes to file
     # ============================================================================= 
@@ -697,3 +702,288 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
    
     # closing resource manager 
     rm.close()  
+
+
+def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = False, single_sweep = False):
+
+
+    """
+    get_samples_HP_71450B_OSA
+    
+    Function for reading samples from a HP_71450B optical spectrum analyzer
+    
+    Parameters
+    ----------
+        traces: list of stings, optional (default = ['A'])
+            Insert here the wanted traces from the OSA as a list of strings. 
+            The three traces of the OSA are A, B, and C. It is also possible to use lower case.
+
+        GPIB_address : string, optional (default = '13')
+            The address GPIB address of the OSA.
+        
+        log_mode: boolean, optional (default = False)
+            Enables a log file for this method.
+            
+        single_sweep = boolean, optional (default = False)
+            Starts a new sweep and stops after acquisition. Keeps the OSA in Single mode.
+            Be careful, because saved traces can be overwritten by this!
+            By default the program will acquire the traces, while the OSA is sweeping. The sweeping process is slow enough
+            for this.
+
+    Returns
+    -------
+        trace_information: dict
+            Consist of dicts which contains the acquired trace data, amplitude unit and wavelength information.
+            To access the dict use:
+            >Name of object<[>Name of trace<][>Name of data<]
+                -> Name of Trace: 
+                    -> A : Trace A
+                    -> B : Trace B
+                    -> C : Trace C
+                -> Name of data:
+                    -> Trace_data   : (np.array) Contains numpy array with trace data
+                    -> Unit         : (string) Contains the unit of the trace data
+                    -> Sensitivity  : (float) Contains the amplitude sensitivity of the spectrum. Is always in dBm
+                    -> Start_WL     : (float) Contains the start wavelength of the spectrum (in nm)
+                    -> Stop_WL      : (float) Contains the stop wavelength of the spectrum (in nm)
+                    -> Resolution_BW: (float) Contains the resolution bandwidth of the spectrum
+                    -> WL_vector    : (np.array) Contains a numpy array with an even spaced wavelength vector between Start_WL and Stop_WL (in nm)
+            
+    Errors
+    -------
+        Type Error: 
+            Will be raised when a wrong data type is used for the input parameter
+            -> Possible errors
+                -> traces is not of type list
+                -> Items of traces are not of type integer
+                -> ip_address is not of type string
+                -> number_of_bytes is not integer
+
+        Value Error:
+            Will be raised when the input parameter is in an wrong range
+            -> Possible errors
+                -> Too many traces are used. Maximum is 3
+                -> Too few traces are used. Minimus is 1 
+                -> Trace numbers must be between 1 and 3
+
+        Exception:
+            Will be raised by diverse errors
+            -> Possible errors
+                -> No connection to the scope
+                -> Required traces are not activated at the scope
+
+    """
+    
+    # TODO: Create a way to save the data from the scope to file
+    # TODO: File should be similar to LabView file
+    
+    
+    # =============================================================================
+    #  Create logger which writes to file
+    # ============================================================================= 
+    # Create logger
+    logger = logging.getLogger(__name__)
+
+    # Set the log level
+    logger.setLevel(logging.INFO)
+
+    # Create file handler and standard output handler (terminal output)
+    file_handler = logging.FileHandler('{0}.log'.format(__name__))
+    if log_mode == False:
+        file_handler.setLevel(51)
+    else:
+        file_handler.setLevel(logging.INFO)
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.ERROR)
+
+    # Set format of the logs with formatter
+    formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(name)s :: Line No %(lineno)d:: %(message)s')
+
+    # Adding formatter to handler
+    file_handler.setFormatter(formatter)
+    stdout_handler.setFormatter(formatter)
+
+    # Adding handler to logger
+    logger.addHandler(file_handler)
+    logger.addHandler(stdout_handler)
+
+    # =============================================================================
+    #  Check inputs of correctnes
+    # ============================================================================= 
+
+    try:
+        if not isinstance(traces, list):
+            raise TypeError('Type of traces must be list')
+
+        if not isinstance(GPIB_address, str):
+            raise TypeError('Type of GPIB_address must be string')
+
+        if not all(isinstance(x, str) for x in traces):
+            raise TypeError('Type of traces items must be strings')
+
+        if len(traces) > 3:
+            raise ValueError('Too many traces ({0}). The OSA has maximal 3 traces'.format(len(traces)))
+
+        if len(traces) < 1:
+            raise ValueError('Too less traces ({0}). Use at least one trace'.format(len(traces)))
+
+        # Change traces items to upper case
+        traces = [each_string.upper() for each_string in traces]
+
+        if any((trace_name not in ['A','B','C']) for trace_name in traces):
+            raise ValueError('Wrong trace naming. Traces are named with A, B or C. Lower case is also accepted')
+
+    except Exception as e:
+        logger.error('{0}'.format(e))
+        return sys.exit(0)
+
+    # =============================================================================
+    #  importing visa for communication with the OSA
+    # ============================================================================= 
+
+    rm = visa.ResourceManager()
+
+    # open connection to AWG
+    logger.info("Create GPIB connection with " + str(GPIB_address))
+    try:
+        osa = rm.open_resource('GPIB0::' + GPIB_address + '::INSTR')
+    except Exception as e:
+        logger.error('No connection possible. Check GPIB connection \n  {0}'.format(e))
+        return sys.exit()
+
+    # Setting timeout
+    # osa.timeout = 20_000
+
+
+    # =============================================================================
+    #  Settings for the analyzer
+    # =============================================================================  
+    
+    ######
+    # The page numbers refer to Programmer's Guide of HP 71450B
+    ######
+
+    # Query sweep mode 
+    # Page 7-477
+    # current_sweepmode = osa.query('SWPMODE?').rstrip('\n')
+    
+    # Check if OSA is sweeping
+    # Page 7-476
+    # is_running = osa.query('SWEEP?').rstrip('\n')
+
+    if single_sweep:
+        # Start a single sweep
+        # Page 7-443
+        osa.write('SNGLS')
+        # Wait till sweep is done
+        # Page 7-121
+        while not osa.query('DONE?').rstrip('\n') == '1':
+            pass
+
+    # if is_running == '1' and current_sweepmode == 'CONTS':
+    #     # Start a single sweep
+    #     # Page 7-443
+    #     osa.write('SNGLS')
+    #     # Wait till sweep is done
+    #     # Page 7-121
+    #     while not osa.query('DONE?').rstrip('\n') == '1':
+    #         pass
+
+    # Set datatype of acquisition (Word -> 2 Bytes per sample)
+    # Page 7-232 -> 7-234
+    osa.write('MDS W')
+
+    # Set type of transmission (I-Block Data field)
+    # The I block data field transmit the trace data in binary format
+    # Page 7-478 -> 7-480
+    osa.write('TDF I')
+
+    # Check amplitude unit
+    # Page 7-58 -> 7-59
+    amplitude_unit = osa.query('AUNITS?').rstrip('\n') 
+
+    # Check if amplitude unit is logarithmic or linear
+    if amplitude_unit in ['V','W']:
+        is_log = False
+    else:
+        is_log = True
+
+    # Create dict with the traces
+    trace_information = dict.fromkeys(traces)
+
+    # Read start wave length
+    # Page 7-457 -> 7-458
+    # Convert from m to nm Page 1-14
+    # With restrip(), the terminator \n will be removed
+    start_wl = 1e9 * float(osa.query('STARTWL?').rstrip('\n') )
+
+    # Read stop wave length
+    # Page 7-464 -> 7-465
+    # Convert from m to nm Page 1-14
+    stop_wl = 1e9 * float(osa.query('STOPWL?').rstrip('\n') )
+
+    # Loop through traces
+    for trace_id,trace in enumerate(traces):
+
+        # Create dictionary for trace data and wave length information
+        data_dict = {'Trace_data':[],'Unit':[],'Sensitivity':[],'Start_WL':[],'Stop_WL':[],'Resolution_BW':[], 'WL_Vector':[]}
+
+        # Setting length of Trace
+        # Page 7-506 -> 7-507
+        osa.write('TRDEF TR{0:s},2048'.format(trace))
+
+        # Read trace
+        # Page 7-499 -> 7-502
+        # h is 2 bytes (signed short)
+        tmp = osa.query_binary_values('TR{0:s}?'.format(trace),datatype='h' ,is_big_endian=True, container=np.array,data_points = 2048)
+
+        # Convert measument units to parameter units
+        # Page 2-8
+        if is_log:
+            # One measurement unit is equal to one hundreth of a dBm
+            # To get the dBm the trace data from the scope has to be divided by 100
+            data_dict['Trace_data']= tmp / 100
+        else:
+            # Read reference level
+            # For linear the measurment units are between 0 and 10000
+            # To convert theme to the real values, the measurment units has to be mapped to the reference level
+            reference_level = float(osa.query('RL?').rstrip('\n'))
+            data_dict['Trace_data'] = tmp / 10000 * reference_level
+
+        # Write unit infromation to data dict
+        data_dict['Unit'] = amplitude_unit
+
+        # Get sensitivity
+        # Page 7-438
+        data_dict['Sensitivity'] = float(osa.query('SENS?').rstrip('\n'))
+        
+        # Get resolution bandwidth
+        # Page 7-405
+        data_dict['Resolution_BW'] = float(osa.query('RB?').rstrip('\n'))
+        
+        # Write wavelength informations to data_dict
+        data_dict['Start_WL'] = start_wl
+        data_dict['Stop_WL'] = stop_wl
+
+        # Create wavelength vector
+        data_dict['WL_Vector'] = np.linspace(start_wl, stop_wl, data_dict['Trace_data'].shape[0])
+
+        trace_information[trace]=data_dict
+        
+
+    # closing OSA connection
+    osa.close()
+   
+    # closing resource manager 
+    rm.close()  
+
+    return trace_information
+
+
+
+        
+
+
+
+
