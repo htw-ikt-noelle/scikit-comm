@@ -979,9 +979,104 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     return trace_information
 
 
+####### HP_8153A lightwave mulitimeter ##############
 
+
+def get_samples_HP_8153A_lightwave_multimiter (channels = ['1'], GPIB_address='22',power_units = 'DBM', wavelengths=[1500] ,   log_mode = False):
+
+
+    # TODO: test cases 
+    # TODO: doc strings
+    # TODO: input control (catch wrong inputs) 
+
+    # =============================================================================
+    #  Create logger which writes to file
+    # ============================================================================= 
+    # Create logger
+    logger = logging.getLogger(__name__)
+
+    # Set the log level
+    logger.setLevel(logging.INFO)
+
+    # Create file handler and standard output handler (terminal output)
+    file_handler = logging.FileHandler('{0}.log'.format(__name__))
+    if log_mode == False:
+        file_handler.setLevel(51)
+    else:
+        file_handler.setLevel(logging.INFO)
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.ERROR)
+
+    # Set format of the logs with formatter
+    formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(name)s :: Line No %(lineno)d:: %(message)s')
+
+    # Adding formatter to handler
+    file_handler.setFormatter(formatter)
+    stdout_handler.setFormatter(formatter)
+
+    # Adding handler to logger
+    logger.addHandler(file_handler)
+    logger.addHandler(stdout_handler)
+
+    # =============================================================================
+    #  importing visa for communication with the lightwave_multimeter 
+    # ============================================================================= 
+
+    rm = visa.ResourceManager()
+
+    # open connection to AWG
+    logger.info("Create GPIB connection with " + str(GPIB_address))
+    try:
+        lwm= rm.open_resource('GPIB0::' + GPIB_address + '::INSTR')
+    except Exception as e:
+        logger.error('No connection possible. Check GPIB connection \n  {0}'.format(e))
+        return sys.exit()
+    
+
+    # =============================================================================
+    #  Settings for the analyzer
+    # ============================================================================= 
+    
+    # check the unit 
+    #page (8-21)
+    #power_unit = lwm.query('sense:power:unit?')
+    #print(power_unit)
+       # Create dict with the the keys 
+    channel_information = dict.fromkeys(['channel_'+channels[0],'channel_'+channels[1]])
+
+    for channel,wavelength,power_unit in zip(channels,wavelengths,power_units):
+        #This command sets the units in use when an absolute reading is made. This can be dBm (DBM)(0) or Watts(Watt)(1).
+        #Page 8-21
+        lwm.write('sense{0:s}:power:unit {1:s}'.format(channel,power_unit))
+        #check the wavelength 
+        old_wavelength = float(lwm.query('sense{0:s}:power:wavelength?'.format(channel)))
+
+        #set new wavelength
+        if wavelength != old_wavelength:
+            lwm.write('sense{0:s}:pow:wave {1:d}NM'.format(channel,wavelength))
         
+        # we need to get the values
+        #page 8-8 , 8-9
+        channel_power_level = lwm.query('read{0:s}:power?'.format(channel,))
+
+        #make dictionary for power unit and wavelength 
+        data_dict={'power':channel_power_level , 'unit':power_unit , 'wavelength':wavelength }
+
+        #write the data in the dictionary 
+        channel_information["channel_{0:s}".format(channel)]=data_dict
+    
+
+    # closing lwm connection
+    lwm.close()
+   
+    # closing resource manager 
+    rm.close()  
+
+    return channel_information
 
 
+
+     
 
 
