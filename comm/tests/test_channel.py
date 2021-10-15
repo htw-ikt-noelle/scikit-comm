@@ -30,12 +30,12 @@ class TestAddPhaseNoise(unittest.TestCase):
     
     def test_low_pn(self):
         sig_in = np.array([1+0.j, 1+0.j, 1+0.j, 1+0.j])
-        sig_out, _, _ = comm.channel.add_phase_noise(sig_in, linewidth=0.0)
+        sig_out = comm.channel.add_phase_noise(sig_in, linewidth=0.0)['samples']
         assert_array_equal(sig_in, sig_out)
         
     def test_no_amp_change(self):
         sig_in = np.array([1+0.j, 1+0.j, 1+0.j, 1+0.j])
-        sig_out, _, _ = comm.channel.add_phase_noise(sig_in, linewidth=1.0)
+        sig_out = comm.channel.add_phase_noise(sig_in, linewidth=1.0)['samples']
         assert_array_almost_equal(np.abs(sig_in), np.abs(sig_out), decimal=10)
         
         
