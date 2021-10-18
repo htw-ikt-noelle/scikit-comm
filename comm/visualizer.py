@@ -2,6 +2,7 @@
 import numpy as np
 import numpy.fft as fft
 import matplotlib.pyplot as plt
+import copy
 
     
 def plot_spectrum(samples, sample_rate=1, fNum=1, scale='logNorm', tit='spectrum'):
@@ -144,23 +145,45 @@ def plot_hist(samples, nBins=100):
     # check for complex input??
     pass
 
-def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation'):
-    #TODO: implement plot of complex plane
-    plt.figure(fNum, facecolor='white', edgecolor='white')
+def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation', hist=False):
+    """
+    Plot the constellation diagramm (complex plane) of samples.
+
+    Parameters
+    ----------
+    samples : 1D numpy array, complex
+        samples of the input signal.
+    decimation : int, optional
+        take only every decimations-th sample of the input signal. The default is 1.
+    fNum : int, optional
+        figure number of the plot to be created. The default is 1.
+    tit : string, optional
+        title of the plot to be created. The default is 'constellation'.
+    hist : bool, optional
+        should the constellation diagramm be plotted as 2D histogramm? The default is False.
+    """
+    if not np.all(np.iscomplex(samples)):
+        raise ValueError('input samples need to be complex in order to plot a constellation')
     
     samples = samples[0::decimation]
     
-    # if np.any(np.iscomplex(samples)):
-    plt.plot(samples.real, samples.imag, 'C0.')
     xMax = np.max(np.abs(np.real(samples))) * 1.1
     yMax = np.max(np.abs(np.imag(samples))) * 1.1
+    
+    plt.figure(fNum, facecolor='white', edgecolor='white')
+    
+    if hist:
+        bins = int(max([2*xMax, 2*yMax])/0.02)
+        cm = copy.copy(plt.get_cmap("jet"))
+        plt.hist2d(samples.real, samples.imag, bins=bins, cmap=cm, cmin=1, density=False)       
+    else:     
+        plt.plot(samples.real, samples.imag, 'C0.')      
+        plt.grid()
     plt.xlim((-xMax,xMax))
-    plt.ylim((-yMax,yMax))
+    plt.ylim((-yMax,yMax))  
     plt.title(tit)
     plt.xlabel('real part')
     plt.ylabel('imaginary part')
     plt.title(tit)
-    plt.grid()
-    # plt.gca().set_aspect('equal', 'box') # auto adjust axis limits
-    plt.gca().axis('equal')
+    plt.gca().axis('equal')        
     plt.show()

@@ -43,7 +43,7 @@ def demapper(samples, constellation):
         raise ValueError('number of dimensions of samples must not exceed 1!')
 
     decimals = np.full_like(samples.real, np.nan)
-    bps = np.int(np.log2(constellation.size))    
+    bps = int(np.log2(constellation.size))    
     
     for const_idx, const_point in enumerate(constellation):
         decimals[samples == const_point] = const_idx
@@ -296,7 +296,7 @@ def sampling_clock_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, block_s
     # otherwise, do time shift for every block
     else:
         n_samples = np.size(samples, axis=0)    
-        sps = np.int(sample_rate / symbol_rate)
+        sps = int(sample_rate / symbol_rate)
         s_per_block = block_size * sps    
         
         # cut signal, to an integer number of blocks and create array

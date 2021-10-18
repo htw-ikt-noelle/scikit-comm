@@ -19,21 +19,21 @@ import copy
 ############################################################
 
 # signal parameters
-LASER_LINEWIDTH = 0*1e3 # [Hz]
+LASER_LINEWIDTH = 1*600 # [Hz]
 TX_UPSAMPLE_FACTOR = 5
-EXPERIMENT = True
+EXPERIMENT = False
 UPLOAD_SAMPLES = False
 USE_PREDIST = True
-SNR = 200
+SNR = 20
 
 # contruct signal
 sig_tx = comm.signal.Signal(n_dims=1)
-sig_tx.symbol_rate = 50e6 #50e6
+sig_tx.symbol_rate = 50e6 
 
 # generate bits
 sig_tx.generate_bits(n_bits=2**12, seed=1)
 
-# set constellation (modualtion format)
+# set constellation (modulation format)
 sig_tx.generate_constellation(order=4)
 sig_tx.modulation_info = 'QPSK'
 
@@ -65,7 +65,7 @@ sig_tx.center_frequency = f_if
 
 # TODO: equalization of cosine MZM transfer function
 
-# TODO: pre-equalization of AWG frequency response
+# pre-equalization of AWG frequency response
 if USE_PREDIST:
     filtershape = np.load('preDistFilter.npy')
     sig_tx.samples[0] = comm.filters.filter_arbitrary(sig_tx.samples[0], filtershape, sample_rate=sig_tx.symbol_rate[0]*TX_UPSAMPLE_FACTOR)
@@ -108,7 +108,7 @@ else:
     sps = int(sig_tx.sample_rate[0] / sig_tx.symbol_rate[0])
     
     # get samples from scope (repeat rx sequence)
-    ext = 8192*sps + 4000*sps
+    ext = 40000*sps + 4000*sps
     ratio_base = ext // samples.size
     ratio_rem = ext % samples.size        
     samples = np.concatenate((np.tile(samples, ratio_base), samples[:ratio_rem]), axis=0)
@@ -149,8 +149,6 @@ else:
     # after heterodyne detection and balanced detection
     samples = np.real(samples)
 
-
-
 #############################################################################
 ######################## Rx #################################################
 #############################################################################
@@ -172,7 +170,7 @@ if len_dsp % 1:
 sig_rx.samples = ssignal.resample(sig_rx.samples[0], num=int(len_dsp), window=None)
 sig_rx.sample_rate = sr_dsp
 # #comm.visualizer.plot_spectrum(rx_samples, sample_rate=sr)
-sig_rx.plot_spectrum()
+sig_rx.plot_spectrum(tit='received spectrum before IF downmixing')
 
 # IQ-Downmixing and (ideal) lowpass filtering
 # ...either real signal processing
@@ -207,28 +205,45 @@ new_length = int(sig_rx.samples[0].size/sps*sps_new)
 sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
 sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
 
+# normalize samples to mean magnitude of original constellation
+mag_const = np.mean(abs(sig_rx.constellation[0]))
+mag_samples = np.mean(abs(sig_rx.samples[0]))
+sig_rx.samples = sig_rx.samples[0] * mag_const / mag_samples
+
+sig_rx.plot_constellation(hist=True, tit='constellation before EQ')
 
 adaptive_filter = True
-# blind adaptive filter....
-if adaptive_filter == True:
-    results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=333, mu=4e-3, decimate=False, return_info=True, stop_adapting=-1)
-    sig_rx = results['sig']
-    h = results['h']
-    eps = results['eps']
+# either blind adaptive filter....
+if adaptive_filter == True:    
+    results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=31, mu_cma=1e-3, 
+                                               mu_rde=5e-3, mu_dde=0.5, decimate=False, 
+                                               return_info=True, stop_adapting=-1, 
+                                               start_rde=5000*0, start_dde=5000*0)
     
+    sig_rx = results['sig']
+    h = results['h'][0]
+    eps = results['eps'][0]
+    # plot error evolution
     plt.plot(np.abs(eps))
     plt.show()
-    
+    # plot last filter frequency response
     plt.plot(np.abs(np.fft.fftshift(np.fft.fft(h[-1,:]))))
     plt.show()            
-      
+    # plot evolution of filters frequency response
+    plt.figure()
+    ax = plt.subplot(projection='3d')
+    f = np.fft.fftshift(np.fft.fftfreq(h[0,:].size, d=1/sig_rx.sample_rate[0]))
+    outsymbs = [0, 1000, 5000, 10000, 20000, 30000, h[:,0].size-1]    
+    for outsymb in outsymbs:
+        plt.plot(f, np.ones(f.size)*outsymb, np.abs(np.fft.fftshift(np.fft.fft(h[int(outsymb),:]))))
+    plt.show()       
+        
+    # cut away init symbols
     sps = int(sig_rx.sample_rate[0]/sig_rx.symbol_rate[0])
     cut = 10000
-    # cut away init symbols
     sig_rx.samples = sig_rx.samples[0][int(cut)*sps:]
-    
 
-# matched filtering
+# ... or matched filtering
 else:
     # Rx matched filter
     sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
@@ -250,21 +265,32 @@ else:
 START_SAMPLE = 0
 sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
 sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
-sig_rx.plot_constellation(0)
-
+sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
 
 # CPE
-cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, filter_shape='wiener', mth_power=4, rho=.3)
-sig_rx.samples = cpe_results['rec_symbols']
-est_phase = cpe_results['phi_est']
-
-sig_rx.plot_constellation()
+viterbi = False
+# ...either VV
+if viterbi:
+    cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=51, 
+                                                      filter_shape='wiener', mth_power=4, 
+                                                      rho=.05)
+    sig_rx.samples = cpe_results['rec_symbols']
+    est_phase = cpe_results['phi_est'].real
+# ...or BPS
+else:
+    cpe_results = comm.rx.carrier_phase_estimation_bps(sig_rx.samples[0], sig_rx.constellation[0], 
+                                               n_taps=15, n_test_phases=15, const_symmetry=np.pi/2)
+    sig_rx.samples = cpe_results['samples_corrected']
+    est_phase = cpe_results['est_phase_noise']
+    
+comm.visualizer.plot_signal(est_phase, tit='estimated phase noise')
+sig_rx.plot_constellation(hist=True, tit='constellation after CPE')
 
 # delay and phase ambiguity estimation and compensation
 sig_rx = comm.rx.symbol_sequence_sync(sig_rx, dimension=-1)
     
 # plot constellation and calc BER
-sig_rx.plot_constellation()
+# sig_rx.plot_constellation()
 
 # calc EVM
 evm = comm.rx.calc_evm(sig_rx.samples[0], sig_rx.constellation[0], norm='max')
