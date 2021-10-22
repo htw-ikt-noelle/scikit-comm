@@ -1,7 +1,5 @@
 import numpy as np
-import scipy.signal as signal
-import matplotlib.pyplot as plt
-from . import utils
+
 
 def set_snr(samples, snr_dB=10, sps=1, seed=None):
     """
