@@ -1,7 +1,5 @@
 import numpy as np
-import scipy.signal as signal
-import math as math
-import matplotlib.pyplot as plt
+import scipy.signal as ssignal
 from scipy.interpolate import interp1d
 
 
@@ -36,7 +34,7 @@ def filter_samples(samples, filter, domain='freq'):
     """
     
     if domain == 'time':
-        samples_out = signal.convolve(samples, filter)
+        samples_out = ssignal.convolve(samples, filter)
     elif domain == 'freq':
         if samples.shape != filter.shape:
             raise TypeError('shape of samples and filter must be equal')
@@ -272,9 +270,9 @@ def windowed_sinc(samples, fc=0.5, order=111, window=None):
     if window == None:
         pass
     elif window == 'Hamming':
-        h *= signal.windows.hamming(order)
+        h *= ssignal.windows.hamming(order)
     elif window == 'Blackman-Harris':
-        h *= signal.windows.blackmanharris(order)
+        h *= ssignal.windows.blackmanharris(order)
     else:
         raise ValueError('window has to be either None, "Hamming" or "Blackman-Harris"')
         
