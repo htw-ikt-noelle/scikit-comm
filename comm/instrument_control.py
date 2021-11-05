@@ -992,7 +992,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     return trace_information
 
 
-def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [60], offsets = [0], wavelengths = [1300], GPIB_address='12', log_mode = False):
+def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [None,None], offsets = [None,None], wavelengths = [None,None], GPIB_address='12', log_mode = False):
 
     """
     set_attenuation_MTA_150
@@ -1007,21 +1007,24 @@ def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [60], offsets = [0]
             transferred as a list. For example: ['0','1','2'] (Three cassetts)
             Maximum number of cassetts is 8.
 
-        attenuations : list of floats, optional (default = [60])
+        attenuations : list of floats, optional (default = [None,None])
             Sets the total attenuation to the parameter value by changing the actual attenuation. For every cassette, there must be an
             attenuation value.
             Value must be between 0dB and 60dB
+            If not used, the value of the MTA is unchanged
         
-        offsets: list of floats, optional (default = [0])
+        offsets: list of floats, optional (default = [None,None])
             Sets the display offset of the MTA system. The value of the offset has no affecton the actual attenuation,
             but it does affect the total attenuation.
             Atttotal = Attactual + Offset
             Value must be between -60dB and 60dB
+            If not used, the value of the MTA is unchanged
             
-        wavelengths = list of floats, optional (default = [1300])
+        wavelengths = list of floats, optional (default = [None,None])
             Sets the calibration wavelength of the MTA system. Because the calibrationwavelength is used to account for the wavelength 
             dependence of the attenuation, the calibration wavelength should be set as close as possible to the source wavelength
             Value must be between 1200nm and 1500nm
+            If not used, the value of the MTA is unchanged
      
         GPIB_address : string, optional (default = '13')
             The address GPIB address of the OSA.
@@ -1114,6 +1117,12 @@ def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [60], offsets = [0]
     # =============================================================================
     #  Check inputs for correctness
     # ============================================================================= 
+    
+    # Check if a None is in the input parametrs of attennuations, offsets or wavelengths. If the statement is true, the value of the 
+    # MTA will not be changed.
+    attenuation_unchanged = any(None in attenuations)
+    offset_unchanged = any(None in offsets)
+    wavelength_unchanged = any(None in wavelengths)
 
     try:
         if not isinstance(cassetts, list):
@@ -1141,27 +1150,29 @@ def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [60], offsets = [0]
             raise TypeError('Type of offsets items must be floats')    
 
         if not all(isinstance(x, float) for x in wavelengths):
-            raise TypeError('Type of wavelengths items must be floats')       
-
-        if not (len(cassetts) == len(attenuations) == len(offsets) == len(wavelengths)):
-            raise ValueError('List length of cassetts, attenuations, offsetts and wavelengths must be the same')
+            raise TypeError('Type of wavelengths items must be floats')      
 
         if len(cassetts) > 8:
             raise ValueError('Too many list items ({0}). The MTA_150 has maximal 8 cassetts'.format(len(cassetts)))
 
         if len(cassetts) < 1:
-            raise ValueError('Too less list items ({0}). Use at least one item'.format(len(cassetts)))
+            raise ValueError('Too less list items ({0}). Use at least one item'.format(len(cassetts))) 
 
         if any((cassette_name not in ['1','2','3','4','5','6','7','8']) for cassette_name in cassetts):
             raise ValueError('Wrong cassette naming. Traces are named with the numbers 1 to 8.')
 
-        if any((attenuation < 0 or attenuation > 60) for attenuation in attenuations):
+        if not any(attenuation_unchanged,offset_unchanged,wavelength_unchanged):
+
+            if not (len(cassetts) == len(attenuations) == len(offsets) == len(wavelengths)) :
+                raise ValueError('List length of cassetts, attenuations, offsetts and wavelengths must be the same')
+
+        if any((attenuation < 0 or attenuation > 60) for attenuation in attenuations) and not attenuation_unchanged:
             raise ValueError('Attenuation must be in range of 0 to 60dB')
 
-        if any((offset < 0 or offset > 60) for offset in offsets):
+        if any((offset < 0 or offset > 60) for offset in offsets) and not wavelength_unchanged:
             raise ValueError('offset must be in range of 0 to 60dB')
 
-        if any((wavelength < 1200 or wavelength > 1700) for wavelength in wavelengths):
+        if any((wavelength < 1200 or wavelength > 1700) for wavelength in wavelengths) and not offset_unchanged:
             raise ValueError('Wavelengths must be in range of 1200nm to 1700nm')
 
     except Exception as e:
@@ -1200,21 +1211,30 @@ def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [60], offsets = [0]
 
         # Set actual attenuation
         # Page 49
-        attenuator.write(':INPUT:ATTENUATION {0:f}'.format(attenuation))
+        if not attenuation_unchanged:
+            attenuator.write(':INPUT:ATTENUATION {0:f}'.format(attenuation))
 
         # Set offset
         # Page 49
-        attenuator.write(':INPUT:OFFSET {0:f}'.format(offset))
+        if not offset_unchanged:
+            attenuator.write(':INPUT:OFFSET {0:f}'.format(offset))
 
         # Set wavelength
         # Page 50
-        attenuator.write(':INPUT:WAVELENGTH {0:f}'.format(wavelength))
+        if not wavelength_unchanged:
+            attenuator.write(':INPUT:WAVELENGTH {0:f}'.format(wavelength))
+
+        # Read values from device
+        actual_attenuation = attenuator.query(':INPUT:ATTENUATION {0:f}?')
+        actual_offset = attenuator.query(':INPUT:OFFSET {0:f}?')
+        actual_wavelength = attenuator.query(':INPUT:WAVELENGTH {0:f}?')
+
 
         # Calculate total attenuation
-        total_attenuation = attenuation + offset
+        total_attenuation = actual_attenuation + actual_offset
 
         # Create dictionary with data from the selected cassette
-        cassette_data = {'Attenuation': attenuation, 'Offset' : offset, 'Wavelength' : wavelength, 'Total attenuation' : total_attenuation}
+        cassette_data = {'Attenuation': actual_attenuation, 'Offset' : actual_offset, 'Wavelength' : actual_wavelength, 'Total attenuation' : total_attenuation}
 
         # Putting cassette data into the return dictionary
         cassette_information[cassette] = cassette_data
