@@ -982,23 +982,23 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
 ####### HP_8153A lightwave mulitimeter ##############
 
 
-def get_samples_HP_8153A_lightwave_multimiter (channels = ['1'], GPIB_address='22',power_units = 'DBM', wavelengths=[1500] ,   log_mode = False):
+def get_samples_HP_8153A_lightwave_multimeter(channels = ['1'], GPIB_address='22',power_units = ['DBM'], wavelengths=[1500.0] , log_mode = False):
 
     """
 
-    get_samples_HP_8153A_lightwave_multimiter
+    get_samples_HP_8153A_lightwave_multimeter
     
-    Function for reading samples from a HP_8153A_lightwave_multimiter
+    Function for reading samples from a HP_8153A_lightwave_multimeter
     
     Parameters
     ----------
         channels: list of strings, optional (default = ['1'])
-            Insert here the wanted channel from the lightwave multimiter as a list of strings. 
-            The 2 channels of the lightwave multimiter is channel '1' and '2'.channel one is Hp 81533A 
+            Insert here the wanted channel from the lightwave multimeter as a list of strings. 
+            The 2 channels of the lightwave multimeter is channel '1' and '2'.channel one is Hp 81533A 
             and channel 2 is Hp 81531A .
 
         GPIB_address : string, optional (default = '22')
-            The address GPIB address of the lightwave_multimiter .
+            The address GPIB address of the lightwave_multimeter .
         
         log_mode: boolean, optional (default = False)
             Enables a log file for this method.
@@ -1007,9 +1007,9 @@ def get_samples_HP_8153A_lightwave_multimiter (channels = ['1'], GPIB_address='2
             Power units  are named with 'DBM' or 'Watt' 
 
         wavelength : list of floats optional ( default = [1500]).
-            The wavelenghts arguments has maximal 2 .
+            The wavelengths arguments has maximal 2 .
             length of wavelength and channels length must be same . There are 2 channel ( HP 81533A : The range of wavelength
-            for Hp 81533A that must be between 450 nm to 1020 nm) and (HP 81531A : the range of wavelength for
+            for Hp 81533A that must be between 850 nm to 1700 nm) and (HP 81531A : the range of wavelength for
             Hp 81531A that must be between 800  nm to 1700 nm) .
 
     Returns
@@ -1024,7 +1024,7 @@ def get_samples_HP_8153A_lightwave_multimiter (channels = ['1'], GPIB_address='2
                 -> Name of data:
                     -> power        : (float) contains powerlevel of the channel 
                     -> Unit         : (string) contains power unit types that must be ( 'DBM' , 'watt')
-                    -> wavelength   : (float)contains The wavelenghts arguments in nanometers (NM) 
+                    -> wavelength   : (float)contains The wavelengths arguments in nanometers (NM) 
 
     Errors
     -------
@@ -1045,19 +1045,17 @@ def get_samples_HP_8153A_lightwave_multimiter (channels = ['1'], GPIB_address='2
               ->  Too less channels. Use at least one channel.
               ->  Wrong channels naming. Channels are named with 1 , 2.
               ->  Wrong power units type naming. power units  are named with DBM or Watt .
-              ->  Too less wavelenght argument. The wavelenght arguments must be at least  1.
-              ->  Too much wavelenght arguments. The wavelenghts arguments has maximal 2 
+              ->  Too less wavelength argument. The wavelength arguments must be at least  1.
+              ->  Too much wavelength arguments. The wavelengths arguments has maximal 2 
               ->  length of wavelength and channels length must be same.
-              ->  The renge of wavelength is not correct for Hp 81533A that must be between 450 nm to 1020 nm.
-              ->  The renge of wavelength is not correct for Hp 81531A that must be between 800  nm to 1700 nm.
+              ->  The range of wavelength is not correct for Hp 81533A that must be between 850 nm to 1700 nm.
+              ->  The range of wavelength is not correct for Hp 81531A that must be between 800  nm to 1700 nm.
 
         Exception:
             Will be raised by diverse errors
             -> Possible errors
-                -> No connection to the multimiter
+                -> No connection to the multimeter
     """
-
-    # TODO: test cases 
     
     
 
@@ -1106,14 +1104,20 @@ def get_samples_HP_8153A_lightwave_multimiter (channels = ['1'], GPIB_address='2
         if not all(isinstance(x, str) for x in channels):
             raise TypeError('Type of channel items must be string')
         
-        if not isinstance(power_units, str) :
+        if not all(isinstance(x, str) for x in power_units):
             raise TypeError('Type of power units must be string')
+            
+        if not isinstance(power_units, list):
+            raise TypeError('Type of power_unit musbt be list')
 
         if not all(isinstance(x,float) for x in wavelengths):
             raise TypeError('Type of wawelength must be float ')
 
         if not isinstance(wavelengths, list):
             raise TypeError( 'Tyoe of wawelength must be list ')
+        
+        if not isinstance(log_mode, bool):
+            raise TypeError('Type of log_mod musb be boolian')
 
         if len(channels) > 2:
             raise ValueError('Too many channels ({0}). The lightwave mulitimeter has maximal 2 channels'.format(len(channels)))
@@ -1128,18 +1132,18 @@ def get_samples_HP_8153A_lightwave_multimiter (channels = ['1'], GPIB_address='2
             raise ValueError('Wrong power units type naming. power units  are named with DBM or Watt ')
             
         if len (wavelengths) <1:
-            raise ValueError('Too less wavelenght arguments ({0}). The wavelenght arguments must be at least  1'.format(len(wavelengths)))
+            raise ValueError('Too less wavelength arguments ({0}). The wavelengths arguments must be at least  1'.format(len(wavelengths)))
         
         if len (wavelengths) >2 :
-            raise ValueError('Too much wavelenght arguments ({0}). The wavelenghts arguments has maximal 2 '.format(len(wavelengths)))
+            raise ValueError('Too much wavelength arguments ({0}). The wavelengths arguments has maximal 2 '.format(len(wavelengths)))
 
         if len (wavelengths) != len (channels) :
             raise ValueError ('length of wavelength and channels length must be same ')
         
         for ch_idx , ch in enumerate (channels):
             if ch==1 :
-                if wavelengths[ch_idx] <450 or wavelengths[ch_idx] >1020 :
-                    raise ValueError ('The renge of wavelength is not correct for Hp 81533A that must be between 450 nm to 1020 nm')
+                if wavelengths[ch_idx] <850 or wavelengths[ch_idx] >1700 :
+                    raise ValueError ('The renge of wavelength is not correct for Hp 81533A that must be between 850 nm to 1700 nm')
             else :
                  if wavelengths[ch_idx] <800 or wavelengths[ch_idx] >1700 :
                     raise ValueError ('The renge of wavelength is not correct for Hp 81531A that must be between 800  nm to 1700 nm') 
@@ -1176,7 +1180,7 @@ def get_samples_HP_8153A_lightwave_multimiter (channels = ['1'], GPIB_address='2
     #power_unit = lwm.query('sense:power:unit?')
     #print(power_unit)
        # Create dict with the the keys 
-    channel_information = dict.fromkeys(['channel_'+channels[0],'channel_'+channels[1]])
+    channel_information = dict.fromkeys(channels)
 
     for channel,wavelength,power_unit in zip(channels,wavelengths,power_units):
         #This command sets the units in use when an absolute reading is made. This can be dBm (DBM)(0) or Watts (Watt)(1).
@@ -1188,7 +1192,7 @@ def get_samples_HP_8153A_lightwave_multimiter (channels = ['1'], GPIB_address='2
         #set new wavelength 
         #nanometers (NM) , micrometers(um), meters (M)
         if wavelength != old_wavelength:
-            lwm.write('sense{0:s}:pow:wave {1:d}NM'.format(channel,wavelength))
+            lwm.write('sense{0:s}:pow:wave {1:f}NM'.format(channel,wavelength))
         
         # we need to get the values
         #page 8-8 , 8-9
