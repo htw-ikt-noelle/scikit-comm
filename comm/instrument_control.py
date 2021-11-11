@@ -992,39 +992,53 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     return trace_information
 
 
-def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [None,None], offsets = [None,None], wavelengths = [None,None], GPIB_address='12', log_mode = False):
+def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [None], wavelengths = [None], GPIB_address='12', log_mode = False):
+
+# TODO: Check for the actaul number of cassetts
+# TODO: Apply new test methods. specially for None cases when no input parameter is given.
+
 
     """
     set_attenuation_MTA_150
     
-    Function for setting the attenuation of the JDS Uniphase MTA 150 optical attenuator
-    
+    Function for setting the attenuation of the JDS Uniphase MTA 150 optical attenuator. This method is able to change and read the 
+    values of the attenuator. For the write mode, the desired cassettes and the corresponding attenuation, offset and wavelength must
+    be specified. For the read mode, only the desired cassettes must be specified. The default setting is to read the values from cassette 1. 
+    It is also possible to change only individual parameters. In this case, the parameters that are not to be changed receive a None. 
+    Examples can be found in the parameter description
+
     Parameters
     ----------
-        cassetts: list of strings, optional (default = ['0'])
+        cassetts: list of strings, optional (default = ['1'])
             The attenuator has several cassettes, the attenuation of which can be individually adjusted. To select the wanted cassette, the 
             numerical index must be put into the list as string. If several cassettes are used, only the numerical indices must be 
-            transferred as a list. For example: ['0','1','2'] (Three cassetts)
+            transferred as a list. For example: ['1','2','3'] (Three cassetts)
             Maximum number of cassetts is 8.
 
-        attenuations : list of floats, optional (default = [None,None])
+        attenuations : list of floats, optional (default = [None])
             Sets the total attenuation to the parameter value by changing the actual attenuation. For every cassette, there must be an
             attenuation value.
             Value must be between 0dB and 60dB
-            If not used, the value of the MTA is unchanged
+            If not used, the value of the MTA is unchanged.
+            If the value of one cassette is to be changed and the others not, a None can simply be inserted in the vector for the value
+            that is not to be changed. For example: [20,None,30] (Value of the second entry will not changed)
         
-        offsets: list of floats, optional (default = [None,None])
+        offsets: list of floats, optional (default = [None])
             Sets the display offset of the MTA system. The value of the offset has no affecton the actual attenuation,
             but it does affect the total attenuation.
             Atttotal = Attactual + Offset
             Value must be between -60dB and 60dB
             If not used, the value of the MTA is unchanged
+            If the value of one cassette is to be changed and the others not, a None can simply be inserted in the vector for the value
+            that is not to be changed. For example: [20,None,30] (Value of the second entry will not changed)
             
-        wavelengths = list of floats, optional (default = [None,None])
+        wavelengths = list of floats, optional (default = [None])
             Sets the calibration wavelength of the MTA system. Because the calibrationwavelength is used to account for the wavelength 
             dependence of the attenuation, the calibration wavelength should be set as close as possible to the source wavelength
             Value must be between 1200nm and 1500nm
             If not used, the value of the MTA is unchanged
+            If the value of one cassette is to be changed and the others not, a None can simply be inserted in the vector for the value
+            that is not to be changed. For example: [1300,None,1200] (Value of the second entry will not changed)
      
         GPIB_address : string, optional (default = '13')
             The address GPIB address of the OSA.
@@ -1039,10 +1053,10 @@ def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [None,None], offset
             To access the dict use:
             >Name of object<[>Name of cassette<][>Name of data<]
                 -> Name of Trace: (string)
-                    -> 0 : Cassette 0
                     -> 1 : Cassette 1
+                    -> 2 : Cassette 2
                     ...
-                    -> 7 : Cassette 7
+                    -> 8 : Cassette 8
                 -> Name of data: (string)
                     -> attenuation      : (float) Contains the selected attenuations (Attactual)
                     -> offset           : (float) Contains the selected offset
@@ -1120,9 +1134,19 @@ def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [None,None], offset
     
     # Check if a None is in the input parametrs of attennuations, offsets or wavelengths. If the statement is true, the value of the 
     # MTA will not be changed.
-    attenuation_unchanged = any(None in attenuations)
-    offset_unchanged = any(None in offsets)
-    wavelength_unchanged = any(None in wavelengths)
+    # attenuation_unchanged = all(None in attenuations)
+    # offset_unchanged = all(None in offsets)
+    # wavelength_unchanged = all(None in wavelengths)
+
+    # If no parameters are passed for attenuations, offsets or wavelengths, the list lengths must be adjusted to the length of the cassette list.
+    if all(None in attenuations):
+        attenuations = [None]*len(cassetts)
+
+    if all(None in offsets):
+        offsets = [None]*len(cassetts)
+
+    if all(None in wavelengths):
+        wavelengths = [None]*len(cassetts)
 
     try:
         if not isinstance(cassetts, list):
@@ -1161,10 +1185,10 @@ def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [None,None], offset
         if any((cassette_name not in ['1','2','3','4','5','6','7','8']) for cassette_name in cassetts):
             raise ValueError('Wrong cassette naming. Traces are named with the numbers 1 to 8.')
 
-        if not any(attenuation_unchanged,offset_unchanged,wavelength_unchanged):
+        #if not any(attenuation_unchanged,offset_unchanged,wavelength_unchanged):
 
-            if not (len(cassetts) == len(attenuations) == len(offsets) == len(wavelengths)) :
-                raise ValueError('List length of cassetts, attenuations, offsetts and wavelengths must be the same')
+        if not (len(cassetts) == len(attenuations) == len(offsets) == len(wavelengths)) :
+            raise ValueError('List length of cassetts, attenuations, offsetts and wavelengths must be the same')
 
         if any((attenuation < 0 or attenuation > 60) for attenuation in attenuations) and not attenuation_unchanged:
             raise ValueError('Attenuation must be in range of 0 to 60dB')
@@ -1200,6 +1224,7 @@ def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [None,None], offset
 
     # Check if the selected cassettes are present
 
+
     # Create return dictionary
     cassette_information = dict.fromkeys(cassetts)
 
@@ -1211,17 +1236,17 @@ def set_attenuation_MTA_150(cassetts = ['0'], attenuations = [None,None], offset
 
         # Set actual attenuation
         # Page 49
-        if not attenuation_unchanged:
+        if not attenuation == None:
             attenuator.write(':INPUT:ATTENUATION {0:f}'.format(attenuation))
 
         # Set offset
         # Page 49
-        if not offset_unchanged:
+        if not offset == None:
             attenuator.write(':INPUT:OFFSET {0:f}'.format(offset))
 
         # Set wavelength
         # Page 50
-        if not wavelength_unchanged:
+        if not wavelength == None:
             attenuator.write(':INPUT:WAVELENGTH {0:f}'.format(wavelength))
 
         # Read values from device
