@@ -1005,7 +1005,15 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
     values of the attenuator. For the write mode, the desired cassettes and the corresponding attenuation, offset and wavelength must
     be specified. For the read mode, only the desired cassettes must be specified. The default setting is to read the values from cassette 1. 
     It is also possible to change only individual parameters. In this case, the parameters that are not to be changed receive a None. 
-    Examples can be found in the parameter description
+    Examples can be found in the parameter description.
+    
+    Information:
+    To change back the MTA to local mode (Controlling with keys), the LCL key must be pressed.
+    
+    Information:
+    The built-in beam block in each MTA300 cassette is automatically activated when the cassetteis 
+    powered up.The beam block must be deactivated after power-up so that light can passthrough the attenuator.
+    This method will not do this, so it must be done manualy at the device.
 
     Parameters
     ----------
@@ -1014,6 +1022,11 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
             numerical index must be put into the list as string. If several cassettes are used, only the numerical indices must be 
             transferred as a list. For example: ['1','2','3'] (Three cassetts)
             Maximum number of cassetts is 8.
+            
+            WARNING:
+            If a cassette is selected which is not physically available, the last selected cassette is used. There is a risk that 
+            values ​​will be overwritten.
+            
 
         attenuations : list of floats, optional (default = [None])
             Sets the total attenuation to the parameter value by changing the actual attenuation. For every cassette, there must be an
@@ -1026,14 +1039,17 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
         offsets: list of floats, optional (default = [None])
             Sets the display offset of the MTA system. The value of the offset has no affecton the actual attenuation,
             but it does affect the total attenuation.
-            Atttotal = Attactual + Offset
+            The display offset function can be used to include both the insertion loss of theMTA300 cassette and
+            connection losses in the attenuation value displayed. 
+            Att_total = Att_actual + Offset
             Value must be between -60dB and 60dB
             If not used, the value of the MTA is unchanged
             If the value of one cassette is to be changed and the others not, a None can simply be inserted in the vector for the value
             that is not to be changed. For example: [20,None,30] (Value of the second entry will not changed)
             
+            
         wavelengths = list of floats, optional (default = [None])
-            Sets the calibration wavelength of the MTA system. Because the calibrationwavelength is used to account for the wavelength 
+            Sets the calibration wavelength of the MTA system. Because the calibration wavelength is used to account for the wavelength 
             dependence of the attenuation, the calibration wavelength should be set as close as possible to the source wavelength
             Value must be between 1200nm and 1500nm
             If not used, the value of the MTA is unchanged
@@ -1061,7 +1077,8 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
                     -> attenuation      : (float) Contains the selected attenuations (Attactual)
                     -> offset           : (float) Contains the selected offset
                     -> wavelength       : (float) Contains the selected wavelength
-                    -> Total attenuation: (float) Contains the total attenuation (Atttotal = Attactual + Offset)
+                    -> Total attenuation: (float) Contains the total attenuation (Att_total = Att_actual + Offset) Corresponds with the 
+                                          showed attenuation of the device.
             
     Errors
     -------
@@ -1148,6 +1165,10 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
     if all(None in wavelengths):
         wavelengths = [None]*len(cassetts)
 
+    if all(x == None for x in  wavelengths):
+        wavelengths = [None]*len(cassetts)
+
+
     try:
         if not isinstance(cassetts, list):
             raise TypeError('Type of cassetts must be list')
@@ -1167,13 +1188,13 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
         if not all(isinstance(x, str) for x in cassetts):
             raise TypeError('Type of cassetts items must be strings')
 
-        if not all(isinstance(x, float) for x in attenuations):
+        if not all((isinstance(x, float) or x == None) for x in attenuations):
             raise TypeError('Type of attenuations items must be floats')
 
-        if not all(isinstance(x, float) for x in offsets):
+        if not all((isinstance(x, float) or x == None) for x in offsets):
             raise TypeError('Type of offsets items must be floats')    
 
-        if not all(isinstance(x, float) for x in wavelengths):
+        if not all((isinstance(x, float) or x == None) for x in wavelengths):
             raise TypeError('Type of wavelengths items must be floats')      
 
         if len(cassetts) > 8:
@@ -1193,8 +1214,15 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
         if any((attenuation < 0 or attenuation > 60) for attenuation in attenuations) and not attenuation_unchanged:
             raise ValueError('Attenuation must be in range of 0 to 60dB')
 
-        if any((offset < 0 or offset > 60) for offset in offsets) and not wavelength_unchanged:
-            raise ValueError('offset must be in range of 0 to 60dB')
+        for offset in offsets:
+            if offset != None:
+                if (offset < -60 or offset > 60):
+                    raise ValueError('offset must be in range of 0 to 60dB')
+                    
+        for wavelength in wavelengths:
+            if wavelength != None:
+                if (wavelength < 1200 or wavelength > 1700):
+                    raise ValueError('Attenuation must be in range of 0 to 60dB')
 
         if any((wavelength < 1200 or wavelength > 1700) for wavelength in wavelengths) and not offset_unchanged:
             raise ValueError('Wavelengths must be in range of 1200nm to 1700nm')
@@ -1232,40 +1260,48 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
 
         # Choosing cassette
         # Page 51
-        attenuator.write(':INSTRUMET:NSELECT {0:s}'.format(cassette))
-
-        # Set actual attenuation
-        # Page 49
-        if not attenuation == None:
-            attenuator.write(':INPUT:ATTENUATION {0:f}'.format(attenuation))
+        attenuator.write(':INSTRUMENT:NSELECT {0:s}'.format(cassette))
 
         # Set offset
         # Page 49
         if not offset == None:
             attenuator.write(':INPUT:OFFSET {0:f}'.format(offset))
 
+        # Set actual attenuation
+        # Page 49
+        if not attenuation == None:
+            attenuator.write(':INPUT:ATTENUATION {0:f}'.format(attenuation))
+
         # Set wavelength
         # Page 50
         if not wavelength == None:
-            attenuator.write(':INPUT:WAVELENGTH {0:f}'.format(wavelength))
+            attenuator.write(':INPUT:WAVELENGTH {0:f} nm'.format(wavelength))
 
         # Read values from device
-        actual_attenuation = attenuator.query(':INPUT:ATTENUATION {0:f}?')
-        actual_offset = attenuator.query(':INPUT:OFFSET {0:f}?')
-        actual_wavelength = attenuator.query(':INPUT:WAVELENGTH {0:f}?')
+        actual_total_attenuation = float(attenuator.query(':INPUT:ATTENUATION?'))
+        actual_offset = float(attenuator.query(':INPUT:OFFSET?'))
+        actual_wavelength = float(attenuator.query(':INPUT:WAVELENGTH?'))
+        
 
 
         # Calculate total attenuation
-        total_attenuation = actual_attenuation + actual_offset
+        actual_attenuation = actual_total_attenuation - actual_offset
 
         # Create dictionary with data from the selected cassette
-        cassette_data = {'Attenuation': actual_attenuation, 'Offset' : actual_offset, 'Wavelength' : actual_wavelength, 'Total attenuation' : total_attenuation}
+        cassette_data = {'Attenuation': actual_attenuation, 'Offset' : actual_offset, 'Wavelength' : actual_wavelength, 'Total attenuation' : actual_total_attenuation}
 
         # Putting cassette data into the return dictionary
         cassette_information[cassette] = cassette_data
 
         # Activate Outputs?
 
+    # Change the MTA back to local mode. Local Mode means that the MTA can be controlled by his key on the front.
+    # When the MTA is accessed by PC, he will always change to remote mode and the keys doesn't work anymore.
+    # The first parameter is the session id and second parameter is the mode. There are six different modes.
+    # With mode 2 the MTA will go to local and deassert REN. For more information to the modes see:
+    # https://zone.ni.com/reference/en-XX/help/371361R-01/lvinstio/visa_gpib_control_ren/
+    rm.visalib.viGpibControlREN(attenuator.session,3)
+    
     # closing OSA connection
     attenuator.close()
    
