@@ -1,0 +1,17 @@
+image: python:3.7
+
+docu:
+  stage: build
+  script:
+  - python -V
+  - pip install -U sphinx
+  - cd docs
+  - sphinx-build -b html source ../public
+
+
+unittests:
+  stage: test
+  script:
+  - python -V
+  - pip install -r requirements.txt 
+  - python -m unittest discover -s comm/tests
