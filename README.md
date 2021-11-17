@@ -50,11 +50,11 @@ This example generates a 50 MBd QPSK modulated signal and demodulates it afterwa
 
 ```python
 import copy
-import numpy as np
-import scipy.signal as ssignal
-import matplotlib.pyplot as plt
-import scipy.interpolate as sinterp
 import comm as comm
+
+##########################
+####### TRANSMITTER ######
+##########################
 
 # construct signal
 sig_tx = comm.signal.Signal(n_dims=1)
@@ -69,8 +69,17 @@ sig_tx.generate_constellation(format='QAM', order=4)
 # create symbols
 sig_tx.mapper()
 
+# generate actual sampled signal (pulseshaping)
+sig_tx.pulseshaper(upsampling=1, pulseshape='rect')
+
 ##########################
 ####### CHANNEL ##########
+##########################
+
+pass
+
+##########################
+####### RECEIVER #########
 ##########################
 
 # rx signal
@@ -84,24 +93,18 @@ sig_rx.demapper()
 
 # BER counting
 ber_res = comm.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
-
 ```
 
 Multiple, more advanced algorithms and procedures could now be added at transmitter (**from module tx**) and receiver side (**from module rx**). Further, also distortion effects caused by the channel (***module channel***) could be added.
 
-### 3.2 More advanced example using modulation onto an intermediate frequency
+### 3.2 More advanced example using QPSK modulation onto an intermediate frequency
+
+This example demonstrates a 50 MBd QPSK modulation using an intermediate frequency of 30 MHz. Further, pulseshaping, matched filtering and also channel distortions, such as amplitude and phase noise as well as simple digital signal processing (DSP) steps at the receiver are considered. 
+
 
 ```python
-import sys
-import os
-if not any(os.path.abspath('..') == p for p in sys.path): 
-    print('adding comm module to path...')
-    sys.path.insert(0, os.path.abspath('..'))
-import time
 import numpy as np
 import scipy.signal as ssignal
-import matplotlib.pyplot as plt
-import scipy.interpolate as sinterp
 import comm as comm
 import copy
 
@@ -131,8 +134,8 @@ sig_tx.mapper()
 ROLL_OFF = 0.1
 sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=[ROLL_OFF])
 
-# generate DAC samples (analytical signalg at IF)
-f_IF_nom = 1*30e6 #30e6
+# generate DAC samples (analytical signal at IF)
+f_IF_nom = 1*30e6
 f_granularity = 1 / sig_tx.samples[0].size * sig_tx.sample_rate[0]
 f_if = round(f_IF_nom / f_granularity) * f_granularity
 print('intermediate frequency: {} MHz'.format(f_if/1e6))
@@ -142,20 +145,13 @@ t = np.arange(0, np.size(sig_tx.samples[0])) / sig_tx.sample_rate
 sig_tx.samples[0] = sig_tx.samples[0] * np.exp(1j * 2 * np.pi * f_if * t)
 sig_tx.center_frequency = f_if
 
-# format samples so that driver can handle them (range +-1)
-maxVal = np.max(np.abs(np.concatenate((np.real(sig_tx.samples), np.imag(sig_tx.samples)))))
-samples = np.asarray(sig_tx.samples) / maxVal
-samples = np.concatenate((np.real(samples), np.imag(samples)))
-
-
 ############################################################################
 ################## Link ####################################################
 ############################################################################
+samples = sig_tx.samples[0] 
 
-
-samples = samples[0] + 1j*samples[1] # build ideal complex signal from Tx samples (no ampl. and phase noise)
-
-# emulate getting samples from scope (repeat rx sequence)
+# repeat rx sequence
+sps = int(sig_tx.sample_rate[0] / sig_tx.symbol_rate[0])
 ext = 40000*sps + 4000*sps
 ratio_base = ext // samples.size
 ratio_rem = ext % samples.size        
@@ -178,7 +174,7 @@ samples = np.real(samples)
 #############################################################################
 ######################## Rx #################################################
 #############################################################################
-# contruct rx signal structure
+# construct rx signal structure
 sig_rx = copy.deepcopy(sig_tx)
 sig_rx.samples = samples
 sig_rx.sample_rate = sr
@@ -186,7 +182,7 @@ sig_rx.sample_rate = sr
 # resampling to the same sample rate as at the transmitter
 sr_dsp = sig_tx.sample_rate[0]
 
-# # watch out, that this is really an integer, otherwise the samplerate is asynchronous with the data afterwards!!!
+# watch out, that this is really an integer, otherwise the samplerate is asynchronous with the data afterwards!!!
 len_dsp = sr_dsp / sig_rx.sample_rate[0] * np.size(samples)
 if len_dsp % 1:
     raise ValueError('DSP samplerate results in asynchronous sampling of the data symbols')
@@ -194,8 +190,8 @@ sig_rx.samples = ssignal.resample(sig_rx.samples[0], num=int(len_dsp), window=No
 sig_rx.sample_rate = sr_dsp
 sig_rx.plot_spectrum(tit='received spectrum before IF downmixing')
 
-# IQ-Downmixing and (ideal) lowpass filtering
-# complex singal processing
+# IQ-Downmixing 
+t = comm.utils.create_time_axis(sig_rx.sample_rate[0], np.size(sig_rx.samples[0]))
 samples_bb = samples *  np.exp(-1j*2*np.pi*(f_if+1e4*0)*t)
 sig_rx.samples[0] = samples_bb
 
@@ -215,7 +211,6 @@ sig_rx.plot_constellation(hist=True, tit='constellation before EQ')
 
 # Rx matched filter
 sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
-# sig_rx.plot_eye()
 
 # crop samples here, if necessary
 sps = int(sig_rx.sample_rate[0] / sig_rx.symbol_rate[0])
@@ -225,19 +220,21 @@ if crop != 0:
 else:
     sig_rx.samples = sig_rx.samples[0]
 
-# sampling phase / clock adjustment
-BLOCK_SIZE = 1000 # size of one block in SYMBOLS... -1 for only one block
+# sampling phase adjustment
+BLOCK_SIZE = -1 
 sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
     
 # sampling (if necessary)
 START_SAMPLE = 0
-sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
+sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0]
 sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
+
 sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
 
 # CPE
 cpe_results = comm.rx.carrier_phase_estimation_bps(sig_rx.samples[0], sig_rx.constellation[0], 
                                            n_taps=15, n_test_phases=15, const_symmetry=np.pi/2)
+
 sig_rx.samples = cpe_results['samples_corrected']
 est_phase = cpe_results['est_phase_noise']
     
@@ -258,3 +255,4 @@ sig_rx.demapper()
 # BER counting
 ber_res = comm.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
 print('BER = {}'.format(ber_res['ber']))
+```
