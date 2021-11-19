@@ -1028,7 +1028,7 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
             values ​​will be overwritten.
             
 
-        attenuations : list of floats, optional (default = [None])
+        attenuations : list of floats or Nones, optional (default = [None])
             Sets the total attenuation to the parameter value by changing the actual attenuation. For every cassette, there must be an
             attenuation value.
             Value must be between 0dB and 60dB
@@ -1051,7 +1051,7 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
         wavelengths = list of floats, optional (default = [None])
             Sets the calibration wavelength of the MTA system. Because the calibration wavelength is used to account for the wavelength 
             dependence of the attenuation, the calibration wavelength should be set as close as possible to the source wavelength
-            Value must be between 1200nm and 1500nm
+            Value must be between 1200nm and 1700nm
             If not used, the value of the MTA is unchanged
             If the value of one cassette is to be changed and the others not, a None can simply be inserted in the vector for the value
             that is not to be changed. For example: [1300,None,1200] (Value of the second entry will not changed)
@@ -1155,20 +1155,6 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
     # offset_unchanged = all(None in offsets)
     # wavelength_unchanged = all(None in wavelengths)
 
-    # If no parameters are passed for attenuations, offsets or wavelengths, the list lengths must be adjusted to the length of the cassette list.
-    if all(None in attenuations):
-        attenuations = [None]*len(cassetts)
-
-    if all(None in offsets):
-        offsets = [None]*len(cassetts)
-
-    if all(None in wavelengths):
-        wavelengths = [None]*len(cassetts)
-
-    if all(x == None for x in  wavelengths):
-        wavelengths = [None]*len(cassetts)
-
-
     try:
         if not isinstance(cassetts, list):
             raise TypeError('Type of cassetts must be list')
@@ -1188,6 +1174,16 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
         if not all(isinstance(x, str) for x in cassetts):
             raise TypeError('Type of cassetts items must be strings')
 
+        # If no parameters are passed for attenuations, offsets or wavelengths, the list lengths must be adjusted to the length of the cassette list.
+        if all(x == None for x in attenuations):
+            attenuations = [None]*len(cassetts)
+
+        if all(x == None for x in offsets):
+            offsets = [None]*len(cassetts)
+
+        if all(x == None for x in  wavelengths):
+            wavelengths = [None]*len(cassetts)
+
         if not all((isinstance(x, float) or x == None) for x in attenuations):
             raise TypeError('Type of attenuations items must be floats')
 
@@ -1204,7 +1200,7 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
             raise ValueError('Too less list items ({0}). Use at least one item'.format(len(cassetts))) 
 
         if any((cassette_name not in ['1','2','3','4','5','6','7','8']) for cassette_name in cassetts):
-            raise ValueError('Wrong cassette naming. Traces are named with the numbers 1 to 8.')
+            raise ValueError('Wrong cassette naming. Cassettes are named with the numbers 1 to 8.')
 
         #if not any(attenuation_unchanged,offset_unchanged,wavelength_unchanged):
 
@@ -1217,12 +1213,12 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
         for offset in offsets:
             if offset != None:
                 if (offset < -60 or offset > 60):
-                    raise ValueError('offset must be in range of 0 to 60dB')
+                    raise ValueError('offset must be in range of -60 to 60dB')
                     
         for wavelength in wavelengths:
             if wavelength != None:
                 if (wavelength < 1200 or wavelength > 1700):
-                    raise ValueError('Attenuation must be in range of 0 to 60dB')
+                    raise ValueError('Wavelengths must be in range of 1200 nm to 1700 nm')
 
         if any((wavelength < 1200 or wavelength > 1700) for wavelength in wavelengths) and not offset_unchanged:
             raise ValueError('Wavelengths must be in range of 1200nm to 1700nm')
