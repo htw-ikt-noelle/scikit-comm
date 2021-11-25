@@ -82,8 +82,8 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     pseudo_signal_power = pseudo_signal_noise_power - pseudo_noise_power
 
     # Calculation OSNR
-    OSNR = 10*log(pseudo_signal_power/pseudo_noise_power)
+    OSNR = 10*np.log10(pseudo_signal_power/pseudo_noise_power)
     bandwidth = closest_integration_wavelength[1] - closest_integration_wavelength[0]
-    OSNR_01nm = 10*log(pseudo_noise_power / pseudo_noise_power * 0.1 / bandwidth)
+    OSNR_01nm = 10*np.log10(pseudo_noise_power / pseudo_noise_power * 0.1 / bandwidth)
 
     return OSNR,OSNR_01nm
