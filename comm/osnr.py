@@ -4,7 +4,9 @@ from numpy.polynomial import Polynomial
 from matplotlib import pyplot as plt
 
 def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], integration_area = [], resolution_bandwidth = 0.1, polynom_order = 3 ):
-
+    #TODO: Add docstring
+    #TODO: Check Inputs
+    #TODO: Wrong OSNR results. 0.5db difference.
 
     """
     osnr
@@ -80,13 +82,13 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     interpol_noise_powers_lin = 10**np.divide(interpol_noise_powers,10)
 
     # Calculation noise power
-    # pseudo_noise_power = np.sum(interpol_noise_powers_lin)
-    pseudo_noise_power = np.trapz(interpol_noise_powers_lin,wavelength_vector[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1])
+    pseudo_noise_power = np.sum(interpol_noise_powers_lin)
+    # pseudo_noise_power = np.trapz(interpol_noise_powers_lin,wavelength_vector[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1])
 
     # Calculation signal plus noise power
-    # pseudo_signal_noise_power = np.sum(power_vector_lin[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1]) 
-    pseudo_signal_noise_power = np.trapz(power_vector_lin[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1],
-                                        wavelength_vector[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1])
+    pseudo_signal_noise_power = np.sum(power_vector_lin[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1]) 
+    # pseudo_signal_noise_power = np.trapz(power_vector_lin[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1],
+    #                                    wavelength_vector[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1])
     # Calculation signalpower
     pseudo_signal_power = pseudo_signal_noise_power - pseudo_noise_power
 
