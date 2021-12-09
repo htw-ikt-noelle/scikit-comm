@@ -82,13 +82,13 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     interpol_noise_powers_lin = 10**np.divide(interpol_noise_powers,10)
 
     # Calculation noise power
-    pseudo_noise_power = np.sum(interpol_noise_powers_lin)
-    # pseudo_noise_power = np.trapz(interpol_noise_powers_lin,wavelength_vector[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1])
+    # pseudo_noise_power = np.sum(interpol_noise_powers_lin)
+    pseudo_noise_power = np.trapz(interpol_noise_powers_lin,wavelength_vector[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1])
 
     # Calculation signal plus noise power
-    pseudo_signal_noise_power = np.sum(power_vector_lin[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1]) 
-    # pseudo_signal_noise_power = np.trapz(power_vector_lin[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1],
-    #                                    wavelength_vector[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1])
+    # pseudo_signal_noise_power = np.sum(power_vector_lin[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1]) 
+    pseudo_signal_noise_power = np.trapz(power_vector_lin[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1],
+                                        wavelength_vector[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1])
     # Calculation signalpower
     pseudo_signal_power = pseudo_signal_noise_power - pseudo_noise_power
 
@@ -98,12 +98,15 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     OSNR_01nm = 10*np.log10(pseudo_signal_power / pseudo_noise_power * 0.1 / bandwidth)
 
     
-    plt.plot(wavelength_vector,interpol_noise_powers_complete,'-',
-            wavelength_vector,power_vector,'-',
+    plt.plot(wavelength_vector,power_vector,'-',
             integration_area,[power_vector[integration_area[0]],power_vector[integration_area[1]]],'ro',
-            wavelengths_lambda_0_1,power_lambda_0_1,'g.',
-            wavelengths_lambda_2_3,power_lambda_2_3,'g.',
+            np.append(wavelengths_lambda_0_1,wavelengths_lambda_2_3),np.append(power_lambda_0_1,power_lambda_2_3),'g.',
+            wavelength_vector,interpol_noise_powers_complete,'-',
             )
+
+    plt.gca().legend(('Optical power from OSA','Integration borders','Area for polyfit','Interpolated noise power' ))
+    plt.xlabel('Wavelength [nm]')
+    plt.ylabel('Power density [dBm/{0}nm]'.format(resolution_bandwidth))        
     plt.ylim(np.min(power_vector)-10,np.max(power_vector)+10)
     plt.show()
 
