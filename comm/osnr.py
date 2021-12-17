@@ -78,8 +78,9 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     interpol_noise_powers = interpol_noise_powers_complete[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1]
 
     # To calculate the power the power values must be converted from db to linear.
-    power_vector_lin = 10**np.divide(power_vector,10)
-    interpol_noise_powers_lin = 10**np.divide(interpol_noise_powers,10)
+    delta_lambda = wavelength_vector[1] - wavelength_vector[0]
+    power_vector_lin = 10**np.divide(power_vector,10) * delta_lambda / resolution_bandwidth
+    interpol_noise_powers_lin = 10**np.divide(interpol_noise_powers,10) * delta_lambda / resolution_bandwidth
 
     # Calculation noise power
     # pseudo_noise_power = np.sum(interpol_noise_powers_lin)
@@ -98,16 +99,18 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     OSNR_01nm = 10*np.log10(pseudo_signal_power / pseudo_noise_power * 0.1 / bandwidth)
 
     
-    plt.plot(wavelength_vector,power_vector,'-',
-            integration_area,[power_vector[integration_area[0]],power_vector[integration_area[1]]],'ro',
-            np.append(wavelengths_lambda_0_1,wavelengths_lambda_2_3),np.append(power_lambda_0_1,power_lambda_2_3),'g.',
-            wavelength_vector,interpol_noise_powers_complete,'-',
+    plt.plot(wavelength_vector,interpol_noise_powers_complete,'-',
+            wavelength_vector,power_vector,'-',
+            integration_area,[power_vector[closest_integration_wavelength_index[0]],power_vector[closest_integration_wavelength_index[1]]],'ro',
+            wavelengths_lambda_0_1,power_lambda_0_1,'g.',
+            wavelengths_lambda_2_3,power_lambda_2_3,'g.',
             )
 
     plt.gca().legend(('Optical power from OSA','Integration borders','Area for polyfit','Interpolated noise power' ))
     plt.xlabel('Wavelength [nm]')
     plt.ylabel('Power density [dBm/{0}nm]'.format(resolution_bandwidth))        
     plt.ylim(np.min(power_vector)-10,np.max(power_vector)+10)
+    plt.grid()
     plt.show()
 
-    return OSNR,OSNR_01nm
+    return OSNR,OSNR_01nm,10*np.log10(pseudo_signal_noise_power/1e-3),10*np.log10(pseudo_noise_power/1e-3)
