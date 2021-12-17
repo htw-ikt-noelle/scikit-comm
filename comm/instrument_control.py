@@ -942,12 +942,12 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
 
         # Setting length of Trace
         # Page 7-506 -> 7-507
-        osa.write('TRDEF TR{0:s},2048'.format(trace))
+        trace_length = int(osa.query('TRDEF TR{0:s}?'.format(trace)).rstrip('\n'))
 
         # Read trace
         # Page 7-499 -> 7-502
         # h is 2 bytes (signed short)
-        tmp = osa.query_binary_values('TR{0:s}?'.format(trace),datatype='h' ,is_big_endian=True, container=np.array,data_points = 2048)
+        tmp = osa.query_binary_values('TR{0:s}?'.format(trace),datatype='h' ,is_big_endian=True, container=np.array,data_points = trace_length)
 
         # Convert measument units to parameter units
         # Page 2-8
