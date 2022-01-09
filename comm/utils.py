@@ -3,6 +3,10 @@ import scipy.signal as signal
 import scipy.special as sspecial
 import matplotlib.pyplot as plt
 import math
+import time
+import json
+import pickle
+import csv
 
 
 def generate_constellation(format='QAM', order=4):
@@ -365,3 +369,82 @@ def ber_awgn(value=np.arange(20), modulation_format='QAM', modulation_order=4, t
     return np.asarray(ber)
         
     
+
+
+
+
+def read_saved_file(file_name):
+    
+    """
+    when we save the data as json or pickle file by this function we can read the file 
+    we have to put the file_name ( please becareful the last file_name should be call)
+    
+
+    
+    """
+    
+    
+    #if the saved file is a pickle file we can read it with this function
+    if file_name.endswith(".pkl"):
+        with open(file_name, 'rb') as handle:
+            output = pickle.load(handle)
+            
+
+    #if the saved file is a json file we can read it with this function
+    elif file_name.endswith(".json"):
+        with open(file_name, 'rb') as jsonFile:
+            output = json.load(jsonFile)
+
+    #if the saved file is a csv file we can read it with this function 
+    elif file_name.endswith(".csv"):
+        with open(file_name, 'r') as csvFile:
+            output = csv.reader(csvFile)
+            output = list(output)
+            #output = dict(output)
+            
+
+    else:
+        output = "Please select the correct format"
+
+    return output
+
+
+def save_dict_as(dictionary, data_format,name = ''): #format of the file could be "json" or "pickle"
+    
+    """
+    By this function we can save data to file .
+    The data collect from the OSA and it can be as a  dictionary or list .
+    The data save as json or pickle file .
+    data_format: data format in the format that we want to save file ( json or pickle )
+    name: it is the name of file that we try to make 
+    file_name= the name of the file that inclouded the local time 
+    when we run the function the new file making with the update time 
+
+    """
+    
+    #Record the timestamp for the file name
+    t = time.localtime()
+    timestamp = time.strftime('%b-%d-%Y_%H%M', t)
+    file_name = (name + timestamp)
+
+    if data_format == "pickle":
+    #open a pickle file and save the file in it
+        with open("{}.pkl".format(file_name), 'wb') as handle:
+            pickle.dump(dictionary, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            handle.close()
+            return file_name + ".pkl"
+    #If format is json, save it as a json file
+    elif data_format == "json":
+        with open("{}.json".format(file_name), 'w') as jsonFile:
+            json.dump(dictionary, jsonFile)
+            jsonFile.close()
+            return file_name + ".json"
+    #If format is csv, save it as a csv file
+    elif format == "csv":
+        with open("{}.csv".format(file_name), 'w') as csvFile:
+            writer = csv.writer(csvFile)
+            for key, value in dict.items():
+                writer.writerow([key, value])
+    #if the fomat is not json or pickle, rise an error
+    else: 
+        raise TypeError("Need a json or pickle format")
