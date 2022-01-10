@@ -272,15 +272,15 @@ sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
 viterbi = True
 # ...either VV
 if viterbi:
-    cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=51, 
+    cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, 
                                                       filter_shape='wiener', mth_power=4, 
-                                                      rho=.05)
+                                                      rho=.15, magnitude_exponent=1)
     sig_rx.samples = cpe_results['rec_symbols']
     est_phase = cpe_results['phi_est'].real
 # ...or BPS
 else:
     cpe_results = comm.rx.carrier_phase_estimation_bps(sig_rx.samples[0], sig_rx.constellation[0], 
-                                               n_taps=15, n_test_phases=15, const_symmetry=np.pi/2)
+                                               n_taps=21, n_test_phases=31, const_symmetry=np.pi/2)
     sig_rx.samples = cpe_results['samples_corrected']
     est_phase = cpe_results['est_phase_noise']
     

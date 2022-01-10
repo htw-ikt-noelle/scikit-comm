@@ -375,7 +375,7 @@ def sampling_clock_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, block_s
     #####################################################################################
     
 
-def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_power=4, rho=0.2):
+def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_power=4, magnitude_exponent=0, rho=0.2):
     """
     Viterbi-Viterbi carrier phase estimation and recovery.
     
@@ -404,13 +404,21 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     filter_shape : string, optional
         Specifies the filter shape: either 'rect' or 'wiener'. The default is 'wiener'.
     mth_power : int, optional
-        Specifies the power to which the constellation is raised in order to 
-        remove the modulation (needs to be the number of equidistant phase 
-        states of the PSK modulation). The default is 4.
+        Specifies the power to which the symbols (normalized to magnitude=1) are 
+        raised in order to remove the modulation (needs to be the number of equidistant
+        phase states of the PSK modulation). The default is 4.
+    magnitude_exponent : optional
+        Specifies the exponent, which the symbol magnitudes are raised to prior
+        averaging the phasors. A value > 0 leads to the preference of the outer
+        symbols in the averaging process, while a value < 0 accordingly leads to 
+        an (unusual) preference of the inner symbols. For magnitude_exponent = 0,
+        the symbol magnitudes are not condidered in the phase estimation process 
+        (For more informations see [1]). The default value is 0.
     rho : float, optional
         Tuning factor for 'wiener' filter shape, rho>0; rho is the ratio between
         the magnitude of the phase noise variance sigma²_phi and the additive
-        noise variance sigma² (for more informations see [2],[3]). The default is 0.2.
+        noise variance sigma²_n (for more informations see [2],[3]). The default is 0.2.
+
 
     Returns
     -------
@@ -420,40 +428,42 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
         est_shift : float or 1D numpy array of floats
             estimated phase noise.
     """    
+    # remove modulation of symbols (suitable only for MPSK formats, not for higher order square QAMs)
+    raised_symbols = np.exp(1j*np.angle(symbols)*mth_power) # exponentiated symbols with normalized magnitude
+    if magnitude_exponent != 0: # exponentiate also magnitude for weighting of phasor-amplitude
+        raised_symbols = (np.abs(symbols)**magnitude_exponent) * raised_symbols
+
+    # smooth exponentiated symbols with FIR filter and estimate phase-noise random walk
     if filter_shape == 'rect':
-        # filter the unwraped phase
-        phi_est = filters.moving_average(np.unwrap(mth_power * np.angle(symbols)) / mth_power, n_taps, domain='freq')
-       
-        
+        phi_est = np.unwrap(np.angle(filters.moving_average(raised_symbols, n_taps, domain='freq'))) / mth_power
     elif filter_shape == 'wiener':        
         a = 1 + rho / 2 - np.sqrt( ( 1 + rho / 2)**2 - 1) # alpha         
-        h_wiener = a * rho / (1 - a**2) * a**np.arange(n_taps // 2 + 1) # postive half
-        h_wiener = np.concatenate((np.flip(h_wiener[1:]), h_wiener)) # make symmetric
-        h_wiener = h_wiener / np.sum(h_wiener) # normalize to unit sum (make unbiased estimator)        
-       
+        h_wiener = a * rho / (1 - a**2) * a**np.arange(n_taps // 2 + 1) # postive half, truncated
+        h_wiener = np.concatenate((np.flip(h_wiener[1:]), h_wiener)) # symmetric (acausal) pulse response
+        # h_wiener = h_wiener / np.sum(h_wiener) # normalize to unit sum (make unbiased estimator)        
         H_wiener = np.fft.fftshift(np.fft.fft(h_wiener, n=symbols.size))
-        # filter the unwraped phase        
-        phi_est = filters.filter_samples(np.unwrap(mth_power*np.angle(symbols))/mth_power, H_wiener, domain='freq')
-        # phi_est = np.abs(phi_est)
-        # undo group delay of Wiener filter
+        
+        phi_est = np.unwrap(np.angle(filters.filter_samples(raised_symbols, H_wiener, domain='freq'))) / mth_power
+        
+        # undo group delay of Wiener filter (make causal filter)
         phi_est = np.roll(phi_est,  -(n_taps//2))
     
-    # for QPSK: shift recoverd constellation by pi/4
+    # for QPSK: shift recoverd constellation by pi/4 (as usual)
     if mth_power == 4:
         phase_correction = np.pi/4
     else:
         phase_correction = 0
     
-    # actual phase recovery
+    # phase recovery: subract estimated phase-noise from input symbols
     rec_symbols = symbols * np.exp(-1j*(phi_est + phase_correction))
-    # crop start and end (necessary???)
-    rec_symbols = rec_symbols[1*n_taps+1:-n_taps*1] 
-    
+    # crop start and end (due to FIR induced delay)
+    rec_symbols = rec_symbols[1*n_taps+1:-n_taps*1]
+    phi_est = phi_est[1*n_taps+1:-n_taps*1]
     
     # generate output dict containing recoverd symbols and estimated phase noise
     results = dict()
-    results['rec_symbols'] = rec_symbols
-    results['phi_est'] = phi_est
+    results['rec_symbols'] = rec_symbols[1*n_taps+1:-n_taps*1]
+    results['phi_est'] = phi_est # units [rad]
     return results
 
 
