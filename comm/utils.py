@@ -176,22 +176,27 @@ def generate_constellation(format='QAM', order=4):
         constellation = np.asarray(constellation)
     #### PSK    
     elif format == 'PSK':
-        n = int(np.log2(order))
-        # generate Gray code
-        gray = np.arange(2**n) ^ (np.arange(2**n)>>1)
-        gray_bin = np.full_like(gray,0,dtype='<U8')
-        for i in range(len(gray)):
-            gray_bin[i] = np.binary_repr(gray[i],width=int(n))
-        # build constellation points
-        symbols = np.asarray([np.exp(1j*2*np.pi*i/order) for i in range(len(gray))]) 
-        # reorder symbols and label vector
-        constellation = []
-        bits = []
-        for i in range(order):
-            constellation.append(symbols.flatten()[np.argwhere(gray.flatten()==i)][0][0])
-            bits.append(gray_bin.flatten()[np.argwhere(gray.flatten()==i)][0][0])
-        constellation = np.asarray(constellation)
-        bits = np.asarray(bits)
+        # hardcoded BPSK for better accuracy of the constellation points
+        if order == 2:
+            constellation = np.asarray([-1+0j,1+0j])
+        # other PSK orders
+        else:
+            n = int(np.log2(order))
+            # generate Gray code
+            gray = np.arange(2**n) ^ (np.arange(2**n)>>1)
+            gray_bin = np.full_like(gray,0,dtype='<U8')
+            for i in range(len(gray)):
+                gray_bin[i] = np.binary_repr(gray[i],width=int(n))
+            # build constellation points
+            symbols = np.asarray([np.exp(1j*2*np.pi*i/order) for i in range(len(gray))]) 
+            # reorder symbols and label vector
+            constellation = []
+            bits = []
+            for i in range(order):
+                constellation.append(symbols.flatten()[np.argwhere(gray.flatten()==i)][0][0])
+                bits.append(gray_bin.flatten()[np.argwhere(gray.flatten()==i)][0][0])
+            constellation = np.asarray(constellation)
+            bits = np.asarray(bits)
     else:
         raise ValueError('gen_constellation: unknown modulation format...')
     
