@@ -34,8 +34,7 @@ sig_tx.symbol_rate = 50e6
 sig_tx.generate_bits(n_bits=2**12, seed=1)
 
 # set constellation (modulation format)
-sig_tx.generate_constellation(order=4)
-sig_tx.modulation_info = 'QPSK'
+sig_tx.generate_constellation(format='QAM', order=4)
 
 # create symbols
 sig_tx.mapper()

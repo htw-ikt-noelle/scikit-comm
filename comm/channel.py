@@ -4,27 +4,29 @@ import numpy as np
 def set_snr(samples, snr_dB=10, sps=1, seed=None):
     """
     Add noise to an array according to a given SNR (in dB).
+    
+    CAUTION: this function assumes the input signal to be noise free!
+    
+    If input signal is of type "real" only real noise (with noise power according to 
+    SNR) is generated, if signal is of complex type also complex noise (with noise
+    power according to SNR/2 in each quadrature) is added.
 
     Parameters
     ----------
-    samples : TYPE
-        DESCRIPTION.
-    snr_dB : TYPE, optional
-        DESCRIPTION. The default is 10.
-    sps : TYPE, optional
-        DESCRIPTION. The default is 1.
-    seed : TYPE, optional
-        DESCRIPTION. The default is None.
+    samples : numpy array, real or complex
+        input signal.
+    snr_dB : float, optional
+        The desired SNR per symbol in dB. The default is 10.
+    sps : int, optional
+        samples per symbol of the input signal. The default is 1.
+    seed : int, optional
+        random seed of the generated noise samples. The default is None.
 
-    Raises
-    ------
-    ValueError
-        DESCRIPTION.
-
+   
     Returns
     -------
-    TYPE
-        DESCRIPTION.
+    samples_out : numpy array, real or complex
+        output singal with desired SNR (input signal plus random noise samples).
 
     """
     
@@ -38,12 +40,12 @@ def set_snr(samples, snr_dB=10, sps=1, seed=None):
     
     rng = np.random.default_rng(seed=seed)
     
-    # check for real or complex samples
-    if np.all(np.isreal(samples)):
-        noise = np.sqrt(power_noise) * rng.standard_normal(size=samples.shape)
-    else:
+    # check, if samples are of complex type to decide if noise should also be complex
+    if samples.dtype == complex:
         noise = np.sqrt(power_noise/2) * (rng.standard_normal(size=samples.shape) + 
-                                          1j * rng.standard_normal(size=samples.shape))
+                                          1j * rng.standard_normal(size=samples.shape))        
+    else:
+        noise = np.sqrt(power_noise) * rng.standard_normal(size=samples.shape)
         
     samples_out = samples + noise
     

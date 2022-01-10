@@ -145,7 +145,7 @@ def plot_hist(samples, nBins=100):
     # check for complex input??
     pass
 
-def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation', hist=False):
+def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation', hist=False, axMax=None, nBins=128):
     """
     Plot the constellation diagramm (complex plane) of samples.
 
@@ -161,29 +161,31 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation', h
         title of the plot to be created. The default is 'constellation'.
     hist : bool, optional
         should the constellation diagramm be plotted as 2D histogramm? The default is False.
+    axMax : float or None
+        maximum abolute axis amplitude (equal in x and y axis)
+        if None: 1.1 times maximum absolute value of samples (real and imaginalry part) is used
+    nBins: int
+        number of bins (in each quadrature) for plotting the 2D histogramm
     """
-    if not np.all(np.iscomplex(samples)):
-        raise ValueError('input samples need to be complex in order to plot a constellation')
     
     samples = samples[0::decimation]
     
-    xMax = np.max(np.abs(np.real(samples))) * 1.1
-    yMax = np.max(np.abs(np.imag(samples))) * 1.1
+    if axMax is None:
+        axMax = max(np.abs(samples.real).max(), np.abs(samples.imag).max())*1.1
     
     plt.figure(fNum, facecolor='white', edgecolor='white')
     
     if hist:
-        bins = int(max([2*xMax, 2*yMax])/0.02)
+        bins = nBins
         cm = copy.copy(plt.get_cmap("jet"))
-        plt.hist2d(samples.real, samples.imag, bins=bins, cmap=cm, cmin=1, density=False)       
+        plt.hist2d(samples.real, samples.imag, bins=bins, cmap=cm, cmin=1, density=False)             
     else:     
         plt.plot(samples.real, samples.imag, 'C0.')      
         plt.grid()
-    plt.xlim((-xMax,xMax))
-    plt.ylim((-yMax,yMax))  
+    plt.gca().axis('equal')       
+    plt.xlim((-axMax, axMax))
+    plt.ylim((-axMax,axMax))  
     plt.title(tit)
     plt.xlabel('real part')
-    plt.ylabel('imaginary part')
-    plt.title(tit)
-    plt.gca().axis('equal')        
+    plt.ylabel('imaginary part')    
     plt.show()
