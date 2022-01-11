@@ -93,7 +93,7 @@ class TestBitsToDec(unittest.TestCase):
             comm.utils.bits_to_dec(np.asarray([True,False,True,True]),3)
     
     def test_reconversion(self):
-        # convert and reconvert bit sequence and test equality
+        # convert and reconvert bit sequence and test for equality
         dummy = comm.tx.generate_bits(n_bits=20)
         dec_dummy = comm.utils.bits_to_dec(dummy,4)
         bits = comm.utils.dec_to_bits(dec_dummy,4)
