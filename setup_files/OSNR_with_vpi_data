@@ -7,15 +7,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import comm as comm
 
-# Get trace from csv file
-data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Flaches_Spektrum\OSNR (1).csv')
+# # Get trace from csv file
+# data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Flaches_Spektrum\OSNR (1).csv')
 
 
-wavelength = np.array([])
-power = np.array([])
-for row in data[8:2056]:
-    wavelength = np.append(wavelength,np.float32(row[0]))
-    power = np.append(power,np.float32(row[1]))
+# wavelength = np.array([])
+# power = np.array([])
+# for row in data[8:2056]:
+#     wavelength = np.append(wavelength,np.float32(row[0]))
+#     power = np.append(power,np.float32(row[1]))
 
 rbw = 0.1
 central_wl = 1552.525 
@@ -29,8 +29,41 @@ b2 = central_wl + offset + interpol_bw/2
 c1 = central_wl - signal_bw / 2
 c2 = central_wl + signal_bw / 2
 
-#plt.plot(wavelength,power)
-#plt.show()
+# #plt.plot(wavelength,power)
+
+
+# # calculate OSNR
+# OSNR = comm.osnr.osnr(power_vector = power,
+#                     wavelength_vector = wavelength,
+#                     #interpolation_points = np.array([1552.1,1552.366,1552.680,1552.946]),
+#                     interpolation_points = np.array([a1,a2,b1,b2]),
+#                     #integration_area = np.array([1552.375,1552.675]),
+#                     integration_area = np.array([c1,c2]),
+#                     resolution_bandwidth = rbw,
+#                     polynom_order=1,
+#                     plotting = True)
+
+# names = ['OSNR:','OSNR_1nm:','Signal power:','Noise power:']
+# units = ['dB','dB','dBm','dBm']
+
+# print('Rectangle filter')
+
+# for name,element,unit in zip(names,OSNR,units):
+#     print(str(name) + ' '+ str(element) + ' ' + unit)
+
+
+# Get trace from csv file
+data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Flaches_Spektrum\OSNR (10).csv')
+
+wavelength = np.array([])
+power = np.array([])
+for row in data[8:2056]:
+    wavelength = np.append(wavelength,np.float32(row[0]))
+    power = np.append(power,np.float32(row[1]))
+
+
+
+
 
 # calculate OSNR
 OSNR = comm.osnr.osnr(power_vector = power,
@@ -40,26 +73,45 @@ OSNR = comm.osnr.osnr(power_vector = power,
                     #integration_area = np.array([1552.375,1552.675]),
                     integration_area = np.array([c1,c2]),
                     resolution_bandwidth = rbw,
-                    polynom_order=2,
+                    polynom_order=1,
                     plotting = True)
 
 names = ['OSNR:','OSNR_1nm:','Signal power:','Noise power:']
 units = ['dB','dB','dBm','dBm']
 
-print('Rectangle filter')
+print('\n\nGaussian Filter')
 
 for name,element,unit in zip(names,OSNR,units):
     print(str(name) + ' '+ str(element) + ' ' + unit)
 
 
+
+number_file = 10
+
 # Get trace from csv file
-data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\gauss.csv')
+data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_Spektrum\OSNR_gauss ({0}).csv'.format(number_file))
 
 wavelength = np.array([])
 power = np.array([])
-for row in data:
+for row in data[8:2056]:
+    if row[1] == '-Infinity':
+        power = np.append(power,np.float32(power[-1]))
+    else:
+        power = np.append(power,np.float32(row[1]))
+
     wavelength = np.append(wavelength,np.float32(row[0]))
-    power = np.append(power,np.float32(row[1]))
+
+rbw = 0.1
+central_wl = 1552.525 
+offset = 0.35
+interpol_bw = 0.3
+signal_bw = 0.3
+a1 = central_wl - offset - interpol_bw/2
+a2 = central_wl - offset + interpol_bw/2
+b1 = central_wl + offset - interpol_bw/2
+b2 = central_wl + offset + interpol_bw/2
+c1 = central_wl - signal_bw / 2
+c2 = central_wl + signal_bw / 2
 
 
 #plt.plot(wavelength,power)

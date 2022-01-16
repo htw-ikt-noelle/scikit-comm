@@ -26,10 +26,12 @@ interpol_bw = 0.3
 signal_bw = 0.3
 
 # Polynominal order
-polynom_ord = 3
+polynom_ord = np.array([1,2,3,4])
 
 # Expected OSNR (8dB to 25db)
 OSNR_expect = np.array(range(1,31))
+
+
 
 
 a1 = central_wl - offset - interpol_bw/2
@@ -39,59 +41,69 @@ b2 = central_wl + offset + interpol_bw/2
 c1 = central_wl - signal_bw / 2
 c2 = central_wl + signal_bw / 2
 
-OSNR_measure = np.array([])
-OSNR_measure_01nm = np.array([])
-measurments = np.array(range(1,number_of_files+1))
+for poly in polynom_ord:
+    OSNR_measure = np.array([])
+    OSNR_measure_01nm = np.array([])
+    measurments = np.array(range(1,number_of_files+1))
 
-for file_no in measurments:
-    # Get trace from csv file
-    data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Flaches_Spektrum\OSNR ({0}).csv'.format(file_no))
+    for file_no in measurments:
+        # Get trace from csv file
+        #data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Flaches_Spektrum\OSNR ({0}).csv'.format(file_no))
+        #data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_korrigiert_spektrum\OSNR_corrected ({0}).csv'.format(file_no))
+        data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_Spektrum\OSNR_gauss ({0}).csv'.format(file_no))
 
-    wavelength = np.array([])
-    power = np.array([])
-    for row in data[8:2056]:
-        wavelength = np.append(wavelength,np.float32(row[0]))
-        power = np.append(power,np.float32(row[1]))
+        wavelength = np.array([])
+        power = np.array([])
+        for row in data[8:2056]:
+            wavelength = np.append(wavelength,np.float32(row[0]))
+            power = np.append(power,np.float32(row[1]))
 
-    OSNR_list = comm.osnr.osnr(power_vector = power,
-                        wavelength_vector = wavelength,
-                        #interpolation_points = np.array([1552.1,1552.366,1552.680,1552.946]),
-                        interpolation_points = np.array([a1,a2,b1,b2]),
-                        #integration_area = np.array([1552.375,1552.675]),
-                        integration_area = np.array([c1,c2]),
-                        resolution_bandwidth = rbw,
-                        polynom_order=polynom_ord,
-                        plotting = False)
+        OSNR_list = comm.osnr.osnr(power_vector = power,
+                            wavelength_vector = wavelength,
+                            #interpolation_points = np.array([1552.1,1552.366,1552.680,1552.946]),
+                            interpolation_points = np.array([a1,a2,b1,b2]),
+                            #integration_area = np.array([1552.375,1552.675]),
+                            integration_area = np.array([c1,c2]),
+                            resolution_bandwidth = rbw,
+                            polynom_order=poly,
+                            plotting = False)
 
-    OSNR_measure = np.append(OSNR_measure,OSNR_list[0])
-    OSNR_measure_01nm = np.append(OSNR_measure_01nm,OSNR_list[1])
-
-
-diff_vector = OSNR_expect - OSNR_measure_01nm
-mean_diff = np.mean(diff_vector)
-median_diff = np.median(diff_vector)
-max_diff = np.max(diff_vector)
-min_diff = np.min(diff_vector)
-
-print("Median : {0} dB".format(median_diff))
-print("Mean   : {0} dB".format(mean_diff))
-print("Max    : {0} dB".format(max_diff))
-print("Min    : {0} dB".format(min_diff))
-plt.figure()
-plt.hist(diff_vector)
+        OSNR_measure = np.append(OSNR_measure,OSNR_list[0])
+        OSNR_measure_01nm = np.append(OSNR_measure_01nm,OSNR_list[1])
 
 
-plt.figure()
-plt.plot(measurments,OSNR_expect,'b-',
-         measurments,OSNR_measure_01nm,'ro')
+    diff_vector = OSNR_expect - OSNR_measure_01nm
+    mean_diff = np.mean(diff_vector)
+    median_diff = np.median(diff_vector)
+    max_diff = np.max(diff_vector)
+    min_diff = np.min(diff_vector)
+    standard_diff = np.std(diff_vector)
+
+    print("Polynom order: {0}".format(poly))
+    print("Median : {0} dB".format(median_diff))
+    print("Mean   : {0} dB".format(mean_diff))
+    print("Std    : {0} dB".format(standard_diff))
+    print("Max    : {0} dB".format(max_diff))
+    print("Min    : {0} dB".format(min_diff))
+    print("\n\nDiff Vektor:"  )
+
+    for x in diff_vector:
+        print(x)
+    plt.figure()
+    plt.hist(diff_vector)
 
 
-plt.gca().legend(('Expected OSNR','Measurment' ))
-plt.title('OSNR normalised to 0.1nm')
-plt.xlabel('Measurment')
-plt.ylabel('OSNR [dB]')        
-#plt.ylim(np.min(power_vector)-10,np.max(power_vector)+10)
-plt.grid()
+    plt.figure()
+    plt.plot(measurments,OSNR_expect,'b-',
+            measurments,OSNR_measure_01nm,'ro')
+
+
+    plt.gca().legend(('Expected OSNR','Measurement' ))
+    plt.title('OSNR normalised to 0.1nm\nPolynom order: {0}'.format(poly))
+    plt.xlabel('Measurement')
+    plt.ylabel('OSNR [dB]')        
+    #plt.ylim(np.min(power_vector)-10,np.max(power_vector)+10)
+    plt.grid()
 
 
 
