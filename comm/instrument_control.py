@@ -992,9 +992,9 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     return trace_information
 
 
-def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [None], wavelengths = [None], GPIB_address='12', log_mode = False):
+def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = [None], wavelengths = [None], GPIB_address='12', log_mode = False):
 
-# TODO: Check for the actaul number of cassetts
+# TODO: Check for the actaul number of cassettes
 # TODO: Apply new test methods. specially for None cases when no input parameter is given.
 
 
@@ -1011,17 +1011,17 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
     To change back the MTA to local mode (Controlling with keys), the LCL key must be pressed.
     
     Information:
-    The built-in beam block in each MTA300 cassette is automatically activated when the cassetteis 
+    The built-in beam block in each MTA300 cassette is automatically activated when the cassette is 
     powered up.The beam block must be deactivated after power-up so that light can passthrough the attenuator.
     This method will not do this, so it must be done manualy at the device.
 
     Parameters
     ----------
-        cassetts: list of strings, optional (default = ['1'])
-            The attenuator has several cassettes, the attenuation of which can be individually adjusted. To select the wanted cassette, the 
+        cassettes: list of strings, optional (default = ['1'])
+            The attenuator has several cassettes, the attenuation of each can be individually adjusted. To select the wanted cassette, the 
             numerical index must be put into the list as string. If several cassettes are used, only the numerical indices must be 
-            transferred as a list. For example: ['1','2','3'] (Three cassetts)
-            Maximum number of cassetts is 8.
+            transferred as a list. For example: ['1','2','3'] (Three cassettes).
+            Maximum number of cassettes is 8.
             
 
 
@@ -1031,34 +1031,32 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
             
 
         attenuations : list of floats or Nones, optional (default = [None])
-            Sets the total attenuation to the parameter value by changing the actual attenuation. For every cassette, there must be an
-            attenuation value.
+            Sets the total attenuation to the parameter value by changing the actual attenuation. 
             Value must be between 0dB and 60dB
             If not used, the value of the MTA is unchanged.
             If the value of one cassette is to be changed and the others not, a None can simply be inserted in the vector for the value
             that is not to be changed. For example: [20,None,30] (Value of the second entry will not changed)
         
-             comm.instrument_control.set_attenuation_MTA_150(cassetts=['2'],attenuations=[8.0])
 
         offsets: list of floats, optional (default = [None])
-            Sets the display offset of the MTA system. The value of the offset has no affecton the actual attenuation,
+            Sets the display offset of the MTA system. The value of the offset has no affecton to the actual attenuation,
             but it does affect the total attenuation.
             The display offset function can be used to include both the insertion loss of theMTA300 cassette and
             connection losses in the attenuation value displayed. 
             Att_total = Att_actual + Offset
-            Value must be between -60dB and 60dB
-            If not used, the value of the MTA is unchanged
+            Value must be between -60dB and 60dB.
+            If not used, the value of the MTA is unchanged.
             If the value of one cassette is to be changed and the others not, a None can simply be inserted in the vector for the value
             that is not to be changed. For example: [20,None,30] (Value of the second entry will not changed)
             
             
         wavelengths = list of floats, optional (default = [None])
             Sets the calibration wavelength of the MTA system. Because the calibration wavelength is used to account for the wavelength 
-            dependence of the attenuation, the calibration wavelength should be set as close as possible to the source wavelength
-            Value must be between 1200nm and 1700nm
-            If not used, the value of the MTA is unchanged
+            dependence of the attenuation, the calibration wavelength should be set as close as possible to the source wavelength.
+            Value must be between 1200nm and 1700nm.
+            If not used, the value of the MTA is unchanged.
             If the value of one cassette is to be changed and the others not, a None can simply be inserted in the vector for the value
-            that is not to be changed. For example: [1300,None,1200] (Value of the second entry will not changed)
+            that is not to be changed. For example: [1300,None,1200] (Value of the second entry will not changed).
      
         GPIB_address : string, optional (default = '13')
             The address GPIB address of the OSA.
@@ -1078,7 +1076,7 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
                     ...
                     -> 8 : Cassette 8
                 -> Name of data: (string)
-                    -> attenuation      : (float) Contains the selected attenuations (Attactual)
+                    -> attenuation      : (float) Contains the selected attenuations (Att_actual)
                     -> offset           : (float) Contains the selected offset
                     -> wavelength       : (float) Contains the selected wavelength
                     -> Total attenuation: (float) Contains the total attenuation (Att_total = Att_actual + Offset) Corresponds with the 
@@ -1090,16 +1088,20 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
         >>> import comm as comm
         
         Get the data from the cassette 1 and 2. The properties of the device will not be changed.
-        >>> a = comm.instrument_control.set_attenuation_MTA_150(cassetts=['1','2'])
+        >>> a = comm.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'])
 
         Change values of attenuation, offset and wavelength for cassette 2
-        >>> b = comm.instrument_control.set_attenuation_MTA_150(cassetts=['2'],attenuations=[5.0], offsets=[5.0], wavelengths=[1300.5])
+        >>> b = comm.instrument_control.set_attenuation_MTA_150(cassettes=['2'],attenuations=[5.0], offsets=[5.0], wavelengths=[1300.5])
 
         Change attenuation of cassette 1 and wavelength of cassette 2
-        >>> c = comm.instrument_control.set_attenuation_MTA_150(cassetts=['1','2'],attenuations=[5.0,None],wavelengths=[None,1550.0])
+        >>> c = comm.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'],attenuations=[5.0,None],wavelengths=[None,1550.0])
 
         Cassettes order can be changed
-        >>> d = comm.instrument_control.set_attenuation_MTA_150(cassetts=['2','1'],attenuations=[None,0.0],wavelengths=[1500.0,None])
+        >>> d = comm.instrument_control.set_attenuation_MTA_150(cassettes=['2','1'],attenuations=[None,0.0],wavelengths=[1500.0,None])
+
+        Access actual attenuation value of cassette 1
+        >>> e = comm.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'])
+        >>> attenuation_value = e['1']['attenuation']
 
 
     Errors
@@ -1127,10 +1129,10 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
             Will be raised by diverse errors
             -> Possible errors
                 -> No connection to the attenuator
-                -> Required cassetts are not physically present
+                -> Required cassettes are not physically present
 
     """
-    # TODO: Finding a way to check which cassetts are connected
+    # TODO: Finding a way to check which cassettes are connected
         
     # =============================================================================
     #  Create logger which writes to file
@@ -1178,8 +1180,8 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
     # wavelength_unchanged = all(None in wavelengths)
 
     try:
-        if not isinstance(cassetts, list):
-            raise TypeError('Type of cassetts must be list')
+        if not isinstance(cassettes, list):
+            raise TypeError('Type of cassettes must be list')
 
         if not isinstance(attenuations, list):
             raise TypeError('Type of attenuations must be list')
@@ -1193,18 +1195,18 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
         if not isinstance(GPIB_address, str):
             raise TypeError('Type of GPIB_address must be string')
 
-        if not all(isinstance(x, str) for x in cassetts):
-            raise TypeError('Type of cassetts items must be strings')
+        if not all(isinstance(x, str) for x in cassettes):
+            raise TypeError('Type of cassettes items must be strings')
 
         # If no parameters are passed for attenuations, offsets or wavelengths, the list lengths must be adjusted to the length of the cassette list.
         if all(x == None for x in attenuations):
-            attenuations = [None]*len(cassetts)
+            attenuations = [None]*len(cassettes)
 
         if all(x == None for x in offsets):
-            offsets = [None]*len(cassetts)
+            offsets = [None]*len(cassettes)
 
         if all(x == None for x in  wavelengths):
-            wavelengths = [None]*len(cassetts)
+            wavelengths = [None]*len(cassettes)
 
         if not all((isinstance(x, float) or x == None) for x in attenuations):
             raise TypeError('Type of attenuations items must be floats')
@@ -1215,19 +1217,19 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
         if not all((isinstance(x, float) or x == None) for x in wavelengths):
             raise TypeError('Type of wavelengths items must be floats')      
 
-        if len(cassetts) > 8:
-            raise ValueError('Too many list items ({0}). The MTA_150 has maximal 8 cassetts'.format(len(cassetts)))
+        if len(cassettes) > 8:
+            raise ValueError('Too many list items ({0}). The MTA_150 has maximal 8 cassettes'.format(len(cassettes)))
 
-        if len(cassetts) < 1:
-            raise ValueError('Too less list items ({0}). Use at least one item'.format(len(cassetts))) 
+        if len(cassettes) < 1:
+            raise ValueError('Too less list items ({0}). Use at least one item'.format(len(cassettes))) 
 
-        if any((cassette_name not in ['1','2','3','4','5','6','7','8']) for cassette_name in cassetts):
+        if any((cassette_name not in ['1','2','3','4','5','6','7','8']) for cassette_name in cassettes):
             raise ValueError('Wrong cassette naming. Cassettes are named with the numbers 1 to 8.')
 
         #if not any(attenuation_unchanged,offset_unchanged,wavelength_unchanged):
 
-        if not (len(cassetts) == len(attenuations) == len(offsets) == len(wavelengths)) :
-            raise ValueError('List length of cassetts, attenuations, offsetts and wavelengths must be the same')
+        if not (len(cassettes) == len(attenuations) == len(offsets) == len(wavelengths)) :
+            raise ValueError('List length of cassettes, attenuations, offsetts and wavelengths must be the same')
 
         if any((attenuation < 0 or attenuation > 60) for attenuation in attenuations) and not attenuation_unchanged:
             raise ValueError('Attenuation must be in range of 0 to 60dB')
@@ -1272,9 +1274,9 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
 
 
     # Create return dictionary
-    cassette_information = dict.fromkeys(cassetts)
+    cassette_information = dict.fromkeys(cassettes)
 
-    for cassette, attenuation, offset, wavelength in zip(cassetts,attenuations,offsets,wavelengths):
+    for cassette, attenuation, offset, wavelength in zip(cassettes,attenuations,offsets,wavelengths):
 
         # Choosing cassette
         # Page 51
