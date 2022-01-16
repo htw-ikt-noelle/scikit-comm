@@ -1005,7 +1005,7 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
     values of the attenuator. For the write mode, the desired cassettes and the corresponding attenuation, offset and wavelength must
     be specified. For the read mode, only the desired cassettes must be specified. The default setting is to read the values from cassette 1. 
     It is also possible to change only individual parameters. In this case, the parameters that are not to be changed receive a None. 
-    Examples can be found in the parameter description.
+    
     
     Information:
     To change back the MTA to local mode (Controlling with keys), the LCL key must be pressed.
@@ -1023,6 +1023,8 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
             transferred as a list. For example: ['1','2','3'] (Three cassetts)
             Maximum number of cassetts is 8.
             
+
+
             WARNING:
             If a cassette is selected which is not physically available, the last selected cassette is used. There is a risk that 
             values ​​will be overwritten.
@@ -1036,6 +1038,8 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
             If the value of one cassette is to be changed and the others not, a None can simply be inserted in the vector for the value
             that is not to be changed. For example: [20,None,30] (Value of the second entry will not changed)
         
+             comm.instrument_control.set_attenuation_MTA_150(cassetts=['2'],attenuations=[8.0])
+
         offsets: list of floats, optional (default = [None])
             Sets the display offset of the MTA system. The value of the offset has no affecton the actual attenuation,
             but it does affect the total attenuation.
@@ -1080,6 +1084,24 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
                     -> Total attenuation: (float) Contains the total attenuation (Att_total = Att_actual + Offset) Corresponds with the 
                                           showed attenuation of the device.
             
+    Examples
+    -------
+
+        >>> import comm as comm
+        
+        Get the data from the cassette 1 and 2. The properties of the device will not be changed.
+        >>> a = comm.instrument_control.set_attenuation_MTA_150(cassetts=['1','2'])
+
+        Change values of attenuation, offset and wavelength for cassette 2
+        >>> b = comm.instrument_control.set_attenuation_MTA_150(cassetts=['2'],attenuations=[5.0], offsets=[5.0], wavelengths=[1300.5])
+
+        Change attenuation of cassette 1 and wavelength of cassette 2
+        >>> c = comm.instrument_control.set_attenuation_MTA_150(cassetts=['1','2'],attenuations=[5.0,None],wavelengths=[None,1550.0])
+
+        Cassettes order can be changed
+        >>> d = comm.instrument_control.set_attenuation_MTA_150(cassetts=['2','1'],attenuations=[None,0.0],wavelengths=[1500.0,None])
+
+
     Errors
     -------
         Type Error: 
@@ -1292,7 +1314,7 @@ def set_attenuation_MTA_150(cassetts = ['1'], attenuations = [None], offsets = [
         # Activate Outputs?
 
     # Change the MTA back to local mode. Local Mode means that the MTA can be controlled by his key on the front.
-    # When the MTA is accessed by PC, he will always change to remote mode and the keys doesn't work anymore.
+    # When the MTA is accessed by PC, it will always change to remote mode and the keys doesn't work anymore.
     # The first parameter is the session id and second parameter is the mode. There are six different modes.
     # With mode 2 the MTA will go to local and deassert REN. For more information to the modes see:
     # https://zone.ni.com/reference/en-XX/help/371361R-01/lvinstio/visa_gpib_control_ren/
