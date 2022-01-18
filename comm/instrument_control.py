@@ -982,177 +982,172 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
 ####### HP_8153A lightwave mulitimeter ##############
 
 
-def get_opt_pwr_HP8153A(channels, GPIB_address ,power_units = [None], wavelengths = [None] ,verbose_mode = True ,log_mode = False):
+def get_opt_power_HP8153A(channels, GPIB_address ,power_units = [None], wavelengths = [None] ,verbose_mode = True ,log_mode = False):
     """
 
     get_opt_pwr_HP8153A
     
-    Function for reading power values from a HP8153A lightwave multimeter. 
+    Function for reading power values from a HP8153A lightwave multimeter.
     
-    Wavelength areas of the currently used modules: 
-    HP 81533A  850 nm to 1700 nm 
-    HP 81531A  800 nm to 1700 nm
+    Wavelength ranges of the currently used modules:
+        - HP 81533A  850 nm to 1700 nm 
+        - HP 81531A  800 nm to 1700 nm
     
-    This list can be expanded for more modules
+    This list can be expanded for additional modules
     
     Parameters
     ----------
         channels: list of strings
-            Insert here the wanted channel from the lightwave multimeter as a list of strings. 
+            Insert here the required channel of the lightwave multimeter as a list of strings.
             
-            - Channel 1:
+            - for channel 1:
             - >>> channels = ['1']
-            - Channel 2: 
+            - for channel 2: 
             - >>> channels = ['2']
-            - Channel 1 and 2:
+            - for channels 1 and 2:
             - >>> channels = ['1','2']
                         
-            The channel assignment of the parameters power_units and wavelengths depends on this vector.    
+            The channel assignment of the parameters power_units and wavelengths corresponds to the elements of this list.
 
         GPIB_address : string
-            The GPIB address of the lightwave multimeter. Use a value between 0 and 30
+            The GPIB address of the lightwave multimeter. Use a value between 1 and 30
         
         log_mode: boolean, optional (default = False)
             Enables a log file for this method.
             
-        power_units : string, optional (default = [None]) . 
-            Power units  are named with 'DBM' or 'Watt'.
+        power_units : list of strings, optional (default = [None]).
+            Sets the power unit(s) for the acquired channel(s).
+            Available power units are 'DBM' and 'Watt' (case-sensitive).
             Maximum number of list items is 2.
             
-            - One channel : 
-            - >>> power_units = ['DBM']
-            - >>> power_units = ['Watt']
-            - Two channels: 
-            - >>> power_units = ['DBM','Watt']
-            - >>> power_units = ['DBM','DBM']
+            - Examples for one channel :
+            >>> power_units = ['DBM']
+            >>> power_units = ['Watt']
+            - Examples for two channels:
+            >>> power_units = ['DBM','Watt']
+            >>> power_units = ['DBM','DBM']
             
-            Which channel the unit is ultimately added to depends on the channels vector.
+            The assignment of the units corresponds to the elements in the channels list.
+            When the unit list is changed, its length must be the same as the channels list.
             
-            If the unit should not be changed, ignore this parameter or type in None.
-            Then, the HP8153A will not get an unnecessary command.
+            If the unit should not be changed, ignore this parameter or set to 'None'.
             
-            Special case: The power level of both channels should be acquired, but from one channel 
-            the power unit should be changed.
-            In this case a None must be used for the channel that should be not changed.
-            - Channel one change and channel two stays the same: ['DBM','None']
+            Special case: The power level of both channels shall be acquired and for one channel the power unit should
+            be changed. In this case, a 'None' is used for the channel that should be not changed.
+            >>> power_units = ['DBM','None']
          
-            When the power unit is changed, the power_units list length must be the same as the
-            channels list length
 
-        wavelengths : list of floats optional ( default = [None]).
-            Sets the wavelength for the wanted channel. 
+        wavelengths : list of floats, optional ( default = [None]).
+            Sets the calibration wavelength(s) for the acquired channel(s).
             Maximum number of list items is 2.
             
-            - One channel:
-            - >>> wavelengths = ['1550']
-            - Two channels:
-            - >>> wavelengths = ['1550','1500']
-            Which channel the value is ultimately added to depends on the channels vector
+            - Example one channel:
+            >>> wavelengths = ['1550']
+            - Example two channels:
+            >>> wavelengths = ['1550','1500']
             
-            If the wavelength should not be changed, ignore this parameter or type in None.
-            Then, the HP8153A will not get an unnecessary command.
+            The assignment of the wavelengths corresponds to the elements in the channels list.
+            When the wavelength list is changed, its length must be the same as the channels list.
             
-            Special case: The power level of both channels should be acquired, but from one channel 
-            the wavelength needs to be changed.
-            In this case a None must be used for the channel that should not changed.
+            If the wavelength(s) should not be changed, ignore this parameter or set it to 'None'.
             
-            - Channel one change and channel two stays the same: 
-            - >>> channels = ['1337','None']
+            Special case: The power level of both channels should be acquired and for one channel the wavelength should 
+            be changed. In this case, a 'None' is used for the channel that should not changed.
+
+            - Only channel one should change:
+            >>> wavelengths = ['1540','None']
             
-            When a wavelength is changed, the wavelength list length must be the same as the
-            channels list length
-            
-            Warning:
-            If the wavelength is to high or to low, the multimeter will stay at the same value.
+            Warning: If the wavelength setting of a channel is out of range, the multimeter will ignore the setting.
                  
         verbose_mode : boolean (default = True)
-            When this mode is activated, additional information such as the current wavelength, the power unit and 
-            the module name are requested from the multimeter. This information is then available as return values.
-            If only the current power is requested, this mode must be explicitly deactivated. This has the advantage 
-            that no unnecessary queries are made to the multimeter.
+            When this mode is activated, additional information such as the current wavelength, the power unit and the 
+            module name are returned from the function. 
+            If only the current power is required, this mode should be deactivated (False) to save unnecessary IO operations.
 
     Returns
     -------
         channel_information: dict
-            Returns two versions depends on verbose_mode.
+            Returns two versions depending on verbose_mode.
+            
+            verbose_mode = False:
+                Consist of dicts which only contain the acquired channel power level.
             
             verbose_mode = True:
-                Consist of dicts which contains the acquired channel power level, wavelength, power unit and modulename.
+                Consist of dicts which contain the acquired channel power level, wavelength, power unit and modulename.
                 
-                - To access the dict use:
-                - >>> object[Name of channels][Name of data]
+                - To access the dict:
+                >>> object[Name of channels][Name of data]
                 
                 - Name of channels: 
-                    - 1: channel 1
-                    - 2: channel 2
+                    - '1': channel 1
+                    - '2': channel 2
                 - Name of data:
-                    - power_units: (float) contains power level of the channel 
-                    - Unit: (string) contains power unit type
-                    - wavelength: (float) contains The wavelengths arguments in nanometers (NM) 
-                    - module: (string) contains the module name of the channel
+                    - Power: (float) contains the power level of the channel
+                    - Unit: (string) contains the power unit
+                    - Wavelength: (float) contains the calibration wavelength in nanometers (nm)
+                    - Module: (string) contains the module name for the channel
                         
-            verbose_mode = False:
-                Consist of dicts which contains the acquired channel power level
-                
-                - To access the dict use:
-                - >>> object[Name of channels][Name of data]
-                
+        To access the dict use:
+            >>> object[Name of channels][Name of data]
+            
                     - Name of channels: 
-                        - 1: channel 1
-                        - 2: channel 2
+                        - '1': channel 1
+                        - '2': channel 2
                     - Name of data:
-                        - power: (float) contains power level of the channel 
+                        - Power: (float) contains power level of the channel 
                                        
     Examples
     --------
-            - >>> import comm as comm
-        The power of channel 1 should be acquired. The wavelength will be set to 1550nm and the power unit to dBm.
-        GPIB address will be set to 22.
-            - >>> p = comm.instrument_control.get_opt_pwr_HP8153A(channels = ['1'], GPIB_address = '22', power_units = ['DBM'], wavelengths = [1550.0])
-        In this case the verbose mode is activated!
+            >>> import comm as comm
+        
+        The power of channel 1 should be acquired. The wavelength will be set to 1550 nm and the power unit to dBm.
+        GPIB address will be set to 22. In this example, the verbose mode is activated.
+            >>> p = comm.instrument_control.get_opt_pwr_HP8153A(channels = ['1'], GPIB_address = '22', power_units = ['DBM'], wavelengths = [1550.0])
         
         The power of both channels should be acquired. The wavelength of channel 1 should not be changed. For channel 2, 
-        the wavelengths will be set to 1550. Power unit of channel 1 should be Watt and for channel 2 dbm.
-            - >>> p = comm.instrument_control.get_opt_pwr_HP8153A(channels = ['1','2'], GPIB_address = '22', power_units = ['Watt','DBM'], wavelengths = [None,1550.0])
+        the wavelengths will be set to 1550nm. Power unit for channel 1 should be "Watt" and "dBm" for channel 2.
+            >>> p = comm.instrument_control.get_opt_pwr_HP8153A(channels = ['1','2'], GPIB_address = '22', power_units = ['Watt','DBM'], wavelengths = [None,1550.0])
         
-        Now, only the power value should bei acquired from both channels. Therfore, the verbose_mode must be deactivated.
-            - >>> p = comm.instrument_control.get_opt_pwr_HP8153A(channels = ['1','2'], GPIB_address = '22', verbose_mode = False)
-        Note, in this example are no values for wavelengths and power_unit. This means, that the values for these two parameters will 
-        not be changed at the multimeter.
+        Only the power value should be acquired from both channels. Therfore, the verbose_mode can be deactivated.
+            >>> p = comm.instrument_control.get_opt_pwr_HP8153A(channels = ['1','2'], GPIB_address = '22', verbose_mode = False)
+        Note, in this example, no values for wavelengths and power_unit are provided. Hence, the current values of the multimeter will be used.
         
-        Access the power level of channel 1
-            - >>> power_level_ch1 = p['1']['Power']
+        Access the power level only of channel 1
+            >>> power_level_ch1 = p['1']['Power']
             
         Access the wavelength of channel 2
-            - >>> power_level_ch1 = p['2']['Wavelength']
+            >>> wavelength_ch2 = p['2']['Wavelength']
 
     Errors
     -------
-        Type Error: 
-            Will be raised when a wrong data type is used for the input parameter
+        Type Error:
+            This will be raised when a wrong data type is used for the input parameter.
             - Possible errors
-               - Type of channels must be list .
-               - Type of channel items must be string. 
+               - Type of channels must be list.
+               - Type of channel items must be string.
                - Type of GPIB_address must be string.
                - Type of power units must be string.
-               - Type of wawelength must be float.
-               - Type of wawelength must be list.
+               - Type of power_unit must be list.
+               - Type of wavelength must be float.
+               - Type of wavelength must be list.
+               - Type of verbose_mode must be bool.
+               - Type of log_mod must be boolean.
 
         Value Error:
-            Will be raised when the input parameter is in an wrong range
+            This will be raised when the input parameter is in an wrong range.
             - Possible errors
-              -  Too many channels. The lightwave mulitimeter has maximal 2 channels.
-              -  Too less channels. Use at least one channel.
-              -  Wrong channels naming. Channels are named with 1 , 2.
-              -  Wrong power units type naming. power units  are named with DBM or Watt .
-              -  Too less wavelength argument. The wavelength arguments must be at least  1.
-              -  Too much wavelength arguments. The wavelengths arguments has maximal 2 
-              -  length of wavelength and channels length must be same.
+              -  Too many channels ({0}). The lightwave mulitimeter has a maximum of 2 channels
+              -  Too few channels. Use at least one channel.
+              -  Wrong channel naming. Channels are named with 1 or 2.
+              -  Wrong power units naming. Allowed power units are the strings DBM and Watt.
+              -  Too few wavelength arguments. The number of wavelength arguments must be at least 1.
+              -  Too many wavelength arguments. A maximum of 2 arguments is permitted.
+              -  Lengths of wavelength and channels lists must be equal.
 
         Exception:
             Will be raised by diverse errors
             - Possible errors
-                - No connection to the multimeter
+                - No connection to the multimeter.
     """
     # =============================================================================
     #  Create logger which writes to file
@@ -1186,38 +1181,38 @@ def get_opt_pwr_HP8153A(channels, GPIB_address ,power_units = [None], wavelength
 
 
     # =============================================================================
-    #  Check inputs of correctnes
+    #  Check inputs for correctnes
     # ============================================================================= 
 
     try:
         if not isinstance(channels, list):
-            raise TypeError('Type of channels must be list')
+            raise TypeError('Type of channels must be list.')
 
         if not isinstance(GPIB_address, str):
-            raise TypeError('Type of GPIB_address must be string')
+            raise TypeError('Type of GPIB_address must be string.')
             
         if not isinstance(verbose_mode, bool):
-            raise TypeError('Type of verbose_mode must be bool')
+            raise TypeError('Type of verbose_mode must be bool.')
 
         if not all(isinstance(x, str) for x in channels):
-            raise TypeError('Type of channel items must be string')
+            raise TypeError('Type of channel items must be string.')
         
         if not all((isinstance(x, str) or x == None) for x in power_units):
-            raise TypeError('Type of power units must be string')
+            raise TypeError('Type of power_units must be string.')
             
         if not isinstance(power_units, list):
-            raise TypeError('Type of power_unit musbt be list')
+            raise TypeError('Type of power_unit must be list.')
 
         if not all((isinstance(x,float) or x == None) for x in wavelengths):
-            raise TypeError('Type of wawelength must be float ')
+            raise TypeError('Type of wavelength must be float.')
 
         if not isinstance(wavelengths, list):
-            raise TypeError( 'Tyoe of wawelength must be list ')
+            raise TypeError( 'Tyoe of wavelength must be list.')
         
         if not isinstance(log_mode, bool):
-            raise TypeError('Type of log_mod musb be boolian')
+            raise TypeError('Type of log_mod must be boolean.')
             
-        # If no parameters are passed for power unit or wavelengths, the list lengths must be adjusted to the length of the channels
+        # If no parameters are passed for power_units or wavelengths, the list lengths must be adjusted to the length of the channels list
         if all(x == None for x in power_units):
             power_units = [None]*len(channels)
             
@@ -1225,25 +1220,25 @@ def get_opt_pwr_HP8153A(channels, GPIB_address ,power_units = [None], wavelength
             wavelengths = [None]*len(channels)
 
         if len(channels) > 2:
-            raise ValueError('Too many channels ({0}). The lightwave mulitimeter has maximal 2 channels'.format(len(channels)))
+            raise ValueError('Too many channels ({0}). The lightwave mulitimeter has a maximum of 2 channels'.format(len(channels)))
 
         if len(channels) < 1:
-            raise ValueError('Too less channels ({0}). Use at least one channel'.format(len(channels)))
+            raise ValueError('Too few channels ({0}). Use at least one channel'.format(len(channels)))
 
         if any((channel_name not in ['1','2']) for channel_name in channels):
-            raise ValueError('Wrong channels naming. Channels are named with 1 , 2. ')
+            raise ValueError('Wrong channels naming. Channels are named with 1 or 2.')
 
         if any(((power_unit not in ['DBM','Watt']) and not power_unit == None) for power_unit in power_units):
-            raise ValueError('Wrong power units type naming. power units  are named with DBM or Watt ')
+            raise ValueError('Wrong power units naming. Allowed power units are the strings DBM and Watt.')
             
         if len (wavelengths) <1:
-            raise ValueError('Too less wavelength arguments ({0}). The wavelengths arguments must be at least  1'.format(len(wavelengths)))
+            raise ValueError('Too few wavelength arguments ({0}). The number of wavelengths arguments must be at least  1'.format(len(wavelengths)))
         
         if len (wavelengths) >2 :
-            raise ValueError('Too much wavelength arguments ({0}). The wavelengths arguments has maximal 2 '.format(len(wavelengths)))
+            raise ValueError('Too many wavelength arguments ({0}). A maximum of 2 arguments is permitted.'.format(len(wavelengths)))
 
         if len (wavelengths) != len (channels) :
-            raise ValueError ('length of wavelength and channels length must be same ')
+            raise ValueError ('Lengths of wavelength and channels lists must be equal.')
         
         # for ch_idx , ch in enumerate (channels):
         #     if ch==1 :
@@ -1277,8 +1272,8 @@ def get_opt_pwr_HP8153A(channels, GPIB_address ,power_units = [None], wavelength
     #  Settings for the analyzer
     # ============================================================================= 
     
-    # The page numbers refer to the "Operatingand Programming Manual HP8153A Lightwave Multimeter"
-    # Create dict with the the keys 
+    # Note: Page numbers refer to the "Operating and Programming Manual HP8153A Lightwave Multimeter".
+    # Create dict with the the keys
     channel_information = dict.fromkeys(channels)
     
     # Acquire used modules
@@ -1287,13 +1282,13 @@ def get_opt_pwr_HP8153A(channels, GPIB_address ,power_units = [None], wavelength
         used_modules = lwm.query('*OPT?').rstrip('\n')
 
     for channel,wavelength,power_unit in zip(channels,wavelengths,power_units):
-        #This command sets the units in use when an absolute reading is made. This can be dBm (DBM)(0) or Watts (Watt)(1).
-        #Page (8-21)
+        # This command sets the units in use when an absolute reading is made. This can be dBm (DBM|0) or Watts (Watt|1).
+        # Page (8-21)
         if not power_unit == None:
             lwm.write('sense{0:s}:power:unit {1:s}'.format(channel,power_unit))
             
-        #set new wavelength 
-        #nanometers (NM) , micrometers(um), meters (M)   
+        # set new wavelength 
+        # nanometers (NM) , micrometers(UM), meters (M)
         # Page (8-21)
         if not wavelength == None:    
             lwm.write('sense{0:s}:pow:wave {1:f}NM'.format(channel,wavelength))
@@ -1335,14 +1330,6 @@ def get_opt_pwr_HP8153A(channels, GPIB_address ,power_units = [None], wavelength
     lwm.close()
    
     # closing resource manager 
-    rm.close()  
+    rm.close()
 
     return channel_information
-
-    
-
-
-
-     
-
-
