@@ -335,7 +335,7 @@ class Signal():
             self.modulation_info[i] = str(o) + "-" + str(f)
 
 
-    def pulseshaper(self, upsampling=2, pulseshape='rc', roll_off=0.2):
+    def pulseshaper(self, upsampling=2.0, pulseshape='rc', roll_off=0.2):
         """
         Upsample and pulseshape the modulated symbols and write them to samples.
 
