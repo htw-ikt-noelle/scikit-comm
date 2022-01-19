@@ -101,9 +101,9 @@ def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
     return sample_rate, wfm
 
 
-def write_samples_AWG33522A(samples, ip_address='192.168.1.44', sample_rate=[250e6], offset=[0.0], amp_pp=[1.0], channels=[1], out_filter=['normal']):
+def write_samples_Agilent_33522A(samples, ip_address='192.168.1.44', sample_rate=[250e6], offset=[0.0], amp_pp=[1.0], channels=[1], out_filter=['normal']):
     """
-    write_samples_AWG33522A
+    write_samples_Agilent_33522A
     
     Function for writing samples to an Agilent/Keysight 33500 Series 30MHz Function/Arbitrary Waveform Generator
 
