@@ -374,8 +374,8 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',number_o
     # Setting outgoing data format (In this case signed binary data)
     scope.write('DATA:ENCDG SRIbinary')
 
-    # Get sample rate of the scope
-    sample_rate = scope.query('HORizontal:MODE:SAMPLERate?')
+    # Get sample rate of the scope and convert from string to float
+    sample_rate = float(scope.query('HORizontal:MODE:SAMPLERate?'))
 
     # Set datatype for acquisition  ( b (signed char),h (signed short) or l (long) )
     # For information see documentation of struct module
@@ -404,8 +404,6 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',number_o
         except Exception as e:
             logger.error('Channel {0:d} seems not activated \n '.format(ch))
             exit()
-
-        print(tmp)
 
         # Reading vertical scaling of the scope (Voltage per div)
         ver_scale = float(scope.query('CH{0:d}:SCAle?'.format(ch),delay = 0.5))
