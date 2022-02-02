@@ -375,7 +375,7 @@ def sampling_clock_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, block_s
     #####################################################################################
     
 
-def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_power=4, magnitude_exponent=0, rho=0.2):
+def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_power=4, mag_exp=0, rho=0.2):
     """
     Viterbi-Viterbi carrier phase estimation and recovery.
     
@@ -402,16 +402,16 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     n_taps : int, optional
         Number of symbols to average over. The default is 21.
     filter_shape : string, optional
-        Specifies the filter shape: either 'rect' or 'wiener'. The default is 'wiener'.
+        Specifies the filter shape: either 'rect', 'wiener', 'cauchy'. The default is 'wiener'.
     mth_power : int, optional
         Specifies the power to which the symbols (normalized to magnitude=1) are 
         raised in order to remove the modulation (needs to be the number of equidistant
         phase states of the PSK modulation). The default is 4.
-    magnitude_exponent : optional
+    mag_exp : optional
         Specifies the exponent, which the symbol magnitudes are raised to prior
         averaging the phasors. A value > 0 leads to the preference of the outer
         symbols in the averaging process, while a value < 0 accordingly leads to 
-        an (unusual) preference of the inner symbols. For magnitude_exponent = 0,
+        an (unusual) preference of the inner symbols. For mag_exp = 0,
         the symbol magnitudes are not condidered in the phase estimation process 
         (For more informations see [1]). The default value is 0.
     rho : float, optional
@@ -430,8 +430,8 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     """    
     # remove modulation of symbols (suitable only for MPSK formats, not for higher order square QAMs)
     raised_symbols = np.exp(1j*np.angle(symbols)*mth_power) # exponentiated symbols with normalized magnitude
-    if magnitude_exponent != 0: # exponentiate also magnitude for weighting of phasor-amplitude
-        raised_symbols = (np.abs(symbols)**magnitude_exponent) * raised_symbols
+    if mag_exp != 0: # exponentiate also magnitude for weighting of phasor-amplitude
+        raised_symbols = (np.abs(symbols)**mag_exp) * raised_symbols
 
     # smooth exponentiated symbols with FIR filter and estimate phase-noise random walk
     if filter_shape == 'rect':
