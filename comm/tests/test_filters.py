@@ -1,3 +1,7 @@
+import os
+import sys
+sys.path.insert(0, os.path.abspath('..\..'))
+
 import comm as comm
 import unittest
 import numpy as np
@@ -7,9 +11,7 @@ from numpy.testing import (
     suppress_warnings
 )
 
-import os
-import sys
-sys.path.insert(0, os.path.abspath('..\..'))
+
 
 
 class TestFilterSamples(unittest.TestCase):
@@ -37,6 +39,10 @@ class TestRaisedCosineFilter(unittest.TestCase):
     def test_freq_domain(self):
         samples = np.ravel(np.asarray([1,0,0,1,1,0,1,0]))
         samples_out = comm.filters.raised_cosine_filter(samples,roll_off=1.0, domain = 'freq')
+        # test for equal length
+        assert_equal(len(samples),len(samples_out))
+        # test for equal sum of magnitudes after filtering
+        #assert_equal(np.sum(np.abs(samples_out)),np.sum(np.abs(samples)))
         
 
 
