@@ -36,13 +36,11 @@ class TestRaisedCosineFilter(unittest.TestCase):
     Test class for raised_cosine_filter
     """
     
-    def test_freq_domain(self):
+    def test_vector_length_freq_domain(self):
         samples = np.ravel(np.asarray([1,0,0,1,1,0,1,0]))
         samples_out = comm.filters.raised_cosine_filter(samples,roll_off=1.0, domain = 'freq')
         # test for equal length
         assert_equal(len(samples),len(samples_out))
-        # test for equal sum of magnitudes after filtering
-        #assert_equal(np.sum(np.abs(samples_out)),np.sum(np.abs(samples)))
         
 
 
