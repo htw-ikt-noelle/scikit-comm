@@ -34,3 +34,27 @@ class TestMapper(unittest.TestCase):
         mapped = comm.tx.mapper(bits, constellation)
         assert_equal(mapped, np.asarray([1+0j, 0+1j, 0-1j, -1+0j]))
         
+    def test_length(self):
+        bits = np.asarray([0,0,0,1,1,1,1,0]) # 0 1 3 2
+        constellation = np.asarray([1+0j, 0+1j, -1+0j, 0-1j])
+        mapped = comm.tx.mapper(bits, constellation)
+        # test length of vector of complex symbols
+        assert_equal(len(mapped),len(bits)/np.log2(len(constellation)))
+        
+class TestPulseshaper(unittest.TestCase):
+    """
+    Test class for pulseshaper
+    """
+    
+    def test_upsampling(self):
+        # test correct length of upsampled vector
+        samples_dummy = np.random.rand(100)
+        up = 2
+        # upsample by default value (2) and apply pulseshaping
+        rect_dummy = comm.tx.pulseshaper(samples_dummy,upsampling=up,pulseshape='rect')
+        rc_dummy = comm.tx.pulseshaper(samples_dummy,upsampling=up,pulseshape='rc')
+        rrc_dummy = comm.tx.pulseshaper(samples_dummy,upsampling=up,pulseshape='rrc')
+        # test lengths
+        assert_equal(len(rect_dummy),len(samples_dummy)*up)
+        assert_equal(len(rc_dummy),len(samples_dummy)*up)
+        assert_equal(len(rrc_dummy),len(samples_dummy)*up)

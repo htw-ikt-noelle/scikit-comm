@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath('..\..'))
 import comm as comm
 
 
-class TestGenerateConstelation(unittest.TestCase):
+class TestGenerateConstellation(unittest.TestCase):
     """
     Test class for generate_constellation
     """
@@ -36,6 +36,19 @@ class TestGenerateConstelation(unittest.TestCase):
                    3.-3.j,  3.-1.j,  3.+3.j,  3.+1.j])
         const = comm.utils.generate_constellation(format='QAM', order=32)
         assert_equal(len(ref.difference(const)), 0)
+        
+    def test_errors(self):
+        # verifies errors raised by function
+        with assert_raises(TypeError):
+            # order type
+            comm.utils.generate_constellation(order=4.)  
+        with assert_raises(ValueError):
+            # valid order numbers
+            comm.utils.generate_constellation(order=5)
+            comm.utils.generate_constellation(order=2)
+            # valid modulation formats
+            comm.utils.generate_constellation(format='DPSK')
+        
         
 class TestTimeAxis(unittest.TestCase):
     """
@@ -66,5 +79,25 @@ class TestTimeAxis(unittest.TestCase):
         assert_equal(t[1]-t[0], 1/sr)
         
         
+class TestBitsToDec(unittest.TestCase):
+    """
+    Test class for bits_to_dec
+    """
+    
+    def test_errors(self):
+        # test errors thrown by function
+        with assert_raises(ValueError):
+            # one-dimensionality
+            comm.utils.bits_to_dec(np.asarray([[True,False],[False,True]]),4)
+            # n_bits is integer multiple of m
+            comm.utils.bits_to_dec(np.asarray([True,False,True,True]),3)
+    
+    def test_reconversion(self):
+        # convert and reconvert bit sequence and test for equality
+        dummy = comm.tx.generate_bits(n_bits=20)
+        dec_dummy = comm.utils.bits_to_dec(dummy,4)
+        bits = comm.utils.dec_to_bits(dec_dummy,4)
+        assert_equal(bits,dummy)
+    
         
         
