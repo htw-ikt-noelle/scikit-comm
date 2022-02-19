@@ -1134,7 +1134,7 @@ def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = 
     """
     # TODO: Finding a way to check which cassettes are connected
         
-    # =============================================================================
+	# =============================================================================
     #  Create logger which writes to file
     # ============================================================================= 
     # Create logger
@@ -1142,9 +1142,8 @@ def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = 
     
     # Set the log level
     logger.setLevel(logging.INFO)
-    
-    
-    # Create standard output handler
+
+	# Create standard output handler
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.ERROR)
     
@@ -1156,17 +1155,17 @@ def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = 
     
     # Adding handler to logger
     logger.addHandler(stdout_handler)
-    
-    
+	
+
     if log_mode == True:
-        # Create file handler 
+		# Create file handler 
         file_handler = logging.FileHandler('{0}.log'.format(__name__))
         file_handler.setLevel(logging.INFO)
-        
-        # Adding formatter to handler
+		
+		# Adding formatter to handler
         file_handler.setFormatter(formatter)
-        
-        # Adding handler to logger
+		
+		# Adding handler to logger
         logger.addHandler(file_handler)
 
     # =============================================================================
