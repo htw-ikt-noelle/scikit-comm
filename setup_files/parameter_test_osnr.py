@@ -33,13 +33,14 @@ rbw = 0.1
 # Polynomial order
 poly = 2
 
-OSNR_list = comm.utils.osnr(power_vector = y[0:10],
+OSNR_list = comm.utils.osnr(power_vector = y,
                     wavelength_vector = x,
                     interpolation_points = np.array([left_interpol_1,left_interpol_2,right_interpol_1,right_interpol_2]),
                     integration_area = np.array([left_inetgra,right_integra]),
                     resolution_bandwidth = rbw,
                     polynom_order=poly,
-                    plotting = False)
+                    plotting = True)
+plt.show()
 
 print(OSNR_list)
      
