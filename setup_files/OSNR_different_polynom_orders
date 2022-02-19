@@ -9,7 +9,7 @@ import comm as comm
 
 rbw = 0.1
 central_wl = 1552.525 
-offset = 0.35
+offset = 0.3
 interpol_bw = 0.3
 signal_bw = 0.3
 a1 = central_wl - offset - interpol_bw/2
@@ -30,7 +30,9 @@ print('Integration right    : {0}'.format(c2))
 
 # Get trace from csv file
 #data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Flaches_Spektrum\OSNR (10).csv')
-data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_Spektrum\OSNR_gauss (10).csv')
+#data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_Spektrum\OSNR_gauss (10).csv')
+#data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_Spektrum large\OSNR (10).csv')
+data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_Spektrum narrow\OSNR (10).csv')
 
 wavelength = np.array([])
 power = np.array([])
@@ -42,7 +44,9 @@ for row in data[8:2056]:
 
     wavelength = np.append(wavelength,np.float32(row[0]))
 
-pol_orders = np.array([1,2,3,4])
+pol_orders = np.array([2,3,4])
+
+
 OSNR_measure = np.array([])
 OSNR_measure_01nm = np.array([])
 
@@ -64,7 +68,7 @@ for pol_order in pol_orders:
     names = ['OSNR:','OSNR_1nm:','Signal power:','Noise power:']
     units = ['dB','dB','dBm','dBm']
     plt.title('OSNR_0.1nm = 10dB \n Polynom order : {0}'.format(pol_order))
-    plt.ylim([-30, 3])
+    #plt.ylim([-30, 3])
     
     print('\n\nPolynom order: {0}'.format(pol_order))
 

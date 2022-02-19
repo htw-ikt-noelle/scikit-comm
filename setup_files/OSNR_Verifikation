@@ -32,8 +32,6 @@ polynom_ord = np.array([1,2,3,4])
 OSNR_expect = np.array(range(1,31))
 
 
-
-
 a1 = central_wl - offset - interpol_bw/2
 a2 = central_wl - offset + interpol_bw/2
 b1 = central_wl + offset - interpol_bw/2
@@ -50,7 +48,9 @@ for poly in polynom_ord:
         # Get trace from csv file
         #data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Flaches_Spektrum\OSNR ({0}).csv'.format(file_no))
         #data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_korrigiert_spektrum\OSNR_corrected ({0}).csv'.format(file_no))
-        data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_Spektrum\OSNR_gauss ({0}).csv'.format(file_no))
+        #data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_Spektrum\OSNR_gauss ({0}).csv'.format(file_no))
+        #data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_Spektrum large\OSNR ({0}).csv'.format(file_no))
+        data = comm.utils.read_saved_file(r'C:\Users\Marcel\Desktop\OSNR_Spektren\Gauss_Spektrum narrow\OSNR ({0}).csv'.format(file_no))
 
         wavelength = np.array([])
         power = np.array([])
@@ -85,12 +85,12 @@ for poly in polynom_ord:
     print("Std    : {0} dB".format(standard_diff))
     print("Max    : {0} dB".format(max_diff))
     print("Min    : {0} dB".format(min_diff))
-    print("\n\nDiff Vektor:"  )
+    # print("\n\nDiff Vektor:"  )
 
-    for x in diff_vector:
-        print(x)
-    plt.figure()
-    plt.hist(diff_vector)
+    # for x in diff_vector:
+    #     print(x)
+    #plt.figure()
+    #plt.hist(diff_vector)
 
 
     plt.figure()

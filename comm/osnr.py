@@ -4,14 +4,87 @@ from numpy.polynomial import Polynomial
 from matplotlib import pyplot as plt
 
 def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], integration_area = [], resolution_bandwidth = 0.1, polynom_order = 3, plotting = False):
-    #TODO: Add docstring
-    #TODO: Check Inputs
-    #TODO: Wrong OSNR results. 0.5db difference.
 
-    """
-    osnr
+    """ 
+    Description
+    -----------
+    Function to calculate the OSNR from OSA (Optical spectrum analyzer) trace data via interpolation method. The function will interpolate the spectral noise shape 
+    in a given spectral area, which can be definded by the user. From this data the noise power is estimated. Than the function will calculate the signal power and 
+    will afterwards calculate the OSNR. 
 
-    Function to calculate the OSNR from trace data
+
+    Paramters
+    ---------
+        power_vector: numpy array
+            Vector with the power values of the OSA trace.
+            Must be same length as wavelength_vector.
+
+        wavelength_vector: numpy array
+            Vector with the wavelength values of the OSA trace.
+            Must be same length as power vector.
+
+        interpolation_points: numpy array of length 4 [a,b,c,d]
+            This array specifies the areas for creating the polynomial. This requires 4 points. The array elements a and b indicate the left area of ​​
+            the signal spectrum and the elements c and d the right area.
+
+            If the passed wavelength value is not present in the wavelength vector, the passed values ​​are rounded to the nearest existing value.
+
+        integration_area: numpy array of length 2 [integration_start, integration_stop]
+            These two points determine the bandwidth in which the noise and signal power are determined.
+
+            If the passed wavelength value is not present in the wavelength vector, the passed values ​​are rounded to the nearest existing value.
+
+        resolution_bandwidth: float
+            Insert here the used resolution bandwidth (rbw) of the OSA.
+
+        polynom_order: int
+            Insert here the polynomial order for the noise interpolation.
+
+        plotting: boolean, optional (default = False)
+            If true, the spectrum is plotted with the interpolation area, integration area and interpolated noise shape. 
+            To show the plot, plt.show() must be called in the main script. 
+
+    
+    Returns
+    -------
+        OSNR_val: 
+            The calculated OSNR of the integration area.
+
+        OSNR_01nm:
+            The calculated OSNR normalized to a noise bandwidth of 0.1nm.
+
+    Examples
+    --------
+        >>> import comm as comm
+        >>> import numpy as np
+
+        # Set area for polynom creation (Values were randomly selected for this example)
+        >>> a = 1552.025
+        >>> b = 1552.325
+        >>> c = 1552.725
+        >>> d = 1553.025
+
+        # Set integration area (Values were randomly selected for this example)
+        >>> integration_start = 1552.375
+        >>> integration_stop = 1552.675
+
+        # Set polynomial order
+        >>> poly_ord = 2
+
+        # Get optical spectrum data from OSA or another arbitary source
+        >>> OSA_trace_dict = comm.instrument_control.get_samples_HP_71450B_OSA()
+        >>> power = OSA_trace_dict['A']['Trace_data']
+        >>> wavelength = OSA_trace_dict['A']['WL_Vector']
+        >>> resolution_bw = OSA_trace_dict['A']['Resolution_BW']*1e9
+
+        # Calculate OSNR with plot
+        >>> [OSNR,ONSR_1nm] = comm.osnr.osnr(power_vector = power,
+                            wavelength_vector = wavelength,
+                            interpolation_points = np.array([a,b,c,d]),
+                            integration_area = np.array([integration_start,integration_stop]),
+                            resolution_bandwidth = resolution_bw,
+                            polynom_order=poly_ord,
+                            plotting = True)
 
     """
 
@@ -19,6 +92,33 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     #  Check inputs of correctnes
     # ============================================================================= 
 
+    try:
+        if not (isinstance(power_vector, np.ndarray) and isinstance(wavelength_vector, np.ndarray)
+           and isinstance(interpolation_points, np.ndarray) and isinstance(integration_area, np.ndarray)):
+            raise TypeError('power_vector, wavelength_vector, interpolation_points or integration are are not of type np.array')
+
+        if not (isinstance(resolution_bandwidth, float)):
+            raise TypeError("resolution_bandwidth must be float")
+
+        if not (isinstance(polynom_order, int)):
+            raise TypeError("polynom_order must be int")
+
+        if not (isinstance(plotting, bool)):
+            raise TypeError("plotting must be bool")
+
+        if not (power_vector.size == wavelength_vector.size):
+            raise ValueError("power_vector and wavelength_vector must be same size")
+
+        if not (interpolation_points.size == 4):
+            raise ValueError("interpolation_points needs 4 elements") 
+
+        if not (integration_area.size == 2):
+            raise ValueError("integration_area needs 2 elements") 
+
+    except Exception as e:
+        print(e)
+        exit()
+    
 
     # =============================================================================
     #  Calculations
@@ -117,6 +217,5 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
         plt.ylabel('Power density [dBm/{0}nm]'.format(resolution_bandwidth))        
         plt.ylim(np.min(power_vector)-10,np.max(power_vector)+10)
         plt.grid()
-        #plt.show()
 
-    return OSNR_val,OSNR_01nm,10*np.log10(pseudo_signal_noise_power/1e-3),10*np.log10(pseudo_noise_power/1e-3)
+    return OSNR_val,OSNR_01nm
