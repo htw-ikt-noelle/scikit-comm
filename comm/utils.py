@@ -383,11 +383,13 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     Paramters
     ---------
         power_vector: numpy array
-            Vector with the power values of the OSA trace.
+            Vector with the power values of the OSA trace. 
+            Must be dBm.
             Must be same length as wavelength_vector.
 
         wavelength_vector: numpy array
             Vector with the wavelength values of the OSA trace.
+            must be nm.
             Must be same length as power vector.
 
         interpolation_points: numpy array of length 4 [a,b,c,d]
@@ -483,7 +485,7 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
             raise ValueError("integration_area needs 2 elements") 
 
     except Exception as e:
-        print(e)
+        print("Error: {0}".format(e))
         exit()
     
 

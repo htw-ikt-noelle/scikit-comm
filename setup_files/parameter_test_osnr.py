@@ -27,17 +27,19 @@ left_interpol_1 = left_interpol_2 - 50
 right_interpol_1 = 1280
 right_interpol_2 = right_interpol_1 + 50
 
-# calculate OSNR
-OSNR = comm.osnr.osnr(power_vector = y,
+# Resolution bandwidth
+rbw = 0.1
+
+# Polynomial order
+poly = 2
+
+OSNR_list = comm.utils.osnr(power_vector = y[0:10],
                     wavelength_vector = x,
-                    interpolation_points = np.array([437,767,1280,1610]),
+                    interpolation_points = np.array([left_interpol_1,left_interpol_2,right_interpol_1,right_interpol_2]),
                     integration_area = np.array([left_inetgra,right_integra]),
-                    resolution_bandwidth= 1,
-                    polynom_order=3)
-print(OSNR)
+                    resolution_bandwidth = rbw,
+                    polynom_order=poly,
+                    plotting = False)
 
-names = ['OSNR:','OSNR_1nm:','Signal power:','Noise power:']
-units = ['dB','dB','dBm','dBm']
-
-for name,element,unit in zip(names,OSNR,units):
-    print(str(name) + ' '+ str(element) + ' ' + unit)
+print(OSNR_list)
+     
