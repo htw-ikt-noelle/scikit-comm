@@ -389,7 +389,7 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
 
         wavelength_vector: numpy array
             Vector with the wavelength values of the OSA trace.
-            must be nm.
+            Must be nm.
             Must be same length as power vector.
 
         interpolation_points: numpy array of length 4 [a,b,c,d]
@@ -416,11 +416,12 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     
     Returns
     -------
+        OSNR_01nm:
+            The calculated OSNR normalized to a noise bandwidth of 0.1nm.
+
         OSNR_val: 
             The calculated OSNR of the integration area.
 
-        OSNR_01nm:
-            The calculated OSNR normalized to a noise bandwidth of 0.1nm.
 
     Examples
     --------
@@ -483,6 +484,12 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
 
         if not (integration_area.size == 2):
             raise ValueError("integration_area needs 2 elements") 
+
+        if not (interpolation_points[0] < interpolation_points[1] < interpolation_points[2] < interpolation_points[3]):
+            raise ValueError("Values of interpolation_points must meet the following conditions: a < b < c < d")
+
+        if not (integration_area[0] < integration_area[1]):
+            raise ValueError("Values of integration_area must meet the following conditions: integration_start < integration_stop")
 
     except Exception as e:
         print("Error: {0}".format(e))
@@ -587,4 +594,4 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
         plt.ylim(np.min(power_vector)-10,np.max(power_vector)+10)
         plt.grid()
 
-    return OSNR_val,OSNR_01nm
+    return OSNR_01nm,OSNR_val
