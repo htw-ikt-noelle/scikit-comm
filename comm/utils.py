@@ -507,9 +507,7 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     closest_interpolation_wavelength_index = np.array([])
     for idx,inter_point in enumerate(interpolation_points):
         difference_vector = np.abs(wavelength_vector - inter_point)
-        #closest_interpolation_wavelength_index.append(difference_vector.argmin())
         closest_interpolation_wavelength_index = np.int16(np.append(closest_interpolation_wavelength_index,difference_vector.argmin()))
-        #closest_interpolation_wavelength.append(wavelength_vector(closest_interpolation_wavelength_index[idx]))
         closest_interpolation_wavelength = np.append(closest_interpolation_wavelength,wavelength_vector[int(closest_interpolation_wavelength_index[idx])])
 
     # Correct the input integration area to the nearest wavelength in the wavelength vector
@@ -518,24 +516,23 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     closest_integration_wavelength_index = np.array([])
     for idx,integration_point in enumerate(integration_area):
         difference_vector = np.abs(wavelength_vector - integration_point)
-        #closest_integration_wavelength_index.append(difference_vector.argmin())
         closest_integration_wavelength_index = np.int16(np.append(closest_integration_wavelength_index,difference_vector.argmin()))
-        #closest_integration_wavelength.append(wavelength_vector(closest_integration_wavelength_index[idx]))   
         closest_integration_wavelength = np.append(closest_integration_wavelength,wavelength_vector[int(closest_integration_wavelength_index[idx])])
 
-    # Getting the wavelengths between lamda 0 and lambda 1
+    # Create the interpolated noise shape
+    # Getting the wavelengths between lambda 0 (a) and lambda 1 (b)
     wavelengths_lambda_0_1 = wavelength_vector[closest_interpolation_wavelength_index[0]:closest_interpolation_wavelength_index[1]+1]
 
-    # Getting the wavelengths between lamda 2 and lambda 3
+    # Getting the wavelengths between lambda 2 (c) and lambda 3 (d)
     wavelengths_lambda_2_3 = wavelength_vector[closest_interpolation_wavelength_index[2]:closest_interpolation_wavelength_index[3]+1]
 
     # Combine the both wavelengths vectors into one vector.
     sample_point_wavelengths_vector = np.append(wavelengths_lambda_0_1,wavelengths_lambda_2_3)
 
-    # Getting the power between lamda 0 and lambda 1
+    # Getting the power between lambda 0 and lambda 1
     power_lambda_0_1 = power_vector[closest_interpolation_wavelength_index[0]:closest_interpolation_wavelength_index[1]+1]
 
-    # Getting the power between lamda 2 and lambda 3
+    # Getting the power between lambda 2 and lambda 3
     power_lambda_2_3 = power_vector[closest_interpolation_wavelength_index[2]:closest_interpolation_wavelength_index[3]+1]
 
     # Combine the both power vectors into one vector.
@@ -546,12 +543,11 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     # - To get unscaled values, the convert() method is needed.
     polynom_coeffs = Polynomial.fit(sample_point_wavelengths_vector,sample_point_power_vector,polynom_order).convert().coef
 
-    # Calculate the interpolated noise power values:
+    # Creation of polynomial
     poly = Polynomial(polynom_coeffs)
     interpol_noise_powers_complete = poly(wavelength_vector)
 
-
-    # For calculation needed span
+    # For OSNR calculation needed span
     interpol_noise_powers = interpol_noise_powers_complete[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1]
 
     # To calculate the power the power values must be converted from db to linear.
@@ -560,16 +556,10 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     power_vector_lin = 10**np.divide(power_vector,10) * delta_lambda / resolution_bandwidth
     interpol_noise_powers_lin = 10**np.divide(interpol_noise_powers,10) * delta_lambda[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1] / resolution_bandwidth
     
-    # delta_lambda = wavelength_vector[1] - wavelength_vector[0]
-    # power_vector_lin = 10**np.divide(power_vector,10) * delta_lambda / resolution_bandwidth
-    # interpol_noise_powers_lin = 10**np.divide(interpol_noise_powers,10) * delta_lambda / resolution_bandwidth
-
     # Calculation noise power
-    # pseudo_noise_power = np.sum(interpol_noise_powers_lin)
     pseudo_noise_power = np.trapz(interpol_noise_powers_lin,wavelength_vector[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1])
 
     # Calculation signal plus noise power
-    # pseudo_signal_noise_power = np.sum(power_vector_lin[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1]) 
     pseudo_signal_noise_power = np.trapz(power_vector_lin[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1],
                                         wavelength_vector[closest_integration_wavelength_index[0]:closest_integration_wavelength_index[1]+1])
     # Calculation signalpower
