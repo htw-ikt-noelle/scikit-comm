@@ -448,7 +448,7 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
         >>> resolution_bw = OSA_trace_dict['A']['Resolution_BW']*1e9
 
         # Calculate OSNR with plot
-        >>> [OSNR,ONSR_1nm] = comm.osnr.osnr(power_vector = power,
+        >>> [ONSR_0.1nm,OSNR] = comm.osnr.osnr(power_vector = power,
                             wavelength_vector = wavelength,
                             interpolation_points = np.array([a,b,c,d]),
                             integration_area = np.array([integration_start,integration_stop]),
