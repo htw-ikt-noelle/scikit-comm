@@ -11,14 +11,14 @@ import comm as comm
 
 # global
 TX_UPSAMPLE_FACTOR = 5
-SNR = 9 #in dB
+SNR = 10 #in dB
 
 # construct signal
 sig_tx = comm.signal.Signal(n_dims=1)
 sig_tx.symbol_rate = 50e6 
 
 # generate bits
-sig_tx.generate_bits(n_bits=2**12, seed=1)
+sig_tx.generate_bits(n_bits=2**14, seed=1)
 
 # set constellation (modulation format)
 sig_tx.generate_constellation(order=4)
@@ -50,6 +50,7 @@ sig_tx.plot_constellation()
 
 # TODO: estimate SNR from (electrical) samples
 
+#### "improved SNR estimation algorithm"
 # calc mean
 symb_mean = np.mean(np.abs(sig_tx.samples[0]))
 
@@ -75,3 +76,50 @@ if snr_est < 10:
     #snr_est_mod = 1e4*(-0.041292958452235*(z**5)+2.66418532072905*(z**4)-6.86724072350538*(z**3)+8.84039993634297*(z**2)-5.68658561155135*z+1.464045795143920)
     snr_est_mod = np.sqrt((z-2.5)*39.2)-7
 
+#### M2M4 estimation algorithm
+
+# not entirely clear on how to obtain expected values for m2 & m4
+m2 = np.mean(np.abs(sig_tx.samples[0]**2))
+m4 = np.mean(np.abs(sig_tx.samples[0]**4))
+
+rho_numerator = 0.5 * np.sqrt(6*(m2**2)-(2*m4))
+rho_denominator = m2 - (0.5 * np.sqrt(6*(m2**2)-(2*m4)))
+rho_hat = rho_numerator/rho_denominator
+
+#### theta_2 estimator for QPSK 
+# ref.: Pauluzzi & Beaulieu, "Comparison of Four SNR Estimators for QPSK Modulations", 2000
+
+X_i = np.real(sig_tx.samples[0])
+Y_i = np.imag(sig_tx.samples[0])
+theta_2_numerator = (np.abs(X_i) - np.abs(Y_i))**2
+theta_2_denominator = (X_i**2) + (Y_i**2)
+theta_2_lin = len(sig_tx.samples[0])*((np.sum(theta_2_numerator/theta_2_denominator))**-1)
+theta_2_dB = 10*np.log10(theta_2_lin)
+
+
+
+#### Zuo, Liu QAM SNR estimator
+
+# lookup table for estimation coefficients
+coeff_lut = np.asarray([[16,32,64,128,256], # order
+                        [17,113,13,905,4369], # a
+                        [8,87,8,776,2856]]) # b
+
+# I and Q components of received signal
+y_i = np.real(sig_tx.samples[0])
+y_q = np.imag(sig_tx.samples[0])
+
+# calc lambda_MQAM
+lmbd_numerator = np.mean((y_i**2+y_q**2)**2) - np.mean(y_i**2 + y_q**2)**2
+lmbd_denominator = (np.mean(y_i**2+y_q**2))**2
+lmbd_mqam = lmbd_numerator / lmbd_denominator
+
+# pull coefficients from LUT
+lut_idx = np.where(coeff_lut[0]==len(sig_tx.constellation[0]))
+a_mqam = coeff_lut[1][lut_idx]
+b_mqam = coeff_lut[2][lut_idx]
+
+# calc SNR estimate
+mqam_snr_estimate_numerator = np.sqrt((1-lmbd_mqam)*a_mqam/(a_mqam+b_mqam)) - (lmbd_mqam-1)
+mqam_snr_estimate_denominator = lmbd_mqam - (b_mqam/(a_mqam + b_mqam))
+mqam_snr_estimate = 10*np.log10(mqam_snr_estimate_numerator / mqam_snr_estimate_denominator)
