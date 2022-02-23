@@ -1225,8 +1225,10 @@ def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = 
         if not (len(cassettes) == len(attenuations) == len(offsets) == len(wavelengths)) :
             raise ValueError('List length of cassettes, attenuations, offsetts and wavelengths must be the same')
 
-        if any((attenuation < 0 or attenuation > 60) for attenuation in attenuations) and not attenuation_unchanged:
-            raise ValueError('Attenuation must be in range of 0 to 60dB')
+        for attenuation in attenuations:
+            if attenuation != None:
+                if (attenuation < 0 or attenuation > 60):
+                    raise ValueError('Attenuation must be in range of 0 to 60dB')
 
         for offset in offsets:
             if offset != None:
@@ -1238,8 +1240,14 @@ def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = 
                 if (wavelength < 1200 or wavelength > 1700):
                     raise ValueError('Wavelengths must be in range of 1200 nm to 1700 nm')
 
-        if any((wavelength < 1200 or wavelength > 1700) for wavelength in wavelengths) and not offset_unchanged:
-            raise ValueError('Wavelengths must be in range of 1200nm to 1700nm')
+        # if any(((attenuation < 0 or attenuation > 60) if (attenuation != None)) for attenuation in attenuations):
+        #     raise ValueError('Attenuation must be in range of 0 to 60dB')
+
+        # if any(((offset < 0 or offset > 60)if offset != None) for offset in offsets):
+        #     raise ValueError('offset must be in range of 0 to 60dB')
+            
+        # if any(((wavelength < 1200 or wavelength > 1700) if wavelength != None)for wavelength in wavelengths):
+        #     raise ValueError('Wavelengths must be in range of 1200nm to 1700nm')
 
     except Exception as e:
         logger.error('{0}'.format(e))
@@ -1296,7 +1304,6 @@ def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = 
         actual_offset = float(attenuator.query(':INPUT:OFFSET?'))
         actual_wavelength = float(attenuator.query(':INPUT:WAVELENGTH?'))
         
-
 
         # Calculate total attenuation
         actual_attenuation = actual_total_attenuation - actual_offset
