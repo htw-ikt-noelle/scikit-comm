@@ -21,7 +21,7 @@ sig_tx.symbol_rate = 50e6
 sig_tx.generate_bits(n_bits=2**14, seed=1)
 
 # set constellation (modulation format)
-sig_tx.generate_constellation(order=4)
+sig_tx.generate_constellation(order=16)
 sig_tx.modulation_info = 'QPSK'
 
 # create symbols
@@ -123,3 +123,26 @@ b_mqam = coeff_lut[2][lut_idx]
 mqam_snr_estimate_numerator = np.sqrt((1-lmbd_mqam)*a_mqam/(a_mqam+b_mqam)) - (lmbd_mqam-1)
 mqam_snr_estimate_denominator = lmbd_mqam - (b_mqam/(a_mqam + b_mqam))
 mqam_snr_estimate = 10*np.log10(mqam_snr_estimate_numerator / mqam_snr_estimate_denominator)
+
+
+#### Xu, Li, Zheng QAM SNR estimator
+# I-/Q-component based estimator using a fifth-order polynomial to approximate SNR
+# in the range of [-5,20] dB with coefficient lookup table
+
+r_kI = np.real(sig_tx.samples[0])
+r_kQ = np.imag(sig_tx.samples[0])
+
+z_hat = (np.mean(r_kI**2)+np.mean(r_kQ**2)) / (np.mean(np.abs(r_kI))**2+np.mean(np.abs(r_kQ))**2)
+
+# lookup table of polynomial coefficients
+# TODO: implement coeff lists for other constellations
+C_16 = 1e6 * np.asarray([-0.06503489292716,0.45823466671427,-1.29109195371317,1.81839487545758,-1.28034019700542,0.36060357620798])
+
+# dictionary eith supported QAM orders and coefficient vectors in the form [C0,C1,C2,C3,C4,C5]
+coeff_dict = {'qam_order' : [16,32,64,128,256],
+              'coeff' : [[0.36060357620798,-1.28034019700542,1.81839487545758,-1.29109105371317,0.45823466671427,-0.06503489292716],
+                         [0.53715056289170,-1.85210885301961,2.55864235321160,-1.76993734603623,0.61298700208470,-0.08502242157078],
+                         [1.81625572448046,-6.24952901412163,8.60050533607873,-5.91706608901663,2.03511551491328,-0.27993710478023],
+                         [0.64033054858630,-2.17678215614423,2.95932583860006,-2.01114864174439,0.68323069211818,-0.09282225372024],
+                         [0.33595278506244,-1.15419807009244,1.58563212231193,-1.08880229086714,0.37369521988006,-0.05128588224013]]}
+Xu_estimator = 10*np.log10(C_16[0]*(z_hat**5)+C_16[1]*(z_hat**4)+C_16[2]*(z_hat**3)+C_16[3]*(z_hat**2)+C_16[4]*(z_hat)+C_16[5])
