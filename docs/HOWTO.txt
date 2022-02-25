@@ -1,0 +1,9 @@
+BUILD DOCU HOWTO
+
+**** to build a current version of the docu of the comm module locally, you need to have sphinx installed ****
+
+* then you simply need to run the make.bat file (in the same folder as this HOWTO.txt)
+* you need to further specify a target (e.g. html --> .\make html) as a documentation type (for a list of possible targets, run make.bat without any target)
+* after a sucessful run of sphinx, the resulting documentation can be found under comm/docs/build/<target>
+
+** you can customize the output (style, look, ...) by editing the comm/docs/source/conf.py file

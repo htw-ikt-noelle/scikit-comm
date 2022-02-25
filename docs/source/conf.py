@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 
 project = 'comm'
-copyright = '2020, noelle'
+copyright = '2022, noelle'
 author = 'noelle'
 
 
@@ -29,7 +29,7 @@ author = 'noelle'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'myst_parser']
 
 # numpy stype docu
 # Napoleon settings
