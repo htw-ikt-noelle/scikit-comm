@@ -268,33 +268,38 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',number_o
     # ============================================================================= 
     # Create logger
     logger = logging.getLogger(__name__)
-
+    
     # Set the log level
     logger.setLevel(logging.INFO)
-
-    # Create file handler and standard output handler (terminal output)
-    file_handler = logging.FileHandler('{0}.log'.format(__name__))
-    if log_mode == False:
-        file_handler.setLevel(51)
-    else:
-        file_handler.setLevel(logging.INFO)
-
+    
+    
+    # Create standard output handler
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.ERROR)
-
+    
     # Set format of the logs with formatter
     formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(name)s :: Line No %(lineno)d:: %(message)s')
-
+    
     # Adding formatter to handler
-    file_handler.setFormatter(formatter)
     stdout_handler.setFormatter(formatter)
-
+    
     # Adding handler to logger
-    logger.addHandler(file_handler)
     logger.addHandler(stdout_handler)
+    
+    
+    if log_mode == True:
+        # Create file handler 
+        file_handler = logging.FileHandler('{0}.log'.format(__name__))
+        file_handler.setLevel(logging.INFO)
+        
+        # Adding formatter to handler
+        file_handler.setFormatter(formatter)
+        
+        # Adding handler to logger
+        logger.addHandler(file_handler)
 
     # =============================================================================
-    #  Check inputs of correctnes
+    #  Check inputs for correctness
     # ============================================================================= 
 
     try:
@@ -507,35 +512,40 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
     # ============================================================================= 
     # Create logger
     logger = logging.getLogger(__name__)
-
+    
     # Set the log level
     logger.setLevel(logging.INFO)
-
-    # Create file handler and standard output handler (terminal output)
-    file_handler = logging.FileHandler('{0}.log'.format(__name__))
-    if log_mode == False:
-        file_handler.setLevel(51)
-    else:
-        file_handler.setLevel(logging.INFO)
-
+    
+    
+    # Create standard output handler
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.ERROR)
-
+    
     # Set format of the logs with formatter
     formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(name)s :: Line No %(lineno)d:: %(message)s')
-
+    
     # Adding formatter to handler
-    file_handler.setFormatter(formatter)
     stdout_handler.setFormatter(formatter)
-
+    
     # Adding handler to logger
-    logger.addHandler(file_handler)
     logger.addHandler(stdout_handler)
+    
+    
+    if log_mode == True:
+        # Create file handler 
+        file_handler = logging.FileHandler('{0}.log'.format(__name__))
+        file_handler.setLevel(logging.INFO)
+        
+        # Adding formatter to handler
+        file_handler.setFormatter(formatter)
+        
+        # Adding handler to logger
+        logger.addHandler(file_handler)
 
 
 
     # =============================================================================
-    #  Check inputs of correctnes
+    #  Check inputs for correctness
     # ============================================================================= 
     
     try:
@@ -779,33 +789,38 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     # ============================================================================= 
     # Create logger
     logger = logging.getLogger(__name__)
-
+    
     # Set the log level
     logger.setLevel(logging.INFO)
-
-    # Create file handler and standard output handler (terminal output)
-    file_handler = logging.FileHandler('{0}.log'.format(__name__))
-    if log_mode == False:
-        file_handler.setLevel(51)
-    else:
-        file_handler.setLevel(logging.INFO)
-
+    
+    
+    # Create standard output handler
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.ERROR)
-
+    
     # Set format of the logs with formatter
     formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(name)s :: Line No %(lineno)d:: %(message)s')
-
+    
     # Adding formatter to handler
-    file_handler.setFormatter(formatter)
     stdout_handler.setFormatter(formatter)
-
+    
     # Adding handler to logger
-    logger.addHandler(file_handler)
     logger.addHandler(stdout_handler)
+    
+    
+    if log_mode == True:
+        # Create file handler 
+        file_handler = logging.FileHandler('{0}.log'.format(__name__))
+        file_handler.setLevel(logging.INFO)
+        
+        # Adding formatter to handler
+        file_handler.setFormatter(formatter)
+        
+        # Adding handler to logger
+        logger.addHandler(file_handler)
 
     # =============================================================================
-    #  Check inputs of correctnes
+    #  Check inputs for correctness
     # ============================================================================= 
 
     try:
@@ -1152,34 +1167,39 @@ def get_opt_power_HP8153A(channels, GPIB_address ,power_units = [None], waveleng
     # ============================================================================= 
     # Create logger
     logger = logging.getLogger(__name__)
-
+    
     # Set the log level
     logger.setLevel(logging.INFO)
-
-    # Create file handler and standard output handler (terminal output)
-    file_handler = logging.FileHandler('{0}.log'.format(__name__))
-    if log_mode == False:
-        file_handler.setLevel(51)
-    else:
-        file_handler.setLevel(logging.INFO)
-
+    
+    
+    # Create standard output handler
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.ERROR)
-
+    
     # Set format of the logs with formatter
     formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(name)s :: Line No %(lineno)d:: %(message)s')
-
+    
     # Adding formatter to handler
-    file_handler.setFormatter(formatter)
     stdout_handler.setFormatter(formatter)
-
+    
     # Adding handler to logger
-    logger.addHandler(file_handler)
     logger.addHandler(stdout_handler)
+    
+    
+    if log_mode == True:
+        # Create file handler 
+        file_handler = logging.FileHandler('{0}.log'.format(__name__))
+        file_handler.setLevel(logging.INFO)
+        
+        # Adding formatter to handler
+        file_handler.setFormatter(formatter)
+        
+        # Adding handler to logger
+        logger.addHandler(file_handler)
 
 
     # =============================================================================
-    #  Check inputs for correctnes
+    #  Check inputs for correctness
     # ============================================================================= 
 
     try:
