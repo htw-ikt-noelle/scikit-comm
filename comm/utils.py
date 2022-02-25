@@ -413,7 +413,6 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
             If true, the spectrum is plotted with the interpolation area, integration area and interpolated noise shape. 
             To show the plot, plt.show() must be called in the main script. 
 
-    
     Returns
     -------
         OSNR_01nm:
@@ -585,3 +584,55 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
         plt.grid()
 
     return OSNR_01nm,OSNR_val
+    
+        
+def estimate_snr(sig,block_size=-1,bias_comp=False):
+    """
+    Estimates the SNR per symbol of a signal with AWGN depending on its modulation format.
+    Different algorithms are used depending on whether the modulation format is
+    BPSK, QPSK, or QAM of order 16 or upwards. The function assumes that the 'samples'
+    attribute contains symbols, i.e. that the signal has been downsamples to 1 sample
+    per symbol.
+    TODO: add references to respective papers for every employed algorithm
+
+    Parameters
+    ----------
+    sig : signal-class object
+        The signal object on which to operate. The object's modulation format must
+        be known.
+    block_size : int
+        The number of symbols to average SNR over. Greater block size means a 
+        more accurate estimate. Default value is -1, which treats the entire 
+        symbol vector as one block.
+    bias_comp: bool
+        Flag determining whether the bias of the employed algorithm is compensated
+        according to the data obtained in a Monte Carlo trial in a setup file. 
+        Default value is False.
+
+    Returns
+    -------
+    None.
+
+    """
+    # TODO: edit generate_constellation function so that the "modulation info"
+    # attribute is more descriptive
+    
+    # TODO: run Monte Carlo trial in setup file and determine approximate bias
+    # of each algorithm over a realistic SNR range, then compensate it if flag is set
+    
+    # TODO: add appropriate type and value error checks
+    if type(block_size) != int:
+        raise TypeError("Block size must be a positive integer or -1!")
+    
+    if block_size > 1 & block_size != -1:
+        raise ValueError("Block size must be a positive integer or -1!")
+    
+    # split samples into blocks
+    # if block_size != -1:
+        
+    if sig.modulation_info == 'BPSK':
+        return
+    else:
+        return
+    
+    return
