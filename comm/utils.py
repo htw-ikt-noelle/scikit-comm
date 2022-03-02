@@ -627,12 +627,47 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
     if block_size > 1 & block_size != -1:
         raise ValueError("Block size must be a positive integer or -1!")
     
-    # split samples into blocks
-    # if block_size != -1:
+    # nested function that performs the estimation
+    def inner(samples,mod_info):
+        snr_estimate = 0
         
-    if sig.modulation_info == 'BPSK':
-        return
-    else:
-        return
+        # BPSK case
+        if mod_info == '2-PSK':
+            ...
+        # QPSK case
+        elif mod_info in ['4-PSK','4-QAM']:
+            ...
+        # QAM case (order between 16 and 256, either square or symmetrical QAM)
+        elif mod_info in ['16-QAM','32-QAM','64-QAM','128-QAM','256-QAM']:
+            ...
+        # all other modulation formats
+        else:
+            raise ValueError('Modulation format is not supported!')
+            
+        return snr_estimate
     
-    return
+    # init array for snr estimates
+    snr_estimate = np.full_like(sig.samples,0,dtype='float')
+    
+    # loop over signal dimensions
+    for dim in range(sig.ndims):
+        # split samples into blocks
+        if block_size != -1:
+            # identify number of whole blocks
+            n_blocks = sig.samples[dim].len // block_size
+            # identify remainder after splitting operation
+            block_rem = sig.samples[dim].len % block_size
+            
+            # call inner function per block
+            for i in range(n_blocks):
+                snr_tmp = inner(sig.samples[dim][i*block_size:(i+1)*block_size],sig.modulation_info[dim])
+                # append tmp array to return array
+                snr_estimate[dim][i*block_size:(i+1)*block_size] = snr_tmp
+                
+            # call function for remainder block
+            if block_rem != 0: 
+                snr_tmp = inner(sig.samples[dim][-block_rem:],sig.modulation_info[dim])
+                # write remainder SNR estimate into return array
+                snr_estimate[dim][-block_rem:] = snr_tmp
+        
+    return snr_estimate
