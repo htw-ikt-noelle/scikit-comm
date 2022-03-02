@@ -684,7 +684,7 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
         logger.info("Write data to waveform")
             
         awg.write_binary_values('WLIST:WAVEFORM:DATA "Python_waveform_AWG_{0:d}",'.format(ch), samples_clipped[ch_idx], datatype='f')
-        print(awg.query('WLIST:WAVEFORM:DATA? "Python_waveform_AWG_{0:d}",0'))
+        # print(awg.query('WLIST:WAVEFORM:DATA? "Python_waveform_AWG_{0:d}",0'))
 
         # Adding the waveform to an output
         logger.info("Add Python_waveform_AWG_{0:d} to output {0:d}".format(ch))
