@@ -591,8 +591,8 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
     Estimates the SNR per symbol of a signal with AWGN depending on its modulation format.
     Different algorithms are used depending on whether the modulation format is
     BPSK, QPSK, or QAM of order 16 or upwards. The function assumes that the 'samples'
-    attribute contains symbols, i.e. that the signal has been downsamples to 1 sample
-    per symbol.
+    attribute of the signal class object contains symbols, i.e. that the signal has been 
+    downsampled to 1 sample per symbol.
 
     References:
     [1]: Ijaz, A., Awoseyila, A.B., Evans, B.G.: "Improved SNR estimation for BPSK and
@@ -608,7 +608,8 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
     ----------
     sig : signal-class object
         The signal object on which to operate. The object's modulation format must
-        be known.
+        be known, i.e. a string variable must be present in the 'modulation_info'
+        attribute per dimension of the signal.
     block_size : int
         The number of symbols to average SNR over. Greater block size means a 
         more accurate estimate. Default value is -1, which treats the entire 
