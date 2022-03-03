@@ -634,7 +634,7 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
     if type(block_size) != int:
         raise TypeError("Block size must be a positive integer or -1!")
     
-    if block_size > 1 & block_size != -1:
+    if (block_size < 1) & (block_size != -1):
         raise ValueError("Block size must be a positive integer or -1!")
     
     # nested function that performs the estimation
@@ -694,7 +694,7 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
             
         # all other modulation formats
         else:
-            raise ValueError('Modulation format is not supported!')
+            raise ValueError('Modulation format is not supported or not specified!')
             
         return snr_estimate
     
@@ -706,9 +706,9 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
         # split samples into blocks
         if block_size != -1:
             # identify number of whole blocks
-            n_blocks = sig.samples[dim].len // block_size
+            n_blocks = sig.samples[dim].shape[0] // block_size
             # identify remainder after splitting operation
-            block_rem = sig.samples[dim].len % block_size
+            block_rem = sig.samples[dim].shape[0] % block_size
             
             # call inner function per block
             for i in range(n_blocks):
