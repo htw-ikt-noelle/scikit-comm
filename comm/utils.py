@@ -651,7 +651,7 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
             snr_estimate = s_hat / (m2_hat - s_hat)
             
         # QPSK case
-        elif mod_info in ['4-PSK','4-QAM']:
+        elif mod_info in ['4-PSK','4-QAM','QPSK']:
             # ref.: [2], Eqs. 11-15, valid for SNR values between -10 dB and 30 dB
             # calc mean
             symb_mean = np.mean(np.abs(samples))
@@ -677,7 +677,7 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
                                                 [0.33595278506244,-1.15419807009244,1.58563212231193,-1.08880229086714,0.37369521988006,-0.05128588224013]])}
             
             # pull coefficient vector that corresponds with signal's QAM order from dictionary and scale according to [Eq. 11]
-            coeff_vec = coeff_dict['coeff'][np.where(['16-QAM','32-QAM','64-QAM','128-QAM','256-QAM']==mod_info)][0]
+            coeff_vec = coeff_dict['coeff'][np.argwhere(np.asarray(['16-QAM','32-QAM','64-QAM','128-QAM','256-QAM'])==mod_info)][0][0]
             # scale coeff values
             if mod_info == '256-QAM':
                 coeff_vec = coeff_vec*1e7
@@ -721,5 +721,9 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
                 snr_tmp = inner(sig.samples[dim][-block_rem:],sig.modulation_info[dim])
                 # write remainder SNR estimate into return array
                 snr_estimate[dim][-block_rem:] = snr_tmp
+        
+        # if block_size = -1, perform estimation on the entire sample vector
+        else:
+            snr_estimate = np.full_like(sig.samples[dim],inner(sig.samples[dim],sig.modulation_info[dim]),dtype='float')
         
     return snr_estimate
