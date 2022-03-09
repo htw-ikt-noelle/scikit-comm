@@ -649,7 +649,7 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
             # calc novel signal power estimate
             s_hat = ((np.sum(np.abs(np.real(samples)))**2) + (np.sum(np.abs(np.imag(samples)))**2)) / (len(samples)**2)
             # calc SNR estimate
-            snr_estimate = s_hat / (m2_hat - s_hat)
+            snr_estimate = 10*np.log10(s_hat / (m2_hat - s_hat))
             
         # QPSK case
         elif mod_info in ['4-PSK','4-QAM','QPSK']:
