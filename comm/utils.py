@@ -655,13 +655,14 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
         elif mod_info in ['4-PSK','4-QAM','QPSK']:
             # ref.: [2], Eqs. 11-15, valid for SNR values between -10 dB and 30 dB
             # calc mean
-            symb_mean = np.mean(np.abs(samples))
+            symb_mean = np.abs(samples).mean()
             # calc variance
-            symb_var = np.mean((np.abs(samples)-symb_mean)**2)
+            symb_var = np.abs(samples).var()
             # calc SNR estimate
             snr_estimate = 10*np.log10((np.abs(symb_mean)**2)/(2*symb_var))
             # for SNR values below 10 dB, modify the estimate
             if snr_estimate < 10:
+                # TODO: handle exception when snr_estimate is <2.5 and sqrt returns NaNert 
                 snr_estimate = np.sqrt((snr_estimate-2.5)*39.2)-7
             
         # QAM case (order between 16 and 256, either square or symmetrical QAM)

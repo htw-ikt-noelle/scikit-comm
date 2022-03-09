@@ -11,12 +11,12 @@ import comm as comm
 
 # global
 mod_format = 'PSK'
-mod_order = 2
+mod_order = 4
 TX_UPSAMPLE_FACTOR = 5
 # SNR = 10 #in dB
-SNR = np.arange(21,dtype='float')
+SNR = np.arange(0,21,dtype='float')
 # number of runs in the Monte Carlo trial
-MC_runs = 100
+MC_runs = 1000
 
 # init vectors of SNR estimates
 snr_vec = np.zeros((len(SNR),MC_runs),dtype='float')
@@ -33,7 +33,7 @@ for i in range(len(SNR)):
         sig_tx.symbol_rate = 50e6 
         
         # generate bits
-        sig_tx.generate_bits(n_bits=int(np.log2(mod_order))*(2**12))
+        sig_tx.generate_bits(n_bits=int(np.log2(mod_order))*(2**6))
         
         # set constellation (modulation format)
         sig_tx.generate_constellation(format=mod_format,order=mod_order)
@@ -178,15 +178,20 @@ for i in range(len(SNR)):
         # =============================================================================
         
 
-# calc mean and variance of estimate per SNR value
-snr_mean = snr_vec.mean(axis=1)
-snr_std = snr_vec.std(axis=1)
+# calc mean and variance of estimate per SNR value, ignoring NaN entries (might occur
+# in "improved SNR estimation" algorithm for QPSK - solution needed!)
+snr_mean = np.nanmean(snr_vec,axis=1)
+snr_std = np.nanstd(snr_vec,axis=1)
 
+# plot ideal/unbiased SNR curve for reference
+plt.plot(SNR,SNR,color='b')
 # plot mean
 plt.plot(SNR,snr_mean,color='r')
 # plot std deviation as grayscale
 plt.fill_between(SNR,snr_mean+snr_std,snr_mean-snr_std,color='gray')
-plt.legend(('mean estimated SNR','standard deviation across 100 runs'))
+plt.legend(('unbiased','mean estimated SNR','standard deviation across 100 runs'))
+plt.xticks(SNR[::2])
+plt.yticks(SNR[::2])
 
-plt.title('actual vs. estimated mean SNR, L = 100')
+plt.title('actual vs. estimated mean SNR')
 plt.grid()
