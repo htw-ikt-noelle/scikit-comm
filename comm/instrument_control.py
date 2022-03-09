@@ -782,6 +782,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     
     # TODO: Create a way to save the data from the scope to file
     # TODO: File should be similar to LabView file
+    # TODO: set GBIB Bus number
     
     
     # =============================================================================
@@ -858,7 +859,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     # open connection to AWG
     logger.info("Create GPIB connection with " + str(GPIB_address))
     try:
-        osa = rm.open_resource('GPIB0::' + GPIB_address + '::INSTR')
+        osa = rm.open_resource('GPIB1::' + GPIB_address + '::INSTR')
     except Exception as e:
         logger.error('No connection possible. Check GPIB connection \n  {0}'.format(e))
         return sys.exit()
@@ -942,7 +943,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
 
         # Setting length of Trace
         # Page 7-506 -> 7-507
-        trace_length = int(osa.query('TRDEF TR{0:s}?'.format(trace)).rstrip('\n'))
+        trace_length = int(float(osa.query('TRDEF TR{0:s}?'.format(trace)).rstrip('\n')))
 
         # Read trace
         # Page 7-499 -> 7-502
