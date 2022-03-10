@@ -672,11 +672,11 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
             # TODO: fix large estimation deviation for 16, 32, 64 QAM (128 and 256 QAM are good)
             # dictionary with coefficient values for every available QAM order (ref.: [3] Eq. 11)
             coeff_dict = {'qam_order' : np.asarray([16,32,64,128,256]),
-                          'coeff' : np.asarray([[0.36060357620798,-1.28034019700542,1.81839487545758,-1.29109105371317,0.45823466671427,-0.06503489292716],
+                          'coeff' : np.asarray([[0.36060357620798,-1.28034019700542,1.81839487545758,-1.29109195371317,0.45823466671427,-0.06503489292716],
                                                 [0.53715056289170,-1.85210885301961,2.55864235321160,-1.76993734603623,0.61298700208470,-0.08502242157078],
                                                 [1.81625572448046,-6.24952901412163,8.60050533607873,-5.91706608901663,2.03511551491328,-0.27993710478023],
                                                 [0.64033054858630,-2.17678215614423,2.95932583860006,-2.01114864174439,0.68323069211818,-0.09282225372024],
-                                                [0.33595278506244,-1.15419807009244,1.58563212231193,-1.08880229086714,0.37369521988006,-0.05128588224013]])}
+                                                [0.33595278506244,-1.15419807009244,1.58563212231193,-1.08880229086714,0.37369521988006,-0.05128588224013]],dtype='float64')}
             
             # pull coefficient vector that corresponds with signal's QAM order from dictionary and scale according to [Eq. 11]
             coeff_vec = coeff_dict['coeff'][np.argwhere(np.asarray(['16-QAM','32-QAM','64-QAM','128-QAM','256-QAM'])==mod_info)][0][0]
@@ -689,7 +689,7 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
             # calc z_hat (ref.: [3] Eq. 12)
             r_kI = np.real(samples)
             r_kQ = np.imag(samples)
-            z_hat = (np.mean(r_kI**2)+np.mean(r_kQ**2)) / (np.mean(np.abs(r_kI))**2+np.mean(np.abs(r_kQ))**2)
+            z_hat = (np.mean(r_kI**2)+np.mean(r_kQ**2)) / ((np.mean(np.abs(r_kI))**2)+(np.mean(np.abs(r_kQ))**2))
 
             # calc SNR estimate
             snr_estimate = 10*np.log10(coeff_vec[5]*(z_hat**5)+coeff_vec[4]*(z_hat**4)+coeff_vec[3]*(z_hat**3)+coeff_vec[2]*(z_hat**2)+coeff_vec[1]*(z_hat)+coeff_vec[0])

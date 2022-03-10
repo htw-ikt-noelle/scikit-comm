@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import comm as comm
 
 # global
-mod_format = 'PSK'
-mod_order = 4
+mod_format = 'QAM'
+mod_order = 16
 TX_UPSAMPLE_FACTOR = 5
 # SNR = 10 #in dB
 SNR = np.arange(0,21,dtype='float')
@@ -177,7 +177,7 @@ for i in range(len(SNR)):
         # Xu_estimator = 10*np.log10(coeff_vec[5]*(z_hat**5)+coeff_vec[4]*(z_hat**4)+coeff_vec[3]*(z_hat**3)+coeff_vec[2]*(z_hat**2)+coeff_vec[1]*(z_hat)+coeff_vec[0])
         # =============================================================================
         
-
+#%% visualization 
 # calc mean and variance of estimate per SNR value, ignoring NaN entries (might occur
 # in "improved SNR estimation" algorithm for QPSK - solution needed!)
 snr_mean = np.nanmean(snr_vec,axis=1)
@@ -195,3 +195,15 @@ plt.yticks(SNR[::2])
 
 plt.title('actual vs. estimated mean SNR')
 plt.grid()
+
+
+#%% Khalid & Abrar beta_M_2_M_inf estimator
+
+R = np.real(sig_tx.samples[0])
+I = np.imag(sig_tx.samples[0])
+# parameter beta
+beta = np.max(np.abs(sig_tx.samples[0]))/np.min(np.abs(sig_tx.samples[0])) # Eq. 15 ll.
+# dump Eq.
+# calc for a range of SNR and sample sizes N over which to compute the mean values
+T_dump = (np.mean(R**2)/((np.max(np.abs(R))-beta*np.min(np.abs(R)))**2)) + (np.mean(I**2)/((np.max(np.abs(I))-beta*np.min(np.abs(I)))**2))
+# interpolate between LUT values to determine the SNR estimate
