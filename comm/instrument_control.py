@@ -710,22 +710,25 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
     rm.close()  
 
 
-def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = False, single_sweep = False):
+def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_mode = False, single_sweep = False):
 
 
     """
-    get_samples_HP_71450B_OSA
+    get_spectrum_HP_71450B_OSA
     
-    Function for reading samples from a HP_71450B optical spectrum analyzer
+    Function for reading spectrum from a HP_71450B optical spectrum analyzer
     
     Parameters
     ----------
         traces: list of stings, optional (default = ['A'])
             Insert here the wanted traces from the OSA as a list of strings. 
             The three traces of the OSA are A, B, and C. It is also possible to use lower case.
+        
+        GPIB_bus : int, optional (default = 0)
+            The GPIB bus number of the OSA.
 
-        GPIB_address : string, optional (default = '13')
-            The address GPIB address of the OSA.
+        GPIB_address : int, optional (default = 13)
+            The GPIB address of the OSA.
         
         log_mode: boolean, optional (default = False)
             Enables a log file for this method.
@@ -827,9 +830,12 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     try:
         if not isinstance(traces, list):
             raise TypeError('Type of traces must be list')
+            
+        if not isinstance(GPIB_bus, int):
+            raise TypeError('Type of GPIB_bus must be int')
 
-        if not isinstance(GPIB_address, str):
-            raise TypeError('Type of GPIB_address must be string')
+        if not isinstance(GPIB_address, int):
+            raise TypeError('Type of GPIB_address must be int')
 
         if not all(isinstance(x, str) for x in traces):
             raise TypeError('Type of traces items must be strings')
@@ -859,7 +865,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     # open connection to AWG
     logger.info("Create GPIB connection with " + str(GPIB_address))
     try:
-        osa = rm.open_resource('GPIB1::' + GPIB_address + '::INSTR')
+        osa = rm.open_resource('GPIB' + str(GPIB_bus) +'::' + str(GPIB_address) + '::INSTR')
     except Exception as e:
         logger.error('No connection possible. Check GPIB connection \n  {0}'.format(e))
         return sys.exit()
@@ -993,7 +999,7 @@ def get_samples_HP_71450B_OSA (traces = ['A'], GPIB_address='13',log_mode = Fals
     return trace_information
 
 ####### HP_8153A lightwave multimeter ##############
-def get_opt_power_HP8153A(channels, GPIB_address ,power_units = [None], wavelengths = [None] ,verbose_mode = True ,log_mode = False):
+def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [None], wavelengths = [None] ,verbose_mode = True ,log_mode = False):
     """
 
     get_opt_pwr_HP8153A
@@ -1020,7 +1026,10 @@ def get_opt_power_HP8153A(channels, GPIB_address ,power_units = [None], waveleng
                         
             The channel assignment of the parameters power_units and wavelengths corresponds to the elements of this list.
 
-        GPIB_address : string
+        GPIB_bus : int
+            The GPIB bus number of the lightwave multimeter. Use a value between 1 and 30
+
+        GPIB_address : int
             The GPIB address of the lightwave multimeter. Use a value between 1 and 30
         
         log_mode: boolean, optional (default = False)
@@ -1113,14 +1122,14 @@ def get_opt_power_HP8153A(channels, GPIB_address ,power_units = [None], waveleng
         
         The power of channel 1 should be acquired. The wavelength will be set to 1550 nm and the power unit to dBm.
         GPIB address will be set to 22. In this example, the verbose mode is activated.
-            >>> p = comm.instrument_control.get_opt_pwr_HP8153A(channels = ['1'], GPIB_address = '22', power_units = ['DBM'], wavelengths = [1550.0])
+            >>> p = comm.instrument_control.get_opt_power_HP8153A(channels = ['1'], GPIB_address = 22, power_units = ['DBM'], wavelengths = [1550.0])
         
         The power of both channels should be acquired. The wavelength of channel 1 should not be changed. For channel 2, 
         the wavelengths will be set to 1550nm. Power unit for channel 1 should be "Watt" and "dBm" for channel 2.
-            >>> p = comm.instrument_control.get_opt_pwr_HP8153A(channels = ['1','2'], GPIB_address = '22', power_units = ['Watt','DBM'], wavelengths = [None,1550.0])
+            >>> p = comm.instrument_control.get_opt_power_HP8153A(channels = ['1','2'], GPIB_address = 22, power_units = ['Watt','DBM'], wavelengths = [None,1550.0])
         
         Only the power value should be acquired from both channels. Therfore, the verbose_mode can be deactivated.
-            >>> p = comm.instrument_control.get_opt_pwr_HP8153A(channels = ['1','2'], GPIB_address = '22', verbose_mode = False)
+            >>> p = comm.instrument_control.get_opt_power_HP8153A(channels = ['1','2'], GPIB_address = 22, verbose_mode = False)
         Note, in this example, no values for wavelengths and power_unit are provided. Hence, the current values of the multimeter will be used.
         
         Access the power level only of channel 1
@@ -1204,8 +1213,11 @@ def get_opt_power_HP8153A(channels, GPIB_address ,power_units = [None], waveleng
         if not isinstance(channels, list):
             raise TypeError('Type of channels must be list.')
 
-        if not isinstance(GPIB_address, str):
-            raise TypeError('Type of GPIB_address must be string.')
+        if not isinstance(GPIB_bus, int):
+            raise TypeError('Type of GPIB_bus must be int.')
+
+        if not isinstance(GPIB_address, int):
+            raise TypeError('Type of GPIB_address must be int.')
             
         if not isinstance(verbose_mode, bool):
             raise TypeError('Type of verbose_mode must be bool.')
@@ -1278,7 +1290,7 @@ def get_opt_power_HP8153A(channels, GPIB_address ,power_units = [None], waveleng
     # open connection to AWG
     logger.info("Create GPIB connection with " + str(GPIB_address))
     try:
-        lwm= rm.open_resource('GPIB0::' + GPIB_address + '::INSTR')
+        lwm= rm.open_resource('GPIB' + str(GPIB_bus) + '::' + str(GPIB_address) + '::INSTR')
     except Exception as e:
         logger.error('No connection possible. Check GPIB connection \n  {0}'.format(e))
         return sys.exit()
