@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.interpolate as sinter
 import scipy.signal as signal
 import scipy.special as sspecial
 import matplotlib.pyplot as plt
@@ -586,13 +587,13 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     return OSNR_01nm,OSNR_val
     
         
-def estimate_snr(sig,block_size=-1,bias_comp=False):
+def estimate_snr(sig,block_size=-1,bias_comp=True):
     """
     Estimates the SNR per symbol of a signal with AWGN depending on its modulation format.
     Different algorithms are used depending on whether the modulation format is
     BPSK, QPSK, or QAM of order 16 or upwards. The function assumes that the 'samples'
     attribute of the signal class object contains symbols, i.e. that the signal has been 
-    downsampled to 1 sample per symbol.
+    downsampled to 1 sample per symbol, and that no sampling phase error is present.
 
     References:
     [1]: Ijaz, A., Awoseyila, A.B., Evans, B.G.: "Improved SNR estimation for BPSK and
@@ -615,9 +616,10 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
         more accurate estimate. Default value is -1, which treats the entire 
         symbol vector as one block.
     bias_comp: bool
-        Flag determining whether the bias of the employed algorithm is compensated
-        according to the data obtained in a Monte Carlo trial in a setup file. 
-        Default value is False.
+        Flag determining whether the bias of the *BPSK estimation algorithm* is compensated
+        according to the data obtained in a Monte Carlo simulation with 10.000 runs for 
+        SNR values between 0 dB and 20 dB. Beyond these limits, the bias is extrapolated 
+        from the data. Default value is True.
 
     Returns
     -------
@@ -625,13 +627,7 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
         Array with the same shape as sig.samples containing the estimated SNR values.
 
     """
-    # TODO: edit generate_constellation function so that the "modulation info"
-    # attribute is more descriptive
-    
-    # TODO: run Monte Carlo trial in setup file and determine approximate bias
-    # of each algorithm over a realistic SNR range, then compensate it if flag is set
-    
-    # TODO: add appropriate type and value error checks
+
     if type(block_size) != int:
         raise TypeError("Block size must be a positive integer or -1!")
     
@@ -651,6 +647,20 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
             # calc SNR estimate
             snr_estimate = 10*np.log10(s_hat / (m2_hat - s_hat))
             
+            if bias_comp:
+                # estimation bias, obtained through Monte Carlo simulation with 10.000 runs
+                # for SNR values between 0 dB and 20 dB - beyond these values, the estimation
+                # bias is extrapolated
+                bias = np.asarray([4.00640498, 3.46586717, 3.0437816 , 2.69519762, 2.43301419,
+                                   2.26609504, 2.1298437 , 2.04872834, 1.99272736, 1.94593644,
+                                   1.91146281, 1.89347751, 1.85535157, 1.84488699, 1.8299747 ,
+                                   1.81262673, 1.81382646, 1.79700308, 1.79183747, 1.7961362 ,
+                                   1.79334496])
+                
+                # interpolate between LUT of bias values and correct estimation value
+                bias_inter = sinter.interp1d(np.arange(0,21),bias,fill_value='extrapolate')
+                snr_estimate = snr_estimate - bias_inter(snr_estimate)
+            
         # QPSK case
         elif mod_info in ['4-PSK','4-QAM','QPSK']:
             # ref.: [2], Eqs. 11-15, valid for SNR values between -10 dB and 30 dB
@@ -662,14 +672,20 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
             snr_estimate = 10*np.log10((np.abs(symb_mean)**2)/(2*symb_var))
             # for SNR values below 10 dB, modify the estimate
             if snr_estimate < 10:
-                # TODO: handle exception when snr_estimate is <2.5 and sqrt returns NaNert 
                 snr_estimate = np.sqrt((snr_estimate-2.5)*39.2)-7
+                # exception handling if NaN is returned:
+                # assumption: when np.sqrt returns NaN, the SNR is very low - to at least
+                # avoid NaNs, replace them with -inf to allow for comparison when combining
+                if snr_estimate == np.NaN:
+                    snr_estimate = float('-inf')
             
         # QAM case (order between 16 and 256, either square or symmetrical QAM)
         elif mod_info in ['16-QAM','32-QAM','64-QAM','128-QAM','256-QAM']:
             # ref.: [3] Eqs. 11-12, valid for SNR values between -5 dB and 20 dB
             
-            # TODO: fix large estimation deviation for 16, 32, 64 QAM (128 and 256 QAM are good)
+            # TODO: fix large estimation deviation for 128-QAM exclusively
+            if mod_info == '128-QAM':
+                raise ValueError("Estimation algorithm for 128-QAM yields unusable results. This particular modulation format is not supported for now.")
             # dictionary with coefficient values for every available QAM order (ref.: [3] Eq. 11)
             coeff_dict = {'qam_order' : np.asarray([16,32,64,128,256]),
                           'coeff' : np.asarray([[0.36060357620798,-1.28034019700542,1.81839487545758,-1.29109195371317,0.45823466671427,-0.06503489292716],
@@ -692,7 +708,7 @@ def estimate_snr(sig,block_size=-1,bias_comp=False):
             z_hat = (np.mean(r_kI**2)+np.mean(r_kQ**2)) / ((np.mean(np.abs(r_kI))**2)+(np.mean(np.abs(r_kQ))**2))
 
             # calc SNR estimate
-            snr_estimate = 10*np.log10(coeff_vec[5]*(z_hat**5)+coeff_vec[4]*(z_hat**4)+coeff_vec[3]*(z_hat**3)+coeff_vec[2]*(z_hat**2)+coeff_vec[1]*(z_hat)+coeff_vec[0])
+            snr_estimate = coeff_vec[5]*(z_hat**5)+coeff_vec[4]*(z_hat**4)+coeff_vec[3]*(z_hat**3)+coeff_vec[2]*(z_hat**2)+coeff_vec[1]*(z_hat)+coeff_vec[0]
             
         # all other modulation formats
         else:

@@ -10,13 +10,13 @@ import matplotlib.pyplot as plt
 import comm as comm
 
 # global
-mod_format = 'QAM'
-mod_order = 16
+mod_format = 'PSK'
+mod_order = 4
 TX_UPSAMPLE_FACTOR = 5
 # SNR = 10 #in dB
 SNR = np.arange(0,21,dtype='float')
 # number of runs in the Monte Carlo trial
-MC_runs = 1000
+MC_runs = 10000
 
 # init vectors of SNR estimates
 snr_vec = np.zeros((len(SNR),MC_runs),dtype='float')
@@ -62,7 +62,7 @@ for i in range(len(SNR)):
         #sig_tx.plot_constellation()
         
         #%% calling singular estimation function
-        SNR_ESTIMATE = comm.utils.estimate_snr(sig_tx,block_size=-1,bias_comp=False)
+        SNR_ESTIMATE = comm.utils.estimate_snr(sig_tx,block_size=-1,bias_comp=True)
         
         # write first element of estimation vector into matrix
         snr_vec[i,j] = SNR_ESTIMATE[0]
@@ -189,7 +189,7 @@ plt.plot(SNR,SNR,color='b')
 plt.plot(SNR,snr_mean,color='r')
 # plot std deviation as grayscale
 plt.fill_between(SNR,snr_mean+snr_std,snr_mean-snr_std,color='gray')
-plt.legend(('unbiased','mean estimated SNR','standard deviation across 100 runs'))
+plt.legend(('unbiased','mean estimated SNR','standard deviation across 10.000 runs'))
 plt.xticks(SNR[::2])
 plt.yticks(SNR[::2])
 
@@ -198,12 +198,66 @@ plt.grid()
 
 
 #%% Khalid & Abrar beta_M_2_M_inf estimator
-
-R = np.real(sig_tx.samples[0])
-I = np.imag(sig_tx.samples[0])
-# parameter beta
-beta = np.max(np.abs(sig_tx.samples[0]))/np.min(np.abs(sig_tx.samples[0])) # Eq. 15 ll.
-# dump Eq.
-# calc for a range of SNR and sample sizes N over which to compute the mean values
-T_dump = (np.mean(R**2)/((np.max(np.abs(R))-beta*np.min(np.abs(R)))**2)) + (np.mean(I**2)/((np.max(np.abs(I))-beta*np.min(np.abs(I)))**2))
-# interpolate between LUT values to determine the SNR estimate
+# =============================================================================
+# def LUT_gen(samples):
+#     R = np.real(sig_tx.samples[0])
+#     I = np.imag(sig_tx.samples[0])
+#     # parameter beta
+#     beta = np.max(np.abs(sig_tx.samples[0]))/np.min(np.abs(sig_tx.samples[0])) # Eq. 15 ll.
+#     # dump Eq.
+#     # calc for a range of SNR and sample sizes N over which to compute the mean values
+#     T_dump = (np.mean(R**2)/((np.max(np.abs(R))-beta*np.min(np.abs(R)))**2)) + (np.mean(I**2)/((np.max(np.abs(I))-beta*np.min(np.abs(I)))**2))
+#     # interpolate between LUT values to determine the SNR estimate
+#     return T_dump
+# 
+# # LUT for N = 64 samples and SNR = [0,20] dB
+# N_LUT = np.asarray([64])
+# SNR_LUT = np.arange(0,21,dtype='float')
+# format_LUT = 'QAM'
+# order_LUT = 16
+# UP_LUT = 5
+# 
+# 
+# # pre-allocate LUT
+# LUT_16_QAM = np.full_like(SNR_LUT,0,dtype='float')
+# 
+# # SNR loop
+# for i in range(len(SNR_LUT)):
+#     # construct signal
+#     sig_tx = comm.signal.Signal(n_dims=1)
+#     sig_tx.ndims = 1
+#     sig_tx.symbol_rate = 50e6 
+#     
+#     # generate bits
+#     sig_tx.generate_bits(n_bits=int(np.log2(mod_order))*(N_LUT))
+#     
+#     # set constellation (modulation format)
+#     sig_tx.generate_constellation(format=format_LUT,order=order_LUT)
+#     
+#     # create symbols
+#     sig_tx.mapper()
+#     
+#     # sig_tx.samples = sig_tx.symbols[0]
+#     # sig_tx.sample_rate = sig_tx.symbol_rate[0]
+#     # upsampling and pulseshaping
+#     ROLL_OFF = 0.2
+#     sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=[ROLL_OFF])
+#     
+#     # add complex noise
+#     sig_tx.set_snr(snr_dB=SNR_LUT[i])
+#     
+#     # RX matched filter
+#     sig_tx.samples = comm.filters.raised_cosine_filter(sig_tx.samples[0],root_raised=True,roll_off=ROLL_OFF,
+#                                                        symbol_rate=sig_tx.symbol_rate[0],
+#                                                        sample_rate=sig_tx.sample_rate[0])
+#     
+#     
+#     # downsample to 1 sps
+#     sig_tx.samples = sig_tx.samples[0][::UP_LUT]
+#     
+#     #sig_tx.plot_constellation()
+#     
+#     #%% calling singular estimation function
+#     # SNR_ESTIMATE = comm.utils.estimate_snr(sig_tx,block_size=-1,bias_comp=False)
+#     LUT_16_QAM[i] = LUT_gen(sig_tx.samples[0])
+# =============================================================================
