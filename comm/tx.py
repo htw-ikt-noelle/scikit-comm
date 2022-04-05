@@ -1,5 +1,5 @@
 import numpy as np
-import scipy.signal as signal
+import scipy.signal as ssignal
 import matplotlib.pyplot as plt
 from . import utils
 from . import filters
@@ -72,23 +72,26 @@ def mapper(bits, constellation):
     return symbols
 
 
-def pulseshaper(samples, upsampling=2, pulseshape='rc', roll_off=0.2):
+def pulseshaper(samples, upsampling=2.0, pulseshape='rc', roll_off=0.2):
     """
     Upsample and pulseshape a given sample sequence.
     
-    The provided samples are upsampled by the factor upsampling ([upsampling-1] 
-    zeros are inserted between each sample).
+    The provided samples are upsampled by the factor upsampling.
     
-    A pulseshaping filter is applied to the upsampled sequence afterwards. (Root) 
-    raised cosine and rectangular filter impulse respnses are available. 
-    pulseshape = None does not apply any filter to the upsampled sequence.
+    This is done by inserting ceil(upsampling)-1 zeros between each sample followed 
+    by applying a pulseshaping filter. (Root) raised cosine and rectangular filter
+    impulse respnses are available. pulseshape = None does not apply any filter 
+    to the upsampled sequence.
+    
+    After the pulseshaping a resampling (downsampling) is performed in case of a
+    fractional upsampling factor.    
 
     Parameters
     ----------
     samples : 1D numpy array, real or complex
         input signal.
-    upsampling : int, optional
-        upsampling factor. The default is 2.
+    upsampling : float, optional
+        upsampling factor. The default is 2.0
     pulseshape : sting, optional
         pulseshaping filter, can either be 'rc', 'rrc', 'rect' or 'None', 
         meaning raised cosine filter, root raised cosine filter, erctangular 
@@ -104,43 +107,54 @@ def pulseshaper(samples, upsampling=2, pulseshape='rc', roll_off=0.2):
 
     """ 
     if samples.ndim > 1:
-        raise ValueError('number of dimensions of samples should be 1...')   
+        raise ValueError('number of dimensions of samples should be 1...') 
+        
+    # integer upsampling factor before pulseshaping
+    upsampling_int = int(np.ceil(upsampling))
         
     if upsampling%1:        
-        raise ValueError('upsampling factor has to be an integer...')   
-        # suggestion for the future (non integer upsampling: e.g. 2.34):
-        #   1) upsample to the next smaller integer: 2
-        #   2) filtering / pulseshaping
-        #   3) resample (scipy.singal.resample (FFT)) to the desired upsampling 2.34
-        
-    if upsampling == 1:        
+        # remaining fractional factor for downsampling after pulseshaping
+        resampling_rem = upsampling / upsampling_int
+    else:
+        # no resampling necessary
+        resampling_rem = None      
+       
+    if upsampling == 1:
+        # shortcut
         return samples
     
     # upsampling (insert zeros between sampling points)
     # changed implementation necessary due to bug in scipy from version 1.5.0
-    # samples_up = signal.upfirdn(np.asarray([1]), samples, up=upsampling, down=1)
-    tmp = np.zeros((samples.size, upsampling-1))
+    # samples_up = ssignal.upfirdn(np.asarray([1]), samples, up=upsampling, down=1)
+    tmp = np.zeros((samples.size, upsampling_int-1))
     samples_up = np.c_[samples, tmp]
     samples_up = np.reshape(samples_up,-1)
     
     # actual pulseshaping filter
     if pulseshape == 'rc':
         samples_out = filters.raised_cosine_filter(samples_up, 
-                                                   sample_rate=upsampling, 
+                                                   sample_rate=upsampling_int, 
                                                    roll_off=roll_off,
                                                    domain='freq')
     elif pulseshape == 'rrc':
         samples_out = filters.raised_cosine_filter(samples_up, 
-                                                   sample_rate=upsampling, 
+                                                   sample_rate=upsampling_int, 
                                                    roll_off=roll_off, 
                                                    root_raised=True,
                                                    domain='freq')
     elif pulseshape == 'rect':
-        samples_out = filters.moving_average(samples_up, upsampling, 
+        samples_out = filters.moving_average(samples_up, upsampling_int, 
                                              domain='freq')
     elif pulseshape == 'None':
         samples_out = samples_up
     else:
-        raise ValueError('puseshape can only be either rc, rrc, None or rect...')  
+        raise ValueError('puseshape can only be either rc, rrc, None or rect...') 
+        
+    if resampling_rem:
+        # check for an integer number of samples after resampling
+        if (samples_out.size * resampling_rem) % 1:            
+            raise ValueError('Length of resampled vector must be an integer. Modify vector length or upsampling factor.')
+        # resampling
+        samples_out = ssignal.resample(samples_out, int(resampling_rem*len(samples_out)))
     
     return samples_out

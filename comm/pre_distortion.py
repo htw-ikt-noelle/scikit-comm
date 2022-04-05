@@ -179,3 +179,37 @@ def estimate_tf_welch(samples_in, sample_rate_in, samples_out, sample_rate_out, 
     results['freq'] = freq
     
     return results
+
+
+def dac_sinc_correction(samples, f_max=1.0):
+    """
+    Compensates for the Sinc rolloff of a zero order hold digital-to-analogue converter.
+    
+    Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        input signal.
+    f_max : float, optional
+        frequency up to which the rolloff is compensated for. 0.0 < f_max <= 1.0, 
+        where 1.0 specifies the Nyquist frequency (half the sampling frequency).
+        The default is 1.0.
+        
+
+    Returns
+    -------
+    samples_out : 1D numpy array, real or complex
+        output signal.
+
+    """
+    
+    # frequency axis
+    f = np.fft.fftshift(np.fft.fftfreq(samples.size))
+    # transfer function
+    Hf = 1 / np.sinc(f / 1)
+    # all frequencies above f_max will not be touched
+    if f_max:
+        Hf[np.abs(f) > f_max/2] = 1
+    # filter / pre-distort
+    samples_out = filters.filter_samples(samples, Hf, domain='freq')
+    
+    return samples_out
