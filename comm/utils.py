@@ -742,6 +742,6 @@ def estimate_snr(sig,block_size=-1,bias_comp=True):
         
         # if block_size = -1, perform estimation on the entire sample vector
         else:
-            snr_estimate = np.full_like(sig.samples[dim],inner(sig.samples[dim],sig.modulation_info[dim]),dtype='float')
+            snr_estimate[dim].fill(inner(sig.samples[dim],sig.modulation_info[dim]),dtype='float')
         
     return snr_estimate
