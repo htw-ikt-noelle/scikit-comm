@@ -625,7 +625,7 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     return results
 
 
-def calc_evm(symbols, constellation, norm='max'):
+def calc_evm(sig, norm='max', method='blind', dimension=-1):
     """
     Calculate the error vector magnitude (EVM).
     
@@ -665,23 +665,49 @@ def calc_evm(symbols, constellation, norm='max'):
         be multiplied by 100).
 
     """
-    if norm == 'max':
-        evm_norm_ref = np.max(np.abs(constellation))
-    elif norm == 'rms':
-        evm_norm_ref = np.sqrt(np.mean(np.abs(constellation)**2))
-            
     
-    # normalize received constellation symbols to ideal constellation
-    symbols_norm = symbols * np.sqrt(np.mean(np.abs(constellation)**2) / np.mean(np.abs(symbols)**2))
+    if type(sig) != signal.Signal:
+        raise TypeError("input parameter must be of type 'comm.signal.Signal'")
+        
+    if dimension == -1:
+        dims = range(sig.n_dims)
+    elif (dimension >= sig.n_dims) or (dimension < -1):
+        raise ValueError("-1 <= dimension < sig.n_dims")
+    else:
+        dims = [dimension]
+        
+    evm = np.full(len(dims), np.nan)
     
-    # decide symbols
-    symbols_dec = decision(symbols_norm, constellation)
+    # iterate over specified signal dimensions
+    for dim in dims:    
     
-    # calc evm
-    error = symbols_norm - symbols_dec
-    evm = np.sqrt(np.mean(np.abs(error)**2)) / evm_norm_ref
-    
-    return evm
+        if norm == 'max':
+            evm_norm_ref = np.max(np.abs(sig.constellation[dim]))
+        elif norm == 'rms':
+            evm_norm_ref = np.sqrt(np.mean(np.abs(sig.constellation[dim])**2))
+                
+        # normalize received constellation symbols to ideal constellation
+        symbols_norm = sig.samples[dim] * np.sqrt(np.mean(np.abs(sig.constellation[dim])**2) / np.mean(np.abs(sig.samples[dim])**2))
+        
+        if method == 'blind':            
+            # decide symbols
+            symbols_ref = decision(symbols_norm, sig.constellation[dim])            
+        elif method == 'symbol_aided':            
+            # sync samples to sent symbol sequence
+            sig_tmp = symbol_sequence_sync(sig)
+            if sig_tmp.symbols[dim].size < sig_tmp.samples[dim].size:
+                # repeat sent reference symbols in order to match length of symbols
+                ratio_base = sig_tmp.samples[dim].size // sig_tmp.symbols[dim].size
+                ratio_rem = sig_tmp.samples[dim].size % sig_tmp.symbols[dim].size
+                symbols_ref = np.concatenate((np.tile(sig_tmp.symbols[dim], ratio_base), sig_tmp.symbols[dim][:ratio_rem]), axis=0)
+            else:
+                symbols_ref = sig_tmp.symbols[dim]
+        
+        # calc evm
+        error = symbols_norm - symbols_ref
+        evm[dim] = np.sqrt(np.mean(np.abs(error)**2)) / evm_norm_ref
+        
+        return evm
 
 def symbol_sequence_sync(sig, dimension=-1):
     """
