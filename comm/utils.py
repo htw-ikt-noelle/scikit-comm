@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.interpolate as sinter
 import scipy.signal as signal
 import scipy.special as sspecial
 import matplotlib.pyplot as plt
@@ -413,7 +414,6 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
             If true, the spectrum is plotted with the interpolation area, integration area and interpolated noise shape. 
             To show the plot, plt.show() must be called in the main script. 
 
-    
     Returns
     -------
         OSNR_01nm:
@@ -585,3 +585,163 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
         plt.grid()
 
     return OSNR_01nm,OSNR_val
+    
+        
+def estimate_snr(sig,block_size=-1,bias_comp=True):
+    """
+    Estimates the SNR per symbol of a signal with AWGN depending on its modulation format.
+    Different algorithms are used depending on whether the modulation format is
+    BPSK, QPSK, or QAM of order 16 or upwards. The function assumes that the 'samples'
+    attribute of the signal class object contains symbols, i.e. that the signal has been 
+    downsampled to 1 sample per symbol, and that no sampling phase error is present.
+
+    References:
+    [1]: Ijaz, A., Awoseyila, A.B., Evans, B.G.: "Improved SNR estimation for BPSK and
+    QPSK signals", Electronics Letters Vol. 45 No. 16, 2009
+        
+    [2]: Qun, X., Jian, Z.: "Improved SNR Estimation Algorithm, International Conference
+    on Computer Systems", Electronics, and Control (ICCSEC), 2017
+    
+    [3]: Xu, H., Li, Z., Zheng, H.: "A non-data-aided SNR Estimation Algorithm for QAM
+    Signals", IEEE, 2004
+
+    Parameters
+    ----------
+    sig : signal-class object
+        The signal object on which to operate. The object's modulation format must
+        be known, i.e. a string variable must be present in the 'modulation_info'
+        attribute per dimension of the signal.
+    block_size : int
+        The number of symbols to average SNR over. Greater block size means a 
+        more accurate estimate. Default value is -1, which treats the entire 
+        symbol vector as one block.
+    bias_comp: bool
+        Flag determining whether the bias of the *BPSK estimation algorithm* is compensated
+        according to the data obtained in a Monte Carlo simulation with 10.000 runs for 
+        SNR values between 0 dB and 20 dB. Beyond these limits, the bias is extrapolated 
+        from the data. Default value is True.
+
+    Returns
+    -------
+    snr_estimate : numpy array
+        Array with the same shape as sig.samples containing the estimated SNR values.
+
+    """
+
+    if type(block_size) != int:
+        raise TypeError("Block size must be a positive integer or -1!")
+    
+    if (block_size < 1) & (block_size != -1):
+        raise ValueError("Block size must be a positive integer or -1!")
+    
+    # nested function that performs the estimation
+    def inner(samples,mod_info):
+        
+        # BPSK case
+        if mod_info == '2-PSK':
+            # ref.: [1], Eqs. 6, 17, valid for SNR values between 0 dB and 20 dB
+            # calc 2nd order moment
+            m2_hat = np.mean(np.abs(samples)**2)
+            # calc novel signal power estimate
+            s_hat = ((np.sum(np.abs(np.real(samples)))**2) + (np.sum(np.abs(np.imag(samples)))**2)) / (len(samples)**2)
+            # calc SNR estimate
+            snr_estimate = 10*np.log10(s_hat / (m2_hat - s_hat))
+            
+            if bias_comp:
+                # estimation bias, obtained through Monte Carlo simulation with 10.000 runs
+                # for SNR values between 0 dB and 20 dB - beyond these values, the estimation
+                # bias is extrapolated
+                bias = np.asarray([4.00640498, 3.46586717, 3.0437816 , 2.69519762, 2.43301419,
+                                   2.26609504, 2.1298437 , 2.04872834, 1.99272736, 1.94593644,
+                                   1.91146281, 1.89347751, 1.85535157, 1.84488699, 1.8299747 ,
+                                   1.81262673, 1.81382646, 1.79700308, 1.79183747, 1.7961362 ,
+                                   1.79334496])
+                
+                # interpolate between LUT of bias values and correct estimation value
+                bias_inter = sinter.interp1d(np.arange(0,21),bias,fill_value='extrapolate')
+                snr_estimate = snr_estimate - bias_inter(snr_estimate)
+            
+        # QPSK case
+        elif mod_info in ['4-PSK','4-QAM','QPSK']:
+            # ref.: [2], Eqs. 11-15, valid for SNR values between -10 dB and 30 dB
+            # calc mean
+            symb_mean = np.abs(samples).mean()
+            # calc variance
+            symb_var = np.abs(samples).var()
+            # calc SNR estimate
+            snr_estimate = 10*np.log10((np.abs(symb_mean)**2)/(2*symb_var))
+            # for SNR values below 10 dB, modify the estimate
+            if snr_estimate < 10:
+                snr_estimate = np.sqrt((snr_estimate-2.5)*39.2)-7
+                # exception handling if NaN is returned:
+                # assumption: when np.sqrt returns NaN, the SNR is very low - to at least
+                # avoid NaNs, replace them with -inf to allow for comparison when combining
+                if snr_estimate == np.NaN:
+                    snr_estimate = float('-inf')
+            
+        # QAM case (order between 16 and 256, either square or symmetrical QAM)
+        elif mod_info in ['16-QAM','32-QAM','64-QAM','128-QAM','256-QAM']:
+            # ref.: [3] Eqs. 11-12, valid for SNR values between -5 dB and 20 dB
+            
+            # TODO: fix large estimation deviation for 128-QAM exclusively
+            if mod_info == '128-QAM':
+                raise ValueError("Estimation algorithm for 128-QAM yields unusable results. This particular modulation format is not supported for now.")
+            # dictionary with coefficient values for every available QAM order (ref.: [3] Eq. 11)
+            coeff_dict = {'qam_order' : np.asarray([16,32,64,128,256]),
+                          'coeff' : np.asarray([[0.36060357620798,-1.28034019700542,1.81839487545758,-1.29109195371317,0.45823466671427,-0.06503489292716],
+                                                [0.53715056289170,-1.85210885301961,2.55864235321160,-1.76993734603623,0.61298700208470,-0.08502242157078],
+                                                [1.81625572448046,-6.24952901412163,8.60050533607873,-5.91706608901663,2.03511551491328,-0.27993710478023],
+                                                [0.64033054858630,-2.17678215614423,2.95932583860006,-2.01114864174439,0.68323069211818,-0.09282225372024],
+                                                [0.33595278506244,-1.15419807009244,1.58563212231193,-1.08880229086714,0.37369521988006,-0.05128588224013]],dtype='float64')}
+            
+            # pull coefficient vector that corresponds with signal's QAM order from dictionary and scale according to [Eq. 11]
+            coeff_vec = coeff_dict['coeff'][np.argwhere(np.asarray(['16-QAM','32-QAM','64-QAM','128-QAM','256-QAM'])==mod_info)][0][0]
+            # scale coeff values
+            if mod_info == '256-QAM':
+                coeff_vec = coeff_vec*1e7
+            else:
+                coeff_vec = coeff_vec*1e6
+                
+            # calc z_hat (ref.: [3] Eq. 12)
+            r_kI = np.real(samples)
+            r_kQ = np.imag(samples)
+            z_hat = (np.mean(r_kI**2)+np.mean(r_kQ**2)) / ((np.mean(np.abs(r_kI))**2)+(np.mean(np.abs(r_kQ))**2))
+
+            # calc SNR estimate
+            snr_estimate = coeff_vec[5]*(z_hat**5)+coeff_vec[4]*(z_hat**4)+coeff_vec[3]*(z_hat**3)+coeff_vec[2]*(z_hat**2)+coeff_vec[1]*(z_hat)+coeff_vec[0]
+            
+        # all other modulation formats
+        else:
+            raise ValueError('Modulation format is not supported or not specified!')
+            
+        return snr_estimate
+    
+    # init array for snr estimates
+    snr_estimate = np.full_like(sig.samples,0,dtype='float')
+    
+    # loop over signal dimensions
+    for dim in range(sig.ndims):
+        # split samples into blocks
+        if block_size != -1:
+            # identify number of whole blocks
+            n_blocks = sig.samples[dim].shape[0] // block_size
+            # identify remainder after splitting operation
+            block_rem = sig.samples[dim].shape[0] % block_size
+            
+            # call inner function per block
+            for i in range(n_blocks):
+                snr_tmp = inner(sig.samples[dim][i*block_size:(i+1)*block_size],sig.modulation_info[dim])
+                # write tmp array into return array
+                snr_estimate[dim][i*block_size:(i+1)*block_size] = snr_tmp
+                
+            # call function for remainder block
+            if block_rem != 0: 
+                snr_tmp = inner(sig.samples[dim][-block_rem:],sig.modulation_info[dim])
+                # write remainder SNR estimate into return array
+                snr_estimate[dim][-block_rem:] = snr_tmp
+        
+        # if block_size = -1, perform estimation on the entire sample vector
+        else:
+            snr_estimate[dim].fill(inner(sig.samples[dim],sig.modulation_info[dim]),dtype='float')
+        
+    return snr_estimate
