@@ -274,7 +274,7 @@ viterbi = True
 if viterbi:
     cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, 
                                                       filter_shape='wiener', mth_power=4, 
-                                                      rho=.15, magnitude_exponent=1)
+                                                      mag_exp=1, rho=.15)
     sig_rx.samples = cpe_results['rec_symbols']
     est_phase = cpe_results['phi_est'].real
 # ...or BPS
