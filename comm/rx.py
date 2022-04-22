@@ -88,13 +88,13 @@ def decision(samples, constellation, norm=True):
     #     raise ValueError('number of dimensions of samples should be <= 2')
     if samples.ndim > 1:
         raise ValueError('number of dimensions of samples must not exceed 1!')        
-
+    
     if norm:
-    # normalize samples to mean magnitude of original constellation
-    mag_const = np.mean(abs(constellation))
-    # mag_samples = np.mean(abs(samples), axis=-1).reshape(-1,1)
-    mag_samples = np.mean(abs(samples))
-    samples_norm = samples * mag_const / mag_samples
+        # normalize samples to mean magnitude of original constellation
+        mag_const = np.mean(abs(constellation))
+        # mag_samples = np.mean(abs(samples), axis=-1).reshape(-1,1)
+        mag_samples = np.mean(abs(samples))
+        samples_norm = samples * mag_const / mag_samples
     else:
         samples_norm = samples
 
@@ -634,7 +634,24 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     return results
 
 
-def calc_evm(sig, norm='max', method='blind', dimension=-1):
+def _evm_helper(scaling_fac, symbols, symbols_ref):
+    
+    # symbols = args[0]
+    # symbols_ref = args[1]
+    
+    symbols_norm = symbols * scaling_fac
+    
+    means = []
+    
+    for const_point in np.unique(symbols_ref):
+        symbol_norm = symbols_norm[symbols_ref == const_point]
+        symbol_ref = symbols_ref[symbols_ref == const_point]
+        means.append(np.abs(np.mean(symbol_norm - symbol_ref)))
+        
+    return np.sum(np.asarray(means))   
+
+
+def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
     """
     Calculate the error vector magnitude (EVM).
     
@@ -693,30 +710,55 @@ def calc_evm(sig, norm='max', method='blind', dimension=-1):
         if norm == 'max':
             evm_norm_ref = np.max(np.abs(sig.constellation[dim]))
         elif norm == 'rms':
-            evm_norm_ref = np.sqrt(np.mean(np.abs(sig.constellation[dim])**2))
-                
-        # normalize received constellation symbols to ideal constellation
-        symbols_norm = sig.samples[dim] * np.sqrt(np.mean(np.abs(sig.constellation[dim])**2) / np.mean(np.abs(sig.samples[dim])**2))
+            evm_norm_ref = np.sqrt(np.mean(np.abs(sig.constellation[dim])**2))        
         
-        if method == 'blind':            
-            # decide symbols
-            symbols_ref = decision(symbols_norm, sig.constellation[dim])            
-        elif method == 'symbol_aided':            
+        # (starting) scaling factor for received constellation
+        scaling_fac = np.sqrt(np.mean(np.abs(sig.constellation[dim])**2) / np.mean(np.abs(sig.samples[dim])**2))
+        
+        # find reference symbols 'blindly', i.e. by decision using tx consellation
+        if method == 'blind': 
+            # normalize received constellation symbols to ideal constellation
+            symbols_norm = sig.samples[dim] * scaling_fac
+            # decide symbols        
+            symbols_ref = decision(symbols_norm, sig.constellation[dim], norm=False)            
+            error = symbols_norm - symbols_ref
+            mean_error = np.sqrt(np.mean(np.abs(error)**2))            
+                
+        # use given reference symbols, i.e. sent symbol sequence
+        elif method == 'data_aided':            
             # sync samples to sent symbol sequence
             sig_tmp = symbol_sequence_sync(sig)
+            
             if sig_tmp.symbols[dim].size < sig_tmp.samples[dim].size:
                 # repeat sent reference symbols in order to match length of symbols
                 ratio_base = sig_tmp.samples[dim].size // sig_tmp.symbols[dim].size
                 ratio_rem = sig_tmp.samples[dim].size % sig_tmp.symbols[dim].size
                 symbols_ref = np.concatenate((np.tile(sig_tmp.symbols[dim], ratio_base), sig_tmp.symbols[dim][:ratio_rem]), axis=0)
             else:
-                symbols_ref = sig_tmp.symbols[dim]
+                symbols_ref = sig_tmp.symbols[dim]           
+            
+            if opt:
+                # scaling_fac = 1.0
+                # test = _evm_helper(scaling_fac, sig.samples[dim], symbols_ref)
+                # optimize scaling factor
+                result = optimize.minimize(_evm_helper, x0=scaling_fac, 
+                                            args=(sig.samples[dim], symbols_ref), method='Nelder-Mead')
+                scaling_fac_opt = result.x
+                # print(scaling_fac_opt)
+                symbols_norm = sig.samples[dim] * scaling_fac_opt                         
+                error = symbols_norm - symbols_ref
+                mean_error = np.sqrt(np.mean(np.abs(error)**2))
+                
+            else:                
+                # normalize received constellation symbols to ideal constellation
+                symbols_norm = sig.samples[dim] * scaling_fac                         
+                error = symbols_norm - symbols_ref
+                mean_error = np.sqrt(np.mean(np.abs(error)**2))   
         
-        # calc evm
-        error = symbols_norm - symbols_ref
-        evm[dim] = np.sqrt(np.mean(np.abs(error)**2)) / evm_norm_ref
+        # calc evm from (optimized) error        
+        evm[dim] = mean_error / evm_norm_ref
         
-        return evm
+    return evm
 
 def symbol_sequence_sync(sig, dimension=-1):
     """
