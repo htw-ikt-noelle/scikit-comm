@@ -1,8 +1,11 @@
+import warnings
+
 import numpy as np
 import scipy.signal as ssignal
 from scipy import interpolate
+from scipy import optimize
 import matplotlib.pyplot as plt
-import warnings
+
 from . import utils
 from . import filters
 from . import visualizer
@@ -55,7 +58,7 @@ def demapper(samples, constellation):
 
 
 
-def decision(samples, constellation):
+def decision(samples, constellation, norm=True):
     """
     Decide samples to a given constellation alphabet.
 
@@ -68,6 +71,9 @@ def decision(samples, constellation):
         sampled input signal.
     constellation : 1D numpy array, real or complex
         possible constellation points of the input signal.
+    norm : bool
+        should the samples be normalized (to mean maginitude of constellation)
+        before decision?        
 
     Returns
     -------
@@ -83,11 +89,14 @@ def decision(samples, constellation):
     if samples.ndim > 1:
         raise ValueError('number of dimensions of samples must not exceed 1!')        
 
+    if norm:
     # normalize samples to mean magnitude of original constellation
     mag_const = np.mean(abs(constellation))
     # mag_samples = np.mean(abs(samples), axis=-1).reshape(-1,1)
     mag_samples = np.mean(abs(samples))
     samples_norm = samples * mag_const / mag_samples
+    else:
+        samples_norm = samples
 
     idx = np.argmin(np.abs(samples_norm - constellation.reshape(-1,1)), axis=0)
     dec_symbols = constellation[idx]
