@@ -635,17 +635,41 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
 
 
 def _evm_helper(scaling_fac, symbols, symbols_ref):
+    """
+    Helper function for calc_evm to optimize scaling factor.
     
-    # symbols = args[0]
-    # symbols_ref = args[1]
+    The symbols are clusterd to the sent reference symbols and the reference symbols
+    are subtracted. Then the sum of the absolute values of the individual means in 
+    real and imaginary part of all clusters is returned.
+
+    Parameters
+    ----------
+    scaling_fac : float
+        Factor for scaling the symbols.
+    symbols : 1D numpy array, real or complex
+        Symbols to calc the EVM from.
+    symbols_ref : 1D numpy array, real or complex
+        Reference (sent) symbols.
+
+    Returns
+    -------
+    float
+        Sum of all means of real and imaginary part of all clusters.
+
+    """
     
+    # scale symbols
     symbols_norm = symbols * scaling_fac
     
     means = []
     
     for const_point in np.unique(symbols_ref):
+        # cluster symbols to individual constellation points
         symbol_norm = symbols_norm[symbols_ref == const_point]
         symbol_ref = symbols_ref[symbols_ref == const_point]
+        # calc mean (of real an imaginary part) of each cluster:
+        # the mean will be smallest for the scaling factor which leads to the
+        # same means as the original constellations 
         means.append(np.abs(np.mean(symbol_norm - symbol_ref)))
         
     return np.sum(np.asarray(means))   
@@ -655,20 +679,35 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
     """
     Calculate the error vector magnitude (EVM).
     
-    The EVM [1] is calculated for given received modulation symbols considering
-    the given ideal constellation points.
+    The EVM [1] is calculated for given signal considering the received modulation 
+    symbols and the ideal constellation points as reference symbols. 
     
-    Therefore, the received symbols are normalized to the same power as the ideal
-    constellation points before the received symbols are decided to these ideal 
-    constellation points. 
-    NOTE: the error vector is calculated between the received symbols and these
-    DECIDED constellation points and not between the received symbols and the 
-    ACTUALLY ("really") sent constellations. This method will therefore lead to 
-    an optimistic EVM in case of low SNR (and many wrong symbol decisions e.g.
-    high BER).  
+    The signal (sig.samples) has to be sampled at one sample per symbol. 
     
     The EVM Normalization Reference [2] can be specivied as constellation maximum
     'max' or as reference RMS 'rms'.
+    
+    If the input parameter method is given as 'blind' the reference symbols are derived by
+    normalization of the samples (sig.samples) to the same power as the ideal 
+    constellation points (sig.constellation) and following decision to these 
+    ideal constellation points. 
+    In case of 'data_aided', the actual sent symbol sequence
+    (sig.symbols) is used as reference after normalization. In this case a temporal and
+    phase synchronizaiton (comm.rx.symbol_sequence_sync) is performed before
+    calculation of the error vector.
+    It can further be specified (opt==False), if the normalization of the samples is done
+    by scaling the samples to the same mean power as the ideal constellation 
+    points (similar to the 'blind' case). In case of opt==True the scaling factor 
+    is optimized. Therefore, the samples are 'clustered' to the individual sent
+    constellation points and the scaling is adjusted in order to minimize the mean value
+    (in real and imaginary part separate) of all clusters.    
+     
+    NOTE: In case of method=='blind' the error vector is calculated between the 
+    received symbols and the DECIDED constellation points and not between the 
+    received symbols and the ACTUALLY ("really") sent constellations as in case of
+    method=='data_aided'. The former method will therefore lead to an too optimistic 
+    EVM in case of low SNR (and many wrong symbol decisions e.g. high BER).  
+        
     
     [1] https://rfmw.em.keysight.com/wireless/helpfiles/89600b/webhelp/subsystems/digdemod/Content/digdemod_symtblerrdata_evm.htm
     
@@ -676,19 +715,27 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
 
     Parameters
     ----------
-    symbols : 1D numpy array, real or complex
-        input symbols. 
-    constellation : 1D numpy array, real or complex
-        ideal (sent) constellation points. 
+    sig : comm.signal.Signal
+        signal containing the symbols (samples) and the original constellation.    
     norm : string, optional
         Specifies the EVM Normalization Reference [2] and can either be 
         constellation maximum 'max' or reference RMS 'rms'. The default is 'max'.
+    method : string, optional
+        Specifies if the reference symbols are derived without knowledge of the 
+        sent symbols (case 'blind') or not (case 'data_aided'). The default is 
+        'blind'.
+    opt : bool, optional
+        Specifies if the scaling of the symbols (samples) should be optimized.
+        The default is False.
+    dimension : int, optional
+        Which dimension to operate on? -1 operates on all signal dimensions.
+        The default is -1.
 
     Returns
     -------
-    evm : float
-        calculated EVM value as ratio (to convert to percent, the ratio has to 
-        be multiplied by 100).
+    evm : list of floats
+        calculated EVM value per sigmal dimension as ratio (to convert to 
+        percent, the ratio has to be multiplied by 100).
 
     """
     
@@ -717,18 +764,16 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
         
         # find reference symbols 'blindly', i.e. by decision using tx consellation
         if method == 'blind': 
-            # normalize received constellation symbols to ideal constellation
+            # normalize received constellation symbols to match same mean
+            # power as the ideal constellation (will be suboptimal for large noise)
             symbols_norm = sig.samples[dim] * scaling_fac
             # decide symbols        
-            symbols_ref = decision(symbols_norm, sig.constellation[dim], norm=False)            
-            error = symbols_norm - symbols_ref
-            mean_error = np.sqrt(np.mean(np.abs(error)**2))            
+            symbols_ref = decision(symbols_norm, sig.constellation[dim], norm=False)                                    
                 
         # use given reference symbols, i.e. sent symbol sequence
         elif method == 'data_aided':            
             # sync samples to sent symbol sequence
-            sig_tmp = symbol_sequence_sync(sig)
-            
+            sig_tmp = symbol_sequence_sync(sig)            
             if sig_tmp.symbols[dim].size < sig_tmp.samples[dim].size:
                 # repeat sent reference symbols in order to match length of symbols
                 ratio_base = sig_tmp.samples[dim].size // sig_tmp.symbols[dim].size
@@ -737,24 +782,26 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
             else:
                 symbols_ref = sig_tmp.symbols[dim]           
             
-            if opt:
-                # scaling_fac = 1.0
-                # test = _evm_helper(scaling_fac, sig.samples[dim], symbols_ref)
+            if opt:                
                 # optimize scaling factor
+                # the optimal scaling results in the same mean values (in real
+                # and imaginary part of each constellation point 'cluster') as the 
+                # sent constellation points 
                 result = optimize.minimize(_evm_helper, x0=scaling_fac, 
                                             args=(sig.samples[dim], symbols_ref), method='Nelder-Mead')
                 scaling_fac_opt = result.x
-                # print(scaling_fac_opt)
-                symbols_norm = sig.samples[dim] * scaling_fac_opt                         
-                error = symbols_norm - symbols_ref
-                mean_error = np.sqrt(np.mean(np.abs(error)**2))
                 
+                symbols_norm = sig.samples[dim] * scaling_fac_opt                
             else:                
-                # normalize received constellation symbols to ideal constellation
+                # normalize received constellation symbols to match same mean
+                # power as the ideal constellation (will be suboptimal for large noise)
                 symbols_norm = sig.samples[dim] * scaling_fac                         
-                error = symbols_norm - symbols_ref
-                mean_error = np.sqrt(np.mean(np.abs(error)**2))   
+        else:
+            raise ValueError("unkown method specified, needs to be 'blind' or 'data_aided'")
         
+        # calc error
+        error = symbols_norm - symbols_ref
+        mean_error = np.sqrt(np.mean(np.abs(error)**2))
         # calc evm from (optimized) error        
         evm[dim] = mean_error / evm_norm_ref
         
