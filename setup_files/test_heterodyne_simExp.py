@@ -297,8 +297,8 @@ sig_rx.plot_constellation(hist=True, tit='constellation after CPE')
 sig_rx = comm.rx.symbol_sequence_sync(sig_rx, dimension=-1)
     
 #%% # calc EVM
-evm = comm.rx.calc_evm(sig_rx.samples[0], sig_rx.constellation[0], norm='max')
-print("EVM: {:2.2%}".format(evm))
+evm = comm.rx.calc_evm(sig_rx, norm='max')
+print("EVM: {:2.2%}".format(evm[0]))
 
 #%% # decision and demapper
 sig_rx.decision()
