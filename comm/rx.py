@@ -379,9 +379,9 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     """
     Viterbi-Viterbi carrier phase estimation and recovery.
     
-    This function estimates the phase noise of the carrier by using the Viterbi-
-    Viterbi method [1]. Either a rectangular or a Wiener filter shape can be used.    
-    
+    This function estimates the phase noise of the carrier using the Viterbi-Viterbi
+    method [1]. Either a rectangular or a Wiener filter shape can be applied for
+    phase averaging.
     
     
     [1] A. Viterbi, "Nonlinear estimation of PSK-modulated carrier phase with 
@@ -394,19 +394,24 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     [3] E. Ip and J. M. Kahn, "Feedforward Carrier Recovery for Coherent 
     Optical Communications," in Journal of Lightwave Technology, vol. 25, 
     no. 9, pp. 2675-2692, Sept. 2007, doi: 10.1109/JLT.2007.902118.
+    
+    [4]  Wolfram Language & System Documentation Center, 
+    https://reference.wolfram.com/language/ref/CauchyDistribution.html,
+    https://en.wikipedia.org/wiki/Cauchy_distribution
 
     Parameters
     ----------
     symbols :  1D numpy array, real or complex
         input symbols.  
     n_taps : int, optional
-        Number of symbols to average over. The default is 21.
+        Number of symbols to average over. The default is 21 (must be an odd number).
     filter_shape : string, optional
-        Specifies the filter shape: either 'rect', 'wiener', 'cauchy'. The default is 'wiener'.
-    mth_power : int, optional
-        Specifies the power to which the symbols (normalized to magnitude=1) are 
-        raised in order to remove the modulation (needs to be the number of equidistant
-        phase states of the PSK modulation). The default is 4.
+        Specifies the filter shape (window function): either 'rect', 'wiener', 
+        'hyperbolic', 'lorentz'. The default is 'wiener'.
+    mth_power:  int, optional
+        Specifies the power to which the symbols are raised in order to remove the 
+        modulation (needs to be the number of equidistant phase states of the PSK
+        modulation). The default is 4 (corresponding to QPSK).
     mag_exp : optional
         Specifies the exponent, which the symbol magnitudes are raised to prior
         averaging the phasors. A value > 0 leads to the preference of the outer
@@ -414,41 +419,61 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
         an (unusual) preference of the inner symbols. For mag_exp = 0,
         the symbol magnitudes are not condidered in the phase estimation process 
         (For more informations see [1]). The default value is 0.
-    rho : float, optional
-        Tuning factor for 'wiener' filter shape, rho>0; rho is the ratio between
-        the magnitude of the phase noise variance sigma²_phi and the additive
-        noise variance sigma²_n (for more informations see [2],[3]). The default is 0.2.
-
+    rho : float, optional, rho>0
+        For 'wiener' filter shape,  rho is the ratio between the magnitude of
+        the frequency noise variance sigma²_p and the AWGN variance sigma²_n 
+        (for more informations see [2],[3]). sigma²_phi is related to the laser
+        linewidth lw as sigma²_p=2*pi*lw/symbol_rate.
+        For 'lorentz' filter shape (aka Cauchy or Abel window), 2*rho is the FWHM
+        parameter of the Lorentz distribution (aka Cauchy distribution).
+        The default is rho = 0.2.
 
     Returns
     -------
      results : dict containing following keys
         rec_symbols : 1D numpy array, real or complex
             recovered symbols.
-        est_shift : float or 1D numpy array of floats
-            estimated phase noise.
+        phi_est : 1D numpy array, real
+            estimated phase noise random walk
+        cpe_window: 1D numpy array, real
+            applied CPE slicing-average window ()
     """    
-    # remove modulation of symbols (suitable only for MPSK formats, not for higher order square QAMs)
-    raised_symbols = np.exp(1j*np.angle(symbols)*mth_power) # exponentiated symbols with normalized magnitude
-    if mag_exp != 0: # exponentiate also magnitude for weighting of phasor-amplitude
+    #  TODO: change input argument 'symbols' to class Signal() as in function blind_adaptive_equalizer()
+    #  TODO: input & parameter checking as in function blind_adaptive_equalizer()
+    #  TODO: add more window functions (1/x², sinc, ...) (see diploma thesis Oliver Lange - CAU)
+        
+    # for all filter_shapes: remove modulation of symbols (suitable only for MPSK formats with equidistant symbol-phase allocation)
+    raised_symbols = np.exp(1j*np.angle(symbols)*mth_power) # unit magnitude symbols raised to m-th power
+    if mag_exp != 0: # exponentiate also symbol magnitude (i.e. weighting of symbol phasors prior to filtering)
         raised_symbols = (np.abs(symbols)**mag_exp) * raised_symbols
 
-    # smooth exponentiated symbols with FIR filter and estimate phase-noise random walk
-    if filter_shape == 'rect':
-        phi_est = np.unwrap(np.angle(filters.moving_average(raised_symbols, n_taps, domain='freq'))) / mth_power
-    elif filter_shape == 'wiener':        
-        a = 1 + rho / 2 - np.sqrt( ( 1 + rho / 2)**2 - 1) # alpha         
-        h_wiener = a * rho / (1 - a**2) * a**np.arange(n_taps // 2 + 1) # postive half, truncated
-        h_wiener = np.concatenate((np.flip(h_wiener[1:]), h_wiener)) # symmetric (acausal) pulse response
-        # h_wiener = h_wiener / np.sum(h_wiener) # normalize to unit sum (make unbiased estimator)        
-        H_wiener = np.fft.fftshift(np.fft.fft(h_wiener, n=symbols.size))
-        
-        phi_est = np.unwrap(np.angle(filters.filter_samples(raised_symbols, H_wiener, domain='freq'))) / mth_power
-        
-        # undo group delay of Wiener filter (make causal filter)
-        phi_est = np.roll(phi_est,  -(n_taps//2))
+    # smooth (slicing average) exponentiated symbols with non-causal FIR filter and estimate phase-noise random-walk
+    wn = np.zeros(symbols.shape) # template impulse response for phase avg. filter
     
-    # for QPSK: shift recoverd constellation by pi/4 (as usual)
+    # postive-time part of window function (filter impulse response), truncated
+    if filter_shape == 'rect': # rectangular slicing filter
+        wn[0: (n_taps//2 + 1)] = 1
+    elif filter_shape == 'wiener':
+        a = 1 + rho / 2 - np.sqrt( ( 1 + rho / 2)**2 - 1)   # helper variable alpha
+        wn[0: (n_taps//2 + 1)] = a * rho / (1 - a**2) * a**np.arange(n_taps // 2 + 1)
+    elif filter_shape == 'hyperbolic':
+        #wn[0: (n_taps//2 + 1)] = 1/(1+np.arange(n_taps//2+1))
+        b = rho*4
+        wn[0: (n_taps//2 + 1)] = 1/(1 + b*np.arange(n_taps//2+1))
+    elif filter_shape == 'lorentz':
+        b = 0.5/rho
+        wn[0: (n_taps//2 + 1)] = 1/(b*np.pi*(1 + np.arange(n_taps//2+1)**2/b**2))
+    else:
+        raise TypeError("filter_shape '" + filter_shape + "' not implemented yet")
+
+    wn[-n_taps//2+1::] = np.flip(wn[1:(n_taps//2 + 1)])     # symmetrical negative-time part
+    wn = wn / np.sum(wn) # normalize to unit sum (make unbiased estimator)    
+
+    symb_filtered = filters.filter_samples(raised_symbols, np.fft.fftshift(np.fft.fft(wn)) , domain='freq')                
+    phi_est = 1/mth_power * np.unwrap(np.angle(symb_filtered)) # extract phase, unwrap and rescale
+    cpe_window = np.concatenate((wn[-n_taps//2+1::],wn[0: (n_taps//2 + 1)]), axis=0)
+
+    # for QPSK: shift recoverd constellation by pi/4 (as usual in context of digital communication)
     if mth_power == 4:
         phase_correction = np.pi/4
     else:
@@ -464,6 +489,7 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     results = dict()
     results['rec_symbols'] = rec_symbols[1*n_taps+1:-n_taps*1]
     results['phi_est'] = phi_est # units [rad]
+    results['cpe_window'] = cpe_window # center tap = zero-delay (t=0)
     return results
 
 
@@ -517,7 +543,7 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
             input symbols with recovered carrier phase.
         est_phase_noise : 1D numpy array, real
             estimated (unwraped) random phase walk.
-    """    
+    """        
     # normalize samples to constellation    
     mag_const = np.mean(abs(constellation))
     mag_samples = np.mean(abs(samples))

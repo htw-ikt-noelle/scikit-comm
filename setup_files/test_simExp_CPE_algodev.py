@@ -8,17 +8,30 @@ import scipy.interpolate as sinterp
 
 import comm as comm
 
-#%% Tx 
-#%% # signal parameters
-LASER_LINEWIDTH = 1*100e3 # [Hz]
-DAC_SR = 8e9
+#%% System & signal parameters
 EXPERIMENT = False
+LASER_LINEWIDTH = 2*1e6 # [Hz]
+SNR = 10
+
+DAC_SR = 8e9
 UPLOAD_SAMPLES = False
 HOLD_SHOT = False
 USE_PREDIST = False 
 SINC_CORRECTION = False
-SNR = 20
+ADAPTIVE_FILTER = False
 
+RX_CLOCK_ERROR = False
+RX_CLOCK_RATIO = 1.0 # ratio of sampling frequency missmatch
+
+CPE_VITERBI = True
+CPE_n_taps = 21
+# CPE_mth_power = 4
+CPE_filter_shape = 'hyperbolic' # rect, wiener, hyperbolic, lorentz
+CPE_mag_exp = 1
+CPR_rho = 0.5
+
+
+#%% Tx
 #%% # contruct signal
 sig_tx = comm.signal.Signal(n_dims=1)
 sig_tx.symbol_rate = 3.2e9
@@ -36,7 +49,8 @@ sig_tx.mapper()
 
 #%% # upsampling and pulseshaping
 ROLL_OFF = 0.1
-sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=[ROLL_OFF])
+sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rc', roll_off=[ROLL_OFF])
+#sig_tx.plot_constellation(hist=True, tit='constellation after Tx pulseshaper')
 
 #%% # generate DAC samples (analytical signalg at IF)
 f_IF_nom = 1*2e9
@@ -109,7 +123,7 @@ if EXPERIMENT:
     samples = samples - np.mean(samples)
 
 #%% # Simulation 
-else: # Simulation
+else:
     # build ideal complex signal from Tx samples (no ampl. and phase noise)
     samples = samples[0] + 1j*samples[1] 
     
@@ -135,27 +149,28 @@ else: # Simulation
     # samples = np.conj(samples * np.exp(-1j*np.pi/3))
     
     #%% ## add amplitude noise
-    samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=int(sig_tx.sample_rate[0]/sig_tx.symbol_rate[0]), seed=None)
+    samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=int(sig_tx.sample_rate[0]/sig_tx.symbol_rate[0]), seed=2)
 
-    ##%% ## phase noise emulation
-    samples = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)['samples']
+    #%% ## phase noise emulation
+    samples = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=3)['samples']
     sr = sig_tx.sample_rate[0]
     
+#%% Rx
     #%% ## add artificial sample clock error
-    ratio = 1.0 # ratio of sampling frequency missmatch     
-    n_old = np.size(samples, axis=0)
-    t_old = np.arange(n_old) / sr
-    n_new = int(np.round(ratio * n_old))
-    t_new = np.linspace(start=t_old[0], stop=t_old[-1], num=n_new, endpoint=True)
-    sr_new = 1 / (t_new[1] - t_new[0])
-    # interpolate signal at different timing / sampling instants
-    f = sinterp.interp1d(t_old, samples, kind='cubic')
-    samples = f(t_new)
-     
-    # after heterodyne detection and balanced detection
-    samples = np.real(samples)
+    if RX_CLOCK_ERROR==True:
+        rx_clock_ratio = RX_CLOCK_RATIO # ratio of sampling frequency missmatch 
+        n_old = np.size(samples, axis=0)
+        t_old = np.arange(n_old) / sr
+        n_new = int(np.round(rx_clock_ratio * n_old))
+        t_new = np.linspace(start=t_old[0], stop=t_old[-1], num=n_new, endpoint=True)
+        sr_new = 1 / (t_new[1] - t_new[0])
+        # interpolate signal at different timing / sampling instants
+        f = sinterp.interp1d(t_old, samples, kind='cubic')
+        samples = f(t_new)
+         
+        # after heterodyne detection and balanced detection
+        samples = np.real(samples)
 
-#%% Rx 
 
 #%% # contruct rx signal structure
 sig_rx = copy.deepcopy(sig_tx)
@@ -205,9 +220,8 @@ sig_rx.samples = sig_rx.samples[0] * mag_const / mag_samples
 
 sig_rx.plot_constellation(hist=True, tit='constellation before EQ')
 
-adaptive_filter = True
-#%% # either blind adaptive filter....
-if adaptive_filter == True:    
+#%% # blind adaptive equalizer..
+if ADAPTIVE_FILTER == True:    
     results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=31, mu_cma=1e-3, 
                                                mu_rde=1e-5, mu_dde=0.5, decimate=False, 
                                                return_info=True, stop_adapting=-1, 
@@ -245,10 +259,10 @@ if adaptive_filter == True:
     cut = 5000
     sig_rx.samples = sig_rx.samples[0][int(cut)*sps:]
 
-#%% # ... or matched filtering
+#%% # ...or matched filtering
 else:
     # Rx matched filter
-    sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
+    #sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
     
     # crop samples here, if necessary
     sps = int(sig_rx.sample_rate[0] / sig_rx.symbol_rate[0])
@@ -260,8 +274,8 @@ else:
     
     # sampling phase / clock adjustment
     BLOCK_SIZE = -1 # size of one block in SYMBOLS... -1 for only one block
-    sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
-    
+    #sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
+
 #%% # sampling (if necessary)
 START_SAMPLE = 0
 sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
@@ -269,21 +283,26 @@ sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
 sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
 
 #%% # CPE
-viterbi = True
-# ...either VV
-if viterbi:
-    cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, 
-                                                      filter_shape='wiener', mth_power=4, 
-                                                      mag_exp=1, rho=.15)
+if CPE_VITERBI == True: # ...either VV
+    cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=CPE_n_taps, 
+                                                      filter_shape=CPE_filter_shape, mth_power=CPE_mth_power, 
+                                                      mag_exp=CPE_mag_exp, rho=CPR_rho)
     sig_rx.samples = cpe_results['rec_symbols']
     est_phase = cpe_results['phi_est'].real
-# ...or BPS
-else:
+    
+    # window = cpe_results['cpe_window']    
+    # plt.figure()
+    # plt.stem(np.arange(-window.size//2+1,window.size//2+1),window)
+    # plt.title('applied CPE window function'); plt.xlabel('tap number');
+    # plt.ylabel('tap value'); ax = plt.gca(); ax.grid(axis='y'); plt.show()
+
+else: # ...or BPS
     cpe_results = comm.rx.carrier_phase_estimation_bps(sig_rx.samples[0], sig_rx.constellation[0], 
                                                n_taps=21, n_test_phases=31, const_symmetry=np.pi/2)
     sig_rx.samples = cpe_results['samples_corrected']
     est_phase = cpe_results['est_phase_noise']
-    
+
+plt.figure()    
 plt.plot(est_phase)
 plt.title('estimated phase noise')
 plt.xlabel('time / symbols')
