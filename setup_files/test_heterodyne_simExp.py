@@ -135,7 +135,7 @@ else: # Simulation
     # samples = np.conj(samples * np.exp(-1j*np.pi/3))
     
     #%% ## add amplitude noise
-    samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=int(sig_tx.sample_rate[0]/sig_tx.symbol_rate[0]), seed=None)
+    samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=sig_tx.sample_rate[0]/sig_tx.symbol_rate[0], seed=None)
 
     ##%% ## phase noise emulation
     samples = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)['samples']
@@ -297,7 +297,7 @@ sig_rx.plot_constellation(hist=True, tit='constellation after CPE')
 sig_rx = comm.rx.symbol_sequence_sync(sig_rx, dimension=-1)
     
 #%% # calc EVM
-evm = comm.rx.calc_evm(sig_rx, norm='max')
+evm = comm.utils.calc_evm(sig_rx, norm='max')
 print("EVM: {:2.2%}".format(evm[0]))
 
 #%% # decision and demapper
