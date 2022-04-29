@@ -371,7 +371,7 @@ def ber_awgn(value=np.arange(20), modulation_format='QAM', modulation_order=4, t
     return np.asarray(ber)
 
 
-def estimate_snr_spectrum(power_vector = [], wavelength_vector = [], interpolation_points = [], integration_area = [], resolution_bandwidth = 0.1, polynom_order = 3, plotting = False):
+def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolation_points = [], integration_area = [], resolution_bandwidth = 0.1, polynom_order = 3, plotting = False):
 
     """ 
     Description
