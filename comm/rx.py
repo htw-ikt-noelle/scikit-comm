@@ -375,7 +375,7 @@ def sampling_clock_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, block_s
     #####################################################################################
     
 
-def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_power=4, mag_exp=0, rho=0.2):
+def carrier_phase_estimation_VV(symbols, n_taps=31, filter_shape='wiener', mth_power=4, mag_exp=0, rho=0.1):
     """
     Viterbi-Viterbi carrier phase estimation and recovery.
     
@@ -404,29 +404,34 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     symbols :  1D numpy array, real or complex
         input symbols.  
     n_taps : int, optional
-        Number of symbols to average over. The default is 21 (must be an odd number).
+        Number of taps of the averaging filter. Must be an odd number. 
+        The default is n_taps = 31.
     filter_shape : string, optional
-        Specifies the filter shape (window function): either 'rect', 'wiener', 
-        'hyperbolic', 'lorentz'. The default is 'wiener'.
+        Specifies the averaging filter shape (window function): either 'rect',
+        'wiener', 'hyperbolic', 'lorentz'.
+        The default is filter_shape = 'wiener'.
     mth_power:  int, optional
-        Specifies the power to which the symbols are raised in order to remove the 
-        modulation (needs to be the number of equidistant phase states of the PSK
-        modulation). The default is 4 (corresponding to QPSK).
+        Specifies the power to which the symbols are raised to remove the data 
+        modulation (i.e., the number of equidistant modulation phase states).
+        The default is mth_power = 4 (corresponding to QPSK).
     mag_exp : optional
-        Specifies the exponent, which the symbol magnitudes are raised to prior
+        Specifies the exponent, to which the symbol magnitudes are raised before
         averaging the phasors. A value > 0 leads to the preference of the outer
-        symbols in the averaging process, while a value < 0 accordingly leads to 
-        an (unusual) preference of the inner symbols. For mag_exp = 0,
-        the symbol magnitudes are not condidered in the phase estimation process 
-        (For more informations see [1]). The default value is 0.
+        symbols in the averaging process, while a value <0 accordingly leads to 
+        a preference of inner symbols. 
+        For mag_exp = 0, the symbol magnitudes are ignored in the phase estimation
+        process (For more informations see [1]).
+        The default value is mag_exp = 0.
     rho : float, optional, rho>0
+        Shape parameter for 'wiener', 'hyperbolic' and 'lorentz' filter. 
+        For larger rho, the filter shape becomes narrower.
         For 'wiener' filter shape,  rho is the ratio between the magnitude of
-        the frequency noise variance sigma²_p and the AWGN variance sigma²_n 
-        (for more informations see [2],[3]). sigma²_phi is related to the laser
-        linewidth lw as sigma²_p=2*pi*lw/symbol_rate.
-        For 'lorentz' filter shape (aka Cauchy or Abel window), 2*rho is the FWHM
-        parameter of the Lorentz distribution (aka Cauchy distribution).
-        The default is rho = 0.2.
+        the frequency noise variance σ²_phi and the AWGN variance sigma²_n 
+        (for more informations see [2],[3]). σ²_phi is related to the laser
+        linewidth LW as σ²_phi = 2*pi*LW/symbol_rate.
+        For 'hyperbolic' and 'lorentz' filter shape (aka Cauchy or Abel window), 
+        1/rho is the FWHM parameter of the filter shape.
+        The default is rho = 0.1.
 
     Returns
     -------
@@ -438,13 +443,32 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
         cpe_window: 1D numpy array, real
             applied CPE slicing-average window ()
     """    
-    #  TODO: change input argument 'symbols' to class Signal() as in function blind_adaptive_equalizer()
-    #  TODO: input & parameter checking as in function blind_adaptive_equalizer()
-    #  TODO: add more window functions (1/x², sinc, ...) (see diploma thesis Oliver Lange - CAU)
+    #  TODO: change input argument 'symbols' to class Signal()
+    
+    # input sanitization (using only real-value of first element of parametes)
+    n_taps = np.real(np.atleast_1d(n_taps)[0])
+    filter_shape = np.atleast_1d(filter_shape )[0]
+    mth_power = np.real(np.atleast_1d(mth_power)[0])
+    mag_exp = np.real(np.atleast_1d(mag_exp)[0])
+    rho = np.real(np.atleast_1d(rho)[0])
         
+    if n_taps < 1  or n_taps%1 != 0  or  n_taps%2==0:
+        raise ValueError('The number of CPE taps n_taps must be an odd integer with value at least 1.')
+    
+    if symbols.size <= 4*n_taps:
+        raise ValueError('The number of symbols must exceed 4 x n_taps in CPE averaging filter!')
+        
+    if mth_power < 1 or mth_power%1:
+        raise ValueError('The parameter mth_power must be an integer >= 1')
+        
+    if not rho > 0:
+        raise ValueError('The parameter rho must be > 0')
+        
+    
     # for all filter_shapes: remove modulation of symbols (suitable only for MPSK formats with equidistant symbol-phase allocation)
-    raised_symbols = np.exp(1j*np.angle(symbols)*mth_power) # unit magnitude symbols raised to m-th power
-    if mag_exp != 0: # exponentiate also symbol magnitude (i.e. weighting of symbol phasors prior to filtering)
+    # raise unit-magnitude symbols to m-th power
+    raised_symbols = np.exp(1j*np.angle(symbols)*mth_power)
+    if mag_exp != 0: # exponentiate also the symbol magnitude (i.e. weighting of symbol phasors prior to filtering)
         raised_symbols = (np.abs(symbols)**mag_exp) * raised_symbols
 
     # smooth (slicing average) exponentiated symbols with non-causal FIR filter and estimate phase-noise random-walk
@@ -458,7 +482,7 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
         wn[0: (n_taps//2 + 1)] = a * rho / (1 - a**2) * a**np.arange(n_taps // 2 + 1)
     elif filter_shape == 'hyperbolic':
         #wn[0: (n_taps//2 + 1)] = 1/(1+np.arange(n_taps//2+1))
-        b = rho*4
+        b = 2*rho
         wn[0: (n_taps//2 + 1)] = 1/(1 + b*np.arange(n_taps//2+1))
     elif filter_shape == 'lorentz':
         b = 0.5/rho
@@ -466,14 +490,16 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     else:
         raise TypeError("filter_shape '" + filter_shape + "' not implemented yet")
 
-    wn[-n_taps//2+1::] = np.flip(wn[1:(n_taps//2 + 1)])     # symmetrical negative-time part
-    wn = wn / np.sum(wn) # normalize to unit sum (make unbiased estimator)    
+    # negative-time part, symmetrical positive time
+    wn[-n_taps//2+1::] = np.flip(wn[1:(n_taps//2 + 1)])
+    wn = wn / np.sum(wn) # normalize to unit sum (make unbiased estimator), optional    
 
+    # apply averaging fiulter in frequency domain (no group delay)
     symb_filtered = filters.filter_samples(raised_symbols, np.fft.fftshift(np.fft.fft(wn)) , domain='freq')                
-    phi_est = 1/mth_power * np.unwrap(np.angle(symb_filtered)) # extract phase, unwrap and rescale
-    cpe_window = np.concatenate((wn[-n_taps//2+1::],wn[0: (n_taps//2 + 1)]), axis=0)
-
-    # for QPSK: shift recoverd constellation by pi/4 (as usual in context of digital communication)
+    # extract phase, unwrap and rescale
+    phi_est = 1/mth_power * np.unwrap(np.angle(symb_filtered))
+    
+    # for QPSK: rotate recovered constellation by pi/4 (as usual in context of digital communication)
     if mth_power == 4:
         phase_correction = np.pi/4
     else:
@@ -484,6 +510,15 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     # crop start and end (due to FIR induced delay)
     rec_symbols = rec_symbols[1*n_taps+1:-n_taps*1]
     phi_est = phi_est[1*n_taps+1:-n_taps*1]
+    
+    # for plotting / return
+    cpe_window = np.concatenate((wn[-n_taps//2+1::],wn[0: (n_taps//2 + 1)]), axis=0)
+    # for debugging purpose
+    if True:
+        plt.figure()
+        plt.stem(np.arange(-cpe_window.size//2+1,cpe_window.size//2+1),cpe_window)
+        plt.title('applied CPE window function'); plt.xlabel('tap number');
+        plt.ylabel('tap value'); ax = plt.gca(); ax.grid(axis='y'); plt.show()
     
     # generate output dict containing recoverd symbols and estimated phase noise
     results = dict()

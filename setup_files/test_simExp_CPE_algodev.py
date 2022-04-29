@@ -24,11 +24,11 @@ RX_CLOCK_ERROR = False
 RX_CLOCK_RATIO = 1.0 # ratio of sampling frequency missmatch
 
 CPE_VITERBI = True
-CPE_n_taps = 21
-# CPE_mth_power = 4
-CPE_filter_shape = 'hyperbolic' # rect, wiener, hyperbolic, lorentz
-CPE_mag_exp = 1
-CPR_rho = 0.5
+CPE_n_taps = 31
+CPE_mth_power = 4
+CPE_filter_shape = 'wiener' # rect, wiener, hyperbolic, lorentz
+CPE_mag_exp = 0
+CPR_rho = 0.2
 
 
 #%% Tx
