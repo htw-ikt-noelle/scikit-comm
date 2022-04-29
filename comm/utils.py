@@ -371,7 +371,7 @@ def ber_awgn(value=np.arange(20), modulation_format='QAM', modulation_order=4, t
     return np.asarray(ber)
 
 
-def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], integration_area = [], resolution_bandwidth = 0.1, polynom_order = 3, plotting = False):
+def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolation_points = [], integration_area = [], resolution_bandwidth = 0.1, polynom_order = 3, plotting = False):
 
     """ 
     Description
@@ -587,13 +587,16 @@ def osnr(power_vector = [], wavelength_vector = [], interpolation_points = [], i
     return OSNR_01nm,OSNR_val
     
         
-def estimate_snr(sig,block_size=-1,bias_comp=True):
+def estimate_snr_nda(sig,block_size=-1,bias_comp=True):
     """
-    Estimates the SNR per symbol of a signal with AWGN depending on its modulation format.
-    Different algorithms are used depending on whether the modulation format is
-    BPSK, QPSK, or QAM of order 16 or upwards. The function assumes that the 'samples'
-    attribute of the signal class object contains symbols, i.e. that the signal has been 
-    downsampled to 1 sample per symbol, and that no sampling phase error is present.
+    Estimates the SNR per symbol of a noisy signal depending on its modulation 
+    format. The noise is assumed to be Gauss-distributed. Different non-data-
+    aided algorithms are used in conjunction with empirically determined 
+    correction/modification terms depending on whether the modulation format 
+    is BPSK, QPSK, or QAM of order 16 or upwards. The function assumes that 
+    the 'samples' attribute of the signal class object contains symbols, i.e. 
+    that the signal has been downsampled to 1 sample per symbol, and that no 
+    sampling phase error is present.
 
     References:
     [1]: Ijaz, A., Awoseyila, A.B., Evans, B.G.: "Improved SNR estimation for BPSK and
@@ -635,7 +638,7 @@ def estimate_snr(sig,block_size=-1,bias_comp=True):
         raise ValueError("Block size must be a positive integer or -1!")
     
     # nested function that performs the estimation
-    def inner(samples,mod_info):
+    def _estimation_helper(samples,mod_info):
         
         # BPSK case
         if mod_info == '2-PSK':
@@ -717,10 +720,14 @@ def estimate_snr(sig,block_size=-1,bias_comp=True):
         return snr_estimate
     
     # init array for snr estimates
+    # TODO: full_like method fails when signal dimensions have an unequal number
+    # of elements! If such a case should occur, preallocation of estimation vec-
+    # tor should be performed individually per signal dimension and a separate 
+    # object would have to be constructed to output the estimates
     snr_estimate = np.full_like(sig.samples,0,dtype='float')
     
     # loop over signal dimensions
-    for dim in range(sig.ndims):
+    for dim in range(sig.n_dims):
         # split samples into blocks
         if block_size != -1:
             # identify number of whole blocks
@@ -730,18 +737,18 @@ def estimate_snr(sig,block_size=-1,bias_comp=True):
             
             # call inner function per block
             for i in range(n_blocks):
-                snr_tmp = inner(sig.samples[dim][i*block_size:(i+1)*block_size],sig.modulation_info[dim])
+                snr_tmp = _estimation_helper(sig.samples[dim][i*block_size:(i+1)*block_size],sig.modulation_info[dim])
                 # write tmp array into return array
                 snr_estimate[dim][i*block_size:(i+1)*block_size] = snr_tmp
                 
             # call function for remainder block
             if block_rem != 0: 
-                snr_tmp = inner(sig.samples[dim][-block_rem:],sig.modulation_info[dim])
+                snr_tmp = _estimation_helper(sig.samples[dim][-block_rem:],sig.modulation_info[dim])
                 # write remainder SNR estimate into return array
                 snr_estimate[dim][-block_rem:] = snr_tmp
         
         # if block_size = -1, perform estimation on the entire sample vector
         else:
-            snr_estimate[dim].fill(inner(sig.samples[dim],sig.modulation_info[dim]),dtype='float')
+            snr_estimate[dim].fill(_estimation_helper(sig.samples[dim],sig.modulation_info[dim]),dtype='float')
         
     return snr_estimate
