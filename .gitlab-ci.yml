@@ -1,13 +1,15 @@
 image: python:3.10
 
-docu:
-  stage: build
-  script:
-  - python -V
-  - pip install -r requirements.txt 
-  - cd docs
-  - sphinx-apidoc -f -o source ../comm
-  - sphinx-build -b html source ../public
+# TODO: investigate reason for failure of documentation build (likely culprit: myst parser)
+
+#docu:
+#  stage: build
+#  script:
+#  - python -V
+#  - pip install -r requirements.txt 
+#  - cd docs
+#  - sphinx-apidoc -f -o source ../comm
+#  - sphinx-build -b html source ../public
 
 
 unittests:
