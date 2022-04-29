@@ -404,31 +404,31 @@ def carrier_phase_estimation_VV(symbols, n_taps=31, filter_shape='wiener', mth_p
     symbols :  1D numpy array, real or complex
         input symbols.  
     n_taps : int, optional
-        Number of taps of the averaging filter. Must be an odd number. 
+        Number of taps of the averaging filter. Must be an odd number.
         The default is n_taps = 31.
     filter_shape : string, optional
-        Specifies the averaging filter shape (window function): either 'rect',
-        'wiener', 'hyperbolic', 'lorentz'.
+        Specifies the averaging filter shape (window function): either 'rect', 
+        'wiener', 'hyperbolic' or 'lorentz'.
         The default is filter_shape = 'wiener'.
     mth_power:  int, optional
         Specifies the power to which the symbols are raised to remove the data 
         modulation (i.e., the number of equidistant modulation phase states).
         The default is mth_power = 4 (corresponding to QPSK).
     mag_exp : optional
-        Specifies the exponent, to which the symbol magnitudes are raised before
-        averaging the phasors. A value > 0 leads to the preference of the outer
+        Specifies the exponent, to which the symbol magnitudes are raised before 
+        averaging the phasors. A value > 0 leads to the preference of the outer 
         symbols in the averaging process, while a value <0 accordingly leads to 
         a preference of inner symbols. 
         For mag_exp = 0, the symbol magnitudes are ignored in the phase estimation
-        process (For more informations see [1]).
+        process (For more information see [1]).
         The default value is mag_exp = 0.
     rho : float, optional, rho>0
         Shape parameter for 'wiener', 'hyperbolic' and 'lorentz' filter. 
         For larger rho, the filter shape becomes narrower.
         For 'wiener' filter shape,  rho is the ratio between the magnitude of
-        the frequency noise variance σ²_phi and the AWGN variance sigma²_n 
-        (for more informations see [2],[3]). σ²_phi is related to the laser
-        linewidth LW as σ²_phi = 2*pi*LW/symbol_rate.
+        the frequency noise variance σ²_ϕ and the (normalized) AWGN variance σ²_n' 
+        (for more information see [2],[3]). σ²_ϕ is related to the laser 
+        linewidth LW as σ²_ϕ = 2*π*LW/symbol_rate.
         For 'hyperbolic' and 'lorentz' filter shape (aka Cauchy or Abel window), 
         1/rho is the FWHM parameter of the filter shape.
         The default is rho = 0.1.
@@ -443,9 +443,9 @@ def carrier_phase_estimation_VV(symbols, n_taps=31, filter_shape='wiener', mth_p
         cpe_window: 1D numpy array, real
             applied CPE slicing-average window ()
     """    
-    #  TODO: change input argument 'symbols' to class Signal()
+    # TODO: change input argument 'symbols' to class Signal()
     
-    # input sanitization (using only real-value of first element of parametes)
+    # input sanitization (using only real value of first element)
     n_taps = np.real(np.atleast_1d(n_taps)[0])
     filter_shape = np.atleast_1d(filter_shape )[0]
     mth_power = np.real(np.atleast_1d(mth_power)[0])
@@ -453,17 +453,16 @@ def carrier_phase_estimation_VV(symbols, n_taps=31, filter_shape='wiener', mth_p
     rho = np.real(np.atleast_1d(rho)[0])
         
     if n_taps < 1  or n_taps%1 != 0  or  n_taps%2==0:
-        raise ValueError('The number of CPE taps n_taps must be an odd integer with value at least 1.')
+        raise ValueError('The number of CPE taps n_taps must be an odd integer ≥1.')
     
     if symbols.size <= 4*n_taps:
-        raise ValueError('The number of symbols must exceed 4 x n_taps in CPE averaging filter!')
+        raise ValueError('The number of symbols must exceed 4×n_taps in CPE averaging filter!')
         
     if mth_power < 1 or mth_power%1:
-        raise ValueError('The parameter mth_power must be an integer >= 1')
+        raise ValueError('The parameter mth_power must be an integer ≥1')
         
     if not rho > 0:
-        raise ValueError('The parameter rho must be > 0')
-        
+        raise ValueError('The parameter rho must be >0')
     
     # for all filter_shapes: remove modulation of symbols (suitable only for MPSK formats with equidistant symbol-phase allocation)
     # raise unit-magnitude symbols to m-th power
@@ -474,11 +473,11 @@ def carrier_phase_estimation_VV(symbols, n_taps=31, filter_shape='wiener', mth_p
     # smooth (slicing average) exponentiated symbols with non-causal FIR filter and estimate phase-noise random-walk
     wn = np.zeros(symbols.shape) # template impulse response for phase avg. filter
     
-    # postive-time part of window function (filter impulse response), truncated
+    # postive-time part of truncated window function (filter impulse response)
     if filter_shape == 'rect': # rectangular slicing filter
         wn[0: (n_taps//2 + 1)] = 1
     elif filter_shape == 'wiener':
-        a = 1 + rho / 2 - np.sqrt( ( 1 + rho / 2)**2 - 1)   # helper variable alpha
+        a = 1 + rho / 2 - np.sqrt( ( 1 + rho / 2)**2 - 1) # helper variable alpha
         wn[0: (n_taps//2 + 1)] = a * rho / (1 - a**2) * a**np.arange(n_taps // 2 + 1)
     elif filter_shape == 'hyperbolic':
         #wn[0: (n_taps//2 + 1)] = 1/(1+np.arange(n_taps//2+1))
@@ -490,12 +489,12 @@ def carrier_phase_estimation_VV(symbols, n_taps=31, filter_shape='wiener', mth_p
     else:
         raise TypeError("filter_shape '" + filter_shape + "' not implemented yet")
 
-    # negative-time part, symmetrical positive time
+    # negative-time part (symmetrical to positive-time part)
     wn[-n_taps//2+1::] = np.flip(wn[1:(n_taps//2 + 1)])
-    wn = wn / np.sum(wn) # normalize to unit sum (make unbiased estimator), optional    
+    wn = wn / np.sum(wn) # optional: normalize to unit-sum (make unbiased estimator)
 
-    # apply averaging fiulter in frequency domain (no group delay)
-    symb_filtered = filters.filter_samples(raised_symbols, np.fft.fftshift(np.fft.fft(wn)) , domain='freq')                
+    # apply averaging filter in frequency domain (no group delay)
+    symb_filtered = filters.filter_samples(raised_symbols, np.fft.fftshift(np.fft.fft(wn)) , domain='freq')
     # extract phase, unwrap and rescale
     phi_est = 1/mth_power * np.unwrap(np.angle(symb_filtered))
     
@@ -513,14 +512,14 @@ def carrier_phase_estimation_VV(symbols, n_taps=31, filter_shape='wiener', mth_p
     
     # for plotting / return
     cpe_window = np.concatenate((wn[-n_taps//2+1::],wn[0: (n_taps//2 + 1)]), axis=0)
-    # for debugging purpose
-    if True:
+    # for debugging
+    if False:
         plt.figure()
         plt.stem(np.arange(-cpe_window.size//2+1,cpe_window.size//2+1),cpe_window)
         plt.title('applied CPE window function'); plt.xlabel('tap number');
         plt.ylabel('tap value'); ax = plt.gca(); ax.grid(axis='y'); plt.show()
     
-    # generate output dict containing recoverd symbols and estimated phase noise
+    # generate output dict containing recovered symbols, estimated phase noise and CPE filter taps
     results = dict()
     results['rec_symbols'] = rec_symbols[1*n_taps+1:-n_taps*1]
     results['phi_est'] = phi_est # units [rad]
