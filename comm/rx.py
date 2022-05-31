@@ -375,13 +375,13 @@ def sampling_clock_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, block_s
     #####################################################################################
     
 
-def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_power=4, rho=0.2):
+def carrier_phase_estimation_VV(symbols, n_taps=31, filter_shape='wiener', mth_power=4, mag_exp=0, rho=0.1):
     """
     Viterbi-Viterbi carrier phase estimation and recovery.
     
-    This function estimates the phase noise of the carrier by using the Viterbi-
-    Viterbi method [1]. Either a rectangular or a Wiener filter shape can be used.    
-    
+    This function estimates the phase noise of the carrier using the Viterbi-Viterbi
+    method [1]. Either a rectangular or a Wiener filter shape can be applied for
+    phase averaging.
     
     
     [1] A. Viterbi, "Nonlinear estimation of PSK-modulated carrier phase with 
@@ -394,66 +394,136 @@ def carrier_phase_estimation_VV(symbols, n_taps=21, filter_shape='wiener', mth_p
     [3] E. Ip and J. M. Kahn, "Feedforward Carrier Recovery for Coherent 
     Optical Communications," in Journal of Lightwave Technology, vol. 25, 
     no. 9, pp. 2675-2692, Sept. 2007, doi: 10.1109/JLT.2007.902118.
+    
+    [4]  Wolfram Language & System Documentation Center, 
+    https://reference.wolfram.com/language/ref/CauchyDistribution.html,
+    https://en.wikipedia.org/wiki/Cauchy_distribution
 
     Parameters
     ----------
     symbols :  1D numpy array, real or complex
         input symbols.  
     n_taps : int, optional
-        Number of symbols to average over. The default is 21.
+        Number of taps of the averaging filter. Must be an odd number.
+        The default is n_taps = 31.
     filter_shape : string, optional
-        Specifies the filter shape: either 'rect' or 'wiener'. The default is 'wiener'.
-    mth_power : int, optional
-        Specifies the power to which the constellation is raised in order to 
-        remove the modulation (needs to be the number of equidistant phase 
-        states of the PSK modulation). The default is 4.
-    rho : float, optional
-        Tuning factor for 'wiener' filter shape, rho>0; rho is the ratio between
-        the magnitude of the phase noise variance sigma²_phi and the additive
-        noise variance sigma² (for more informations see [2],[3]). The default is 0.2.
+        Specifies the averaging filter shape (window function): either 'rect', 
+        'wiener', 'hyperbolic' or 'lorentz'.
+        The default is filter_shape = 'wiener'.
+    mth_power:  int, optional
+        Specifies the power to which the symbols are raised to remove the data 
+        modulation (i.e., the number of equidistant modulation phase states).
+        The default is mth_power = 4 (corresponding to QPSK).
+    mag_exp : optional
+        Specifies the exponent, to which the symbol magnitudes are raised before 
+        averaging the phasors. A value > 0 leads to the preference of the outer 
+        symbols in the averaging process, while a value <0 accordingly leads to 
+        a preference of inner symbols. 
+        For mag_exp = 0, the symbol magnitudes are ignored in the phase estimation
+        process (For more information see [1]).
+        The default value is mag_exp = 0.
+    rho : float, optional, rho>0
+        Shape parameter for 'wiener', 'hyperbolic' and 'lorentz' filter. 
+        For larger rho, the filter shape becomes narrower.
+        For 'wiener' filter shape,  rho is the ratio between the magnitude of
+        the frequency noise variance σ²_ϕ and the (normalized) AWGN variance σ²_n' 
+        (for more information see [2],[3]). σ²_ϕ is related to the laser 
+        linewidth LW as σ²_ϕ = 2*π*LW/symbol_rate.
+        For 'hyperbolic' and 'lorentz' filter shape (aka Cauchy or Abel window), 
+        1/rho is the FWHM parameter of the filter shape.
+        The default is rho = 0.1.
 
     Returns
     -------
      results : dict containing following keys
         rec_symbols : 1D numpy array, real or complex
             recovered symbols.
-        est_shift : float or 1D numpy array of floats
-            estimated phase noise.
+        phi_est : 1D numpy array, real
+            estimated phase noise random walk
+        cpe_window: 1D numpy array, real
+            applied CPE slicing-average window ()
     """    
-    if filter_shape == 'rect':
-        # filter the unwraped phase
-        phi_est = filters.moving_average(np.unwrap(mth_power * np.angle(symbols)) / mth_power, n_taps, domain='freq')
-       
-        
-    elif filter_shape == 'wiener':        
-        a = 1 + rho / 2 - np.sqrt( ( 1 + rho / 2)**2 - 1) # alpha         
-        h_wiener = a * rho / (1 - a**2) * a**np.arange(n_taps // 2 + 1) # postive half
-        h_wiener = np.concatenate((np.flip(h_wiener[1:]), h_wiener)) # make symmetric
-        h_wiener = h_wiener / np.sum(h_wiener) # normalize to unit sum (make unbiased estimator)        
-       
-        H_wiener = np.fft.fftshift(np.fft.fft(h_wiener, n=symbols.size))
-        # filter the unwraped phase        
-        phi_est = filters.filter_samples(np.unwrap(mth_power*np.angle(symbols))/mth_power, H_wiener, domain='freq')
-        # phi_est = np.abs(phi_est)
-        # undo group delay of Wiener filter
-        phi_est = np.roll(phi_est,  -(n_taps//2))
+    # TODO: change input argument 'symbols' to class Signal()
     
-    # for QPSK: shift recoverd constellation by pi/4
+    # input sanitization (using only real value of first element)
+    n_taps = np.real(np.atleast_1d(n_taps)[0])
+    filter_shape = np.atleast_1d(filter_shape )[0]
+    mth_power = np.real(np.atleast_1d(mth_power)[0])
+    mag_exp = np.real(np.atleast_1d(mag_exp)[0])
+    rho = np.real(np.atleast_1d(rho)[0])
+        
+    if n_taps < 1  or n_taps%1 != 0  or  n_taps%2==0:
+        raise ValueError('The number of CPE taps n_taps must be an odd integer ≥1.')
+    
+    if symbols.size <= 4*n_taps:
+        raise ValueError('The number of symbols must exceed 4×n_taps in CPE averaging filter!')
+        
+    if mth_power < 1 or mth_power%1:
+        raise ValueError('The parameter mth_power must be an integer ≥1')
+        
+    if not rho > 0:
+        raise ValueError('The parameter rho must be >0')
+    
+    # for all filter_shapes: remove modulation of symbols (suitable only for MPSK formats with equidistant symbol-phase allocation)
+    # raise unit-magnitude symbols to m-th power
+    raised_symbols = np.exp(1j*np.angle(symbols)*mth_power)
+    if mag_exp != 0: # exponentiate also the symbol magnitude (i.e. weighting of symbol phasors prior to filtering)
+        raised_symbols = (np.abs(symbols)**mag_exp) * raised_symbols
+
+    # smooth (slicing average) exponentiated symbols with non-causal FIR filter and estimate phase-noise random-walk
+    wn = np.zeros(symbols.shape) # template impulse response for phase avg. filter
+    
+    # postive-time part of truncated window function (filter impulse response)
+    if filter_shape == 'rect': # rectangular slicing filter
+        wn[0: (n_taps//2 + 1)] = 1
+    elif filter_shape == 'wiener':
+        a = 1 + rho / 2 - np.sqrt( ( 1 + rho / 2)**2 - 1) # helper variable alpha
+        wn[0: (n_taps//2 + 1)] = a * rho / (1 - a**2) * a**np.arange(n_taps // 2 + 1)
+    elif filter_shape == 'hyperbolic':
+        #wn[0: (n_taps//2 + 1)] = 1/(1+np.arange(n_taps//2+1))
+        b = 2*rho
+        wn[0: (n_taps//2 + 1)] = 1/(1 + b*np.arange(n_taps//2+1))
+    elif filter_shape == 'lorentz':
+        b = 0.5/rho
+        wn[0: (n_taps//2 + 1)] = 1/(b*np.pi*(1 + np.arange(n_taps//2+1)**2/b**2))
+    else:
+        raise TypeError("filter_shape '" + filter_shape + "' not implemented yet")
+
+    # negative-time part (symmetrical to positive-time part)
+    wn[-n_taps//2+1::] = np.flip(wn[1:(n_taps//2 + 1)])
+    wn = wn / np.sum(wn) # optional: normalize to unit-sum (make unbiased estimator)
+
+    # apply averaging filter in frequency domain (no group delay)
+    symb_filtered = filters.filter_samples(raised_symbols, np.fft.fftshift(np.fft.fft(wn)) , domain='freq')
+    # extract phase, unwrap and rescale
+    phi_est = 1/mth_power * np.unwrap(np.angle(symb_filtered))
+    
+    # for QPSK: rotate recovered constellation by pi/4 (as usual in context of digital communication)
     if mth_power == 4:
         phase_correction = np.pi/4
     else:
         phase_correction = 0
     
-    # actual phase recovery
+    # phase recovery: subract estimated phase-noise from input symbols
     rec_symbols = symbols * np.exp(-1j*(phi_est + phase_correction))
-    # crop start and end (necessary???)
-    rec_symbols = rec_symbols[1*n_taps+1:-n_taps*1] 
+    # crop start and end (due to FIR induced delay)
+    rec_symbols = rec_symbols[1*n_taps+1:-n_taps*1]
+    phi_est = phi_est[1*n_taps+1:-n_taps*1]
     
+    # for plotting / return
+    cpe_window = np.concatenate((wn[-n_taps//2+1::],wn[0: (n_taps//2 + 1)]), axis=0)
+    # for debugging
+    if False:
+        plt.figure()
+        plt.stem(np.arange(-cpe_window.size//2+1,cpe_window.size//2+1),cpe_window)
+        plt.title('applied CPE window function'); plt.xlabel('tap number');
+        plt.ylabel('tap value'); ax = plt.gca(); ax.grid(axis='y'); plt.show()
     
-    # generate output dict containing recoverd symbols and estimated phase noise
+    # generate output dict containing recovered symbols, estimated phase noise and CPE filter taps
     results = dict()
-    results['rec_symbols'] = rec_symbols
-    results['phi_est'] = phi_est
+    results['rec_symbols'] = rec_symbols[1*n_taps+1:-n_taps*1]
+    results['phi_est'] = phi_est # units [rad]
+    results['cpe_window'] = cpe_window # center tap = zero-delay (t=0)
     return results
 
 
@@ -507,7 +577,7 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
             input symbols with recovered carrier phase.
         est_phase_noise : 1D numpy array, real
             estimated (unwraped) random phase walk.
-    """    
+    """        
     # normalize samples to constellation    
     mag_const = np.mean(abs(constellation))
     mag_samples = np.mean(abs(samples))
