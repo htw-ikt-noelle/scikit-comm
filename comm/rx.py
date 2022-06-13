@@ -1,8 +1,11 @@
+import warnings
+
 import numpy as np
 import scipy.signal as ssignal
 from scipy import interpolate
+from scipy import optimize
 import matplotlib.pyplot as plt
-import warnings
+
 from . import utils
 from . import filters
 from . import visualizer
@@ -55,7 +58,7 @@ def demapper(samples, constellation):
 
 
 
-def decision(samples, constellation):
+def decision(samples, constellation, norm=True):
     """
     Decide samples to a given constellation alphabet.
 
@@ -68,6 +71,9 @@ def decision(samples, constellation):
         sampled input signal.
     constellation : 1D numpy array, real or complex
         possible constellation points of the input signal.
+    norm : bool
+        should the samples be normalized (to mean maginitude of constellation)
+        before decision?        
 
     Returns
     -------
@@ -82,12 +88,15 @@ def decision(samples, constellation):
     #     raise ValueError('number of dimensions of samples should be <= 2')
     if samples.ndim > 1:
         raise ValueError('number of dimensions of samples must not exceed 1!')        
-
-    # normalize samples to mean magnitude of original constellation
-    mag_const = np.mean(abs(constellation))
-    # mag_samples = np.mean(abs(samples), axis=-1).reshape(-1,1)
-    mag_samples = np.mean(abs(samples))
-    samples_norm = samples * mag_const / mag_samples
+    
+    if norm:
+        # normalize samples to mean magnitude of original constellation
+        mag_const = np.mean(abs(constellation))
+        # mag_samples = np.mean(abs(samples), axis=-1).reshape(-1,1)
+        mag_samples = np.mean(abs(samples))
+        samples_norm = samples * mag_const / mag_samples
+    else:
+        samples_norm = samples
 
     idx = np.argmin(np.abs(samples_norm - constellation.reshape(-1,1)), axis=0)
     dec_symbols = constellation[idx]
@@ -625,63 +634,7 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     return results
 
 
-def calc_evm(symbols, constellation, norm='max'):
-    """
-    Calculate the error vector magnitude (EVM).
-    
-    The EVM [1] is calculated for given received modulation symbols considering
-    the given ideal constellation points.
-    
-    Therefore, the received symbols are normalized to the same power as the ideal
-    constellation points before the received symbols are decided to these ideal 
-    constellation points. 
-    NOTE: the error vector is calculated between the received symbols and these
-    DECIDED constellation points and not between the received symbols and the 
-    ACTUALLY ("really") sent constellations. This method will therefore lead to 
-    an optimistic EVM in case of low SNR (and many wrong symbol decisions e.g.
-    high BER).  
-    
-    The EVM Normalization Reference [2] can be specivied as constellation maximum
-    'max' or as reference RMS 'rms'.
-    
-    [1] https://rfmw.em.keysight.com/wireless/helpfiles/89600b/webhelp/subsystems/digdemod/Content/digdemod_symtblerrdata_evm.htm
-    
-    [2] https://rfmw.em.keysight.com/wireless/helpfiles/89600b/webhelp/subsystems/digdemod/Content/dlg_digdemod_comp_evmnormref.htm
 
-    Parameters
-    ----------
-    symbols : 1D numpy array, real or complex
-        input symbols. 
-    constellation : 1D numpy array, real or complex
-        ideal (sent) constellation points. 
-    norm : string, optional
-        Specifies the EVM Normalization Reference [2] and can either be 
-        constellation maximum 'max' or reference RMS 'rms'. The default is 'max'.
-
-    Returns
-    -------
-    evm : float
-        calculated EVM value as ratio (to convert to percent, the ratio has to 
-        be multiplied by 100).
-
-    """
-    if norm == 'max':
-        evm_norm_ref = np.max(np.abs(constellation))
-    elif norm == 'rms':
-        evm_norm_ref = np.sqrt(np.mean(np.abs(constellation)**2))
-            
-    
-    # normalize received constellation symbols to ideal constellation
-    symbols_norm = symbols * np.sqrt(np.mean(np.abs(constellation)**2) / np.mean(np.abs(symbols)**2))
-    
-    # decide symbols
-    symbols_dec = decision(symbols_norm, constellation)
-    
-    # calc evm
-    error = symbols_norm - symbols_dec
-    evm = np.sqrt(np.mean(np.abs(error)**2)) / evm_norm_ref
-    
-    return evm
 
 def symbol_sequence_sync(sig, dimension=-1):
     """

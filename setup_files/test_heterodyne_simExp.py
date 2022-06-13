@@ -26,7 +26,7 @@ sig_tx.symbol_rate = 3.2e9
 TX_UPSAMPLE_FACTOR = DAC_SR / sig_tx.symbol_rate[0]
 
 #%% # generate bits
-sig_tx.generate_bits(n_bits=2**12, seed=1)
+sig_tx.generate_bits(n_bits=2**15, seed=1)
 
 #%% # set constellation (modulation format)
 sig_tx.generate_constellation(format='QAM', order=4)
@@ -135,7 +135,7 @@ else: # Simulation
     # samples = np.conj(samples * np.exp(-1j*np.pi/3))
     
     #%% ## add amplitude noise
-    samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=int(sig_tx.sample_rate[0]/sig_tx.symbol_rate[0]), seed=None)
+    samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=sig_tx.sample_rate[0]/sig_tx.symbol_rate[0], seed=None)
 
     ##%% ## phase noise emulation
     samples = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)['samples']
@@ -269,7 +269,7 @@ sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
 sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
 
 #%% # CPE
-viterbi = True
+viterbi = False
 # ...either VV
 if viterbi:
     cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=51, 
@@ -297,8 +297,12 @@ sig_rx.plot_constellation(hist=True, tit='constellation after CPE')
 sig_rx = comm.rx.symbol_sequence_sync(sig_rx, dimension=-1)
     
 #%% # calc EVM
-evm = comm.rx.calc_evm(sig_rx.samples[0], sig_rx.constellation[0], norm='max')
-print("EVM: {:2.2%}".format(evm))
+evm = comm.utils.calc_evm(sig_rx, norm='max')
+print("EVM: {:2.2%}".format(evm[0]))
+
+#%% # estimate SNR
+snr = comm.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=False)
+print("real SNR: {:.2f} dB, est. SNR: {:.2f} dB".format(SNR, snr[0]))
 
 #%% # decision and demapper
 sig_rx.decision()

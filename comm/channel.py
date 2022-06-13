@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def set_snr(samples, snr_dB=10, sps=1, seed=None):
+def set_snr(samples, snr_dB=10, sps=1.0, seed=None):
     """
     Add noise to an array according to a given SNR (in dB).
     
@@ -17,8 +17,8 @@ def set_snr(samples, snr_dB=10, sps=1, seed=None):
         input signal.
     snr_dB : float, optional
         The desired SNR per symbol in dB. The default is 10.
-    sps : int, optional
-        samples per symbol of the input signal. The default is 1.
+    sps : float, optional
+        samples per symbol of the input signal. The default is 1.0
     seed : int, optional
         random seed of the generated noise samples. The default is None.
 
