@@ -111,7 +111,8 @@ def write_samples_Agilent_33522A(samples, ip_address='192.168.1.44', sample_rate
     samples : numpy array, n_outputs x n_samples , float
         samples to output, to be scaled between -1 and 1 (values outside this range are clipped).
     ip_address : string, optional
-        DESCRIPTION. The default is '192.168.1.44'. Currently, only LAN connection is supported.
+        The default is '192.168.1.44'. Currently, only LAN connection is supported.
+    
     sample_rate : list of floats, optional
         sample rate of the individual outputs. The default is [250e6]. Range: 1µSa/s to 250 MSa/s, limited to 62.5 MSa/s if out_filter is OFF.
     offset : list of floats,, optional
@@ -201,6 +202,147 @@ def write_samples_Agilent_33522A(samples, ip_address='192.168.1.44', sample_rate
         
                
     awg.write(':SOUR{0:d}:FUNC:ARB:SYNC'.format(ch))  # synchronising channels
+        
+    awg.close() # closing AWG
+    rm.close()  # closing resource manager 
+    
+    
+def write_samples_tti_tg5012a(samples=np.asarray([]), ip_address='192.168.1.105', 
+                              waveform='SINE', amp_pp=1.0, channel=1, 
+                              repetition_freq=1000.0, memory='ARB1', interpolate='OFF', 
+                              bit_rate=1000.0):
+    """
+    Write samples to TTI arbitrary waveform generator, or set function generator.
+    
+    This funtion allows for setting an output waveform of a TTI TG5012A arbitrary
+    waveform generator (AWG). Further, also customized waveforms can be uploaded.
+    
+    Parameters
+    ----------
+    samples : numpy array, float
+        samples to output, have to be scaled between -1 and 1 (values outside this 
+        range are being clipped).. The default is np.asarray([]).
+    ip_address : TYPE, optional
+        IP address of AWG. The default is '192.168.1.105'.
+    waveform : string, optional
+        What waveform to output. Allowed are SINE', 'SQUARE', 'RAMP', 'TRIANG', 
+        'PULSE', 'NOISE', 'PRBSPNX', 'ARB', 'DC'. The default is 'SINE'. PRBS lengths
+        can be 7, 9, 11, 15, 20 or 23 (e.g. PRBSPN7).
+    amp_pp : float, optional
+        Peak to peak voltage of the output signal in Volts. Be careful: the peak-to-peak
+        amplitude has different meanings for different waveform types. For example: 
+        in case of 'DC' it is the amplitude of the DC, while for custom waveforms it
+        ist the voltage difference of the smalles and largest uploaded sample.
+        The default is 1.0.
+    channel : int, optional
+        Which signal output is set. The default is 1.
+    repetition_freq : float, optional
+        Repetition frequency of the custom waveform to be uploaded in memory in Hz. This 
+        is the read out repetition frequency of the whole memory and therefore, 
+        together with the length of the waveform determines the sample rate.
+        For other periodic waveforms (e.g. SINE), this specifies the signal
+        frequency. The default is 1000.0.
+    memory : string, optional
+        What internal memory is used to store the custom waveform? Allowed
+        'ARB1' up to 'ARB4' . The default is 'ARB1'.
+    interpolate : string, optional
+        AWG is only able to output signals of length 2**14 or 2**17. Signals
+        shorter than 2**14 are extended to 2**14 and signals of length between
+        2***14 and 2**17 are extended to 2**17. If interpolate is  'ON' the missing
+        samples are linearly interpolated, if 'OFF' the missing samples are generated
+        by repeating samples (see p.79 of data sheet of AWG).The default is 'OFF'.
+    bit_rate : float, optional
+        Bit rate in case of PRBS signal in bits/s. The default is 1000.0.    
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    
+    if not isinstance(samples, np.ndarray):
+        raise TypeError('samples has to be a numpy array...')
+        
+    if waveform == 'ARB':
+        if (samples.size < 2) or (samples.size > 2**17):
+            raise ValueError('length of waveform must be between 2 and 131072 points...')
+            
+        # clip samples to +-1.0
+        samples = np.clip(samples, -1.0, 1.0)
+        # shift to positive values and scale to range 0.0...1.0
+        samples = (samples + 1.0) / 2.0
+        # convert to int between 0...16383
+        samples = np.round(samples * 16383.0)
+        
+
+            
+    # =============================================================================
+    #  importing visa for communication with the device
+    # ============================================================================= 
+    # create resource 
+    rm = visa.ResourceManager('@py')
+    # open connection to AWG
+    awg = rm.open_resource('TCPIP::' + ip_address + '::9221::SOCKET', 
+                           read_termination='\n', write_termination='\n')
+        
+    idn = awg.query('*IDN?')
+    # print(idn)
+    
+    # switch output X OFF
+    awg.write('CHN {:d}'.format(channel))
+    awg.write('OUTPUT OFF')
+    time.sleep(1.0)
+    
+    # set waveform type
+    if waveform == 'DC':
+        awg.write('WAVE ARB')        
+        awg.write('ARBLOAD DC')
+        awg.write('ARBDCOFFS {:.6f}'.format(amp_pp))
+    else:
+        awg.write('WAVE ' + str(waveform))
+    
+    if waveform == 'ARB':
+        # load waveform in memory 'ARBX'
+        # this is done 'by hand' instead of using "awg.write_binary_values", because
+        # the AWG does not compatible with the binary write method of pyvisa...WHY???
+        # does not work:
+        # awg.write_binary_values('{:s}'.format(memory), samples, datatype='h', header_fmt='ieee', is_big_endian=True)
+        
+        # generate IEEE header (see p. 100) of AWG datasheet
+        # number of digits in header
+        digits = np.floor(np.log10(samples.size))+1
+        # number of bytes to send (int16 values)
+        bytes = samples.size*2
+        header = '{:s} #{:d}{:d}'.format(str(memory), int(digits), int(bytes))
+        # send header without any termination character
+        awg.write('{:s}'.format(header), termination='')
+        # convert 16bit int ('h') to bytes in big endian order ('>')
+        awg.write_raw(samples.astype('>h').tobytes())
+        
+        time.sleep(1.0)
+        
+        awg.write('ARBDEF {:s},{:s},{:s}'.format(memory,memory,interpolate))
+        awg.write('ARBLOAD {:s}'.format(memory))
+        
+        time.sleep(1.0)
+    
+    # set signal speed
+    if 'PRBSPN' in waveform:
+        awg.write('PRBSBITRATE {:.6f}'.format(bit_rate))
+    else:
+        awg.write('FREQ {:.6f}'.format(repetition_freq))
+        
+    # set ptp amplitude
+    awg.write('AMPUNIT VPP')
+    awg.write('AMPL {:.6f}'.format(amp_pp))
+    
+    # set offset to 0
+    awg.write('OFFSET 0.0')
+    
+    # switch output on
+    awg.write('OUTPUT ON')
+    time.sleep(1.0)
         
     awg.close() # closing AWG
     rm.close()  # closing resource manager 
