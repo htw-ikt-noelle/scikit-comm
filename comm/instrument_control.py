@@ -291,8 +291,8 @@ def write_samples_tti_tg5012a(samples=np.asarray([]), ip_address='192.168.1.105'
     
     # switch output X OFF
     awg.write('CHN {:d}'.format(channel))
-    awg.write('OUTPUT OFF')
-    time.sleep(1.0)
+    # awg.write('OUTPUT OFF')
+    # time.sleep(1.0)
     
     # set waveform type
     if waveform == 'DC':
@@ -341,8 +341,8 @@ def write_samples_tti_tg5012a(samples=np.asarray([]), ip_address='192.168.1.105'
     awg.write('OFFSET 0.0')
     
     # switch output on
-    awg.write('OUTPUT ON')
-    time.sleep(1.0)
+    # awg.write('OUTPUT ON')
+    # time.sleep(1.0)
         
     awg.close() # closing AWG
     rm.close()  # closing resource manager 
@@ -1299,6 +1299,75 @@ def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_
     rm.close()  
 
     return trace_information
+
+def get_opt_power_Anritsu_ML910B(GPIB_bus=0, GPIB_address=11):
+    
+    
+    rm = visa.ResourceManager()
+
+    # open connection to AWG
+    pm = rm.open_resource('GPIB' + str(GPIB_bus) + '::' + str(GPIB_address) + '::INSTR')
+    
+    # set termination characters
+    pm.read_termination='\r\n'
+    
+    output = {}
+    
+    measure_units = {
+        'P': 'mW',
+        'Q': 'uW',
+        'R': 'nW',
+        'S': 'pW',
+        'T': 'dBm',
+        'U': 'dB',
+        'Y': 'rel recall',
+        'N': 'DIFF'
+        }
+    
+    channel_ind = {
+        'L': 'ch1',
+        'M': 'ch2',
+        '0': 'ch1',
+        '1': 'ch2'
+        }
+    
+    # read info from device
+    results = pm.read_bytes(count=30,break_on_termchar=True)
+    
+    # convert to str and strip
+    results = str(results, encoding='ASCII').rstrip('\n').rstrip('\r')
+    
+    # split
+    results = results.split(',')  
+    
+    # only one channel selected
+    if len(results) == 1:        
+            output[channel_ind[results[0][5]]] = {}
+            output[channel_ind[results[0][5]]]['unit'] = measure_units[results[0][1]]
+            # in range measurement?
+            if results[0][0] == 'X':
+                output[channel_ind[results[0][5]]]['value'] = float(results[0][-6:].replace(' ',''))
+            else:
+                output[channel_ind[results[0][5]]]['value'] = None
+    elif len(results) == 2:
+        for idx, result in enumerate(results):
+            output[channel_ind[str(idx)]] = {}
+            output[channel_ind[str(idx)]]['unit'] = measure_units[result[1]]
+            if result[0] == 'X':
+                output[channel_ind[str(idx)]]['value'] = float(result[-6:].replace(' ',''))
+            else:
+                output[channel_ind[str(idx)]]['value'] = None
+                
+    else:
+        raise TypeError('')
+        
+    pm.close() # closing AWG
+    rm.close()  # closing resource manager 
+        
+    return output
+    
+    
+
 
 ####### HP_8153A lightwave multimeter ##############
 def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [None], wavelengths = [None] ,verbose_mode = True ,log_mode = False):
