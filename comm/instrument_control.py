@@ -291,8 +291,8 @@ def write_samples_tti_tg5012a(samples=np.asarray([]), ip_address='192.168.1.105'
     
     # switch output X OFF
     awg.write('CHN {:d}'.format(channel))
-    # awg.write('OUTPUT OFF')
-    # time.sleep(1.0)
+    awg.write('OUTPUT OFF')
+    time.sleep(1.0)
     
     # set waveform type
     if waveform == 'DC':
@@ -341,8 +341,8 @@ def write_samples_tti_tg5012a(samples=np.asarray([]), ip_address='192.168.1.105'
     awg.write('OFFSET 0.0')
     
     # switch output on
-    # awg.write('OUTPUT ON')
-    # time.sleep(1.0)
+    awg.write('OUTPUT ON')
+    time.sleep(1.0)
         
     awg.close() # closing AWG
     rm.close()  # closing resource manager 
@@ -1301,6 +1301,30 @@ def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_
     return trace_information
 
 def get_opt_power_Anritsu_ML910B(GPIB_bus=0, GPIB_address=11):
+    """
+    Read optical power from Anritsu ML910B optical power meter.
+    
+    This driver does not set any parameters of the instrument. Make sure that all required
+    paremeters e.g. power unit, range, wavelength and selected channel are correctly
+    set manually via the device panel.The driver simply queries the power values
+    of the selected channels.
+
+    Parameters
+    ----------
+    GPIB_bus : int, optional
+        GPIB bus number to which the instrument is connected. The default is 0.
+    GPIB_address : int, optional
+        GPIB address set to the instrument. The default is 11.
+    
+
+    Returns
+    -------
+    output : dict of dicts
+        A dict containing the keys 'ch1' and 'ch2', respectively. Each entry again
+        consists of a dict with keys 'value' and 'unit' containing the measured
+        value and corresponding measurement unit.
+
+    """
     
     
     rm = visa.ResourceManager()
