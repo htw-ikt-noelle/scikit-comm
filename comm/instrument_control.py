@@ -207,7 +207,7 @@ def write_samples_Agilent_33522A(samples, ip_address='192.168.1.44', sample_rate
     rm.close()  # closing resource manager 
     
     
-def write_samples_tti_tg5012a(samples=np.asarray([]), ip_address='192.168.1.105', 
+def write_samples_TTI_TG5012A(samples=np.asarray([]), ip_address='192.168.1.105', 
                               waveform='SINE', amp_pp=1.0, channel=1, 
                               repetition_freq=1000.0, memory='ARB1', interpolate='OFF', 
                               bit_rate=1000.0):
@@ -220,19 +220,19 @@ def write_samples_tti_tg5012a(samples=np.asarray([]), ip_address='192.168.1.105'
     Parameters
     ----------
     samples : numpy array, float
-        samples to output, have to be scaled between -1 and 1 (values outside this 
-        range are being clipped).. The default is np.asarray([]).
-    ip_address : TYPE, optional
+        samples to be outputed, have to be scaled between -1 and 1 (values outside this 
+        range are being clipped). The default is np.asarray([]).
+    ip_address : string, optional
         IP address of AWG. The default is '192.168.1.105'.
     waveform : string, optional
-        What waveform to output. Allowed are SINE', 'SQUARE', 'RAMP', 'TRIANG', 
+        What waveform to output. Allowed are 'SINE', 'SQUARE', 'RAMP', 'TRIANG', 
         'PULSE', 'NOISE', 'PRBSPNX', 'ARB', 'DC'. The default is 'SINE'. PRBS lengths
         can be 7, 9, 11, 15, 20 or 23 (e.g. PRBSPN7).
     amp_pp : float, optional
         Peak to peak voltage of the output signal in Volts. Be careful: the peak-to-peak
         amplitude has different meanings for different waveform types. For example: 
         in case of 'DC' it is the amplitude of the DC, while for custom waveforms it
-        ist the voltage difference of the smalles and largest uploaded sample.
+        is the voltage difference of the smallest and largest uploaded sample.
         The default is 1.0.
     channel : int, optional
         Which signal output is set. The default is 1.
@@ -248,7 +248,7 @@ def write_samples_tti_tg5012a(samples=np.asarray([]), ip_address='192.168.1.105'
     interpolate : string, optional
         AWG is only able to output signals of length 2**14 or 2**17. Signals
         shorter than 2**14 are extended to 2**14 and signals of length between
-        2***14 and 2**17 are extended to 2**17. If interpolate is  'ON' the missing
+        2**14 and 2**17 are extended to 2**17. If interpolate is 'ON' the missing
         samples are linearly interpolated, if 'OFF' the missing samples are generated
         by repeating samples (see p.79 of data sheet of AWG).The default is 'OFF'.
     bit_rate : float, optional
@@ -275,11 +275,7 @@ def write_samples_tti_tg5012a(samples=np.asarray([]), ip_address='192.168.1.105'
         # convert to int between 0...16383
         samples = np.round(samples * 16383.0)
         
-
-            
-    # =============================================================================
-    #  importing visa for communication with the device
-    # ============================================================================= 
+    
     # create resource 
     rm = visa.ResourceManager('@py')
     # open connection to AWG
@@ -305,7 +301,7 @@ def write_samples_tti_tg5012a(samples=np.asarray([]), ip_address='192.168.1.105'
     if waveform == 'ARB':
         # load waveform in memory 'ARBX'
         # this is done 'by hand' instead of using "awg.write_binary_values", because
-        # the AWG does not compatible with the binary write method of pyvisa...WHY???
+        # the AWG is not compatible with the binary write method of pyvisa...WHY???
         # does not work:
         # awg.write_binary_values('{:s}'.format(memory), samples, datatype='h', header_fmt='ieee', is_big_endian=True)
         
@@ -1320,10 +1316,9 @@ def get_opt_power_Anritsu_ML910B(GPIB_bus=0, GPIB_address=11):
     Returns
     -------
     output : dict of dicts
-        A dict containing the keys 'ch1' and 'ch2', respectively. Each entry again
+        A dict containing the keys 'ch1' and 'ch2', respectively. Each entry 
         consists of a dict with keys 'value' and 'unit' containing the measured
         value and corresponding measurement unit.
-
     """
     
     
@@ -1358,25 +1353,33 @@ def get_opt_power_Anritsu_ML910B(GPIB_bus=0, GPIB_address=11):
     # read info from device
     results = pm.read_bytes(count=30,break_on_termchar=True)
     
-    # convert to str and strip
+    # convert to str and strip whitespace characters
     results = str(results, encoding='ASCII').rstrip('\n').rstrip('\r')
     
     # split
     results = results.split(',')  
     
-    # only one channel selected
-    if len(results) == 1:        
-            output[channel_ind[results[0][5]]] = {}
-            output[channel_ind[results[0][5]]]['unit'] = measure_units[results[0][1]]
-            # in range measurement?
-            if results[0][0] == 'X':
-                output[channel_ind[results[0][5]]]['value'] = float(results[0][-6:].replace(' ',''))
-            else:
-                output[channel_ind[results[0][5]]]['value'] = None
+    # only one channel is selected
+    if len(results) == 1:
+        # generate new dict for each channel
+        output[channel_ind[results[0][5]]] = {}
+        # write measurement unit into dict
+        output[channel_ind[results[0][5]]]['unit'] = measure_units[results[0][1]]
+        # is measurement in range?
+        if results[0][0] == 'X':
+            # write measurement value into dict
+            output[channel_ind[results[0][5]]]['value'] = float(results[0][-6:].replace(' ',''))
+        else:
+            # out of range
+            output[channel_ind[results[0][5]]]['value'] = None
     elif len(results) == 2:
+        # write results from both channels
         for idx, result in enumerate(results):
+            # new dict
             output[channel_ind[str(idx)]] = {}
+            # write unit into dict
             output[channel_ind[str(idx)]]['unit'] = measure_units[result[1]]
+            # is measurement in range?
             if result[0] == 'X':
                 output[channel_ind[str(idx)]]['value'] = float(result[-6:].replace(' ',''))
             else:
@@ -1387,7 +1390,7 @@ def get_opt_power_Anritsu_ML910B(GPIB_bus=0, GPIB_address=11):
         
     pm.close() # closing AWG
     rm.close()  # closing resource manager 
-        
+    
     return output
     
     
