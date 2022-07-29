@@ -3,6 +3,7 @@ import pyvisa as visa
 import numpy as np
 import time
 import logging
+import telnetlib as tnl
 
 
 def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
@@ -708,6 +709,55 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
    
     # closing resource manager 
     rm.close()  
+    
+def get_spectrum_IDOSA(ip_address='192.168.1.22', start_wl=192.82e12, stop_wl=195.31e12, step=1e9):
+    
+    
+    osa = tnl.Telnet(ip_address.encode(), 2000)
+    
+    terminator = ';'.encode()
+    timeout = 5
+
+    output = dict()
+    
+    osa.write('STAR '.encode() + str(start_wl).encode() + terminator)  
+    dummy = osa.read_until(terminator, timeout)
+    osa.write('STOP '.encode() + str(stop_wl).encode() + terminator)    
+    dummy = osa.read_until(terminator, timeout)
+    osa.write('STEP '.encode() + str(step).encode() + terminator)    
+    dummy = osa.read_until(terminator, timeout)
+    
+    osa.write('SGL'.encode() + terminator)    
+    dummy = osa.read_until(terminator, timeout)
+    osa.write('*WAI'.encode() + terminator)    
+    dummy = osa.read_until(terminator, timeout)
+    osa.write('FORM ASCII'.encode() + terminator)  
+    dummy = osa.read_until(terminator, timeout)
+    
+    osa.write('X?'.encode() + terminator)
+    x = osa.read_until(terminator, timeout)
+    x = x.decode().lstrip('\r\n').rstrip(';').split(',')
+    x = np.asarray([float(el) for el in x if el])
+    
+    
+    osa.write('Y?'.encode() + terminator)
+    y = osa.read_until(terminator, timeout)
+    y = y.decode().lstrip('\r\n').rstrip(';').split(',')
+    y = np.asarray([float(el) for el in y if el])
+    
+    osa.write('RPT'.encode() + terminator)    
+    dummy = osa.read_until(terminator, timeout)
+    osa.write('*WAI'.encode() + terminator)    
+    dummy = osa.read_until(terminator, timeout)
+    
+    osa.close()
+    
+    output['wavelength'] = x
+    output['power'] = y
+    
+    return output
+    
+    
 
 
 def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_mode = False, single_sweep = False):
