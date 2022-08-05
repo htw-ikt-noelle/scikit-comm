@@ -585,6 +585,12 @@ def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolat
         plt.grid()
 
     return OSNR_01nm,OSNR_val
+
+def estimate_snr_spectrum(y, x, sig_range, noise_range, order=1, plotting=False):
+    
+    pass
+    
+    
     
         
 def estimate_snr_nda(sig,block_size=-1,bias_comp=True):
