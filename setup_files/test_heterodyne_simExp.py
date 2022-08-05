@@ -1,5 +1,4 @@
-import time
-import copy
+import time, copy
 
 import numpy as np
 import scipy.signal as ssignal
@@ -11,9 +10,9 @@ import comm as comm
 #%% Tx 
 #%% # signal parameters
 LASER_LINEWIDTH = 1*100e3 # [Hz]
-DAC_SR = 8e9
+DAC_SR = 16e9
 EXPERIMENT = False
-UPLOAD_SAMPLES = False
+UPLOAD_SAMPLES = True
 HOLD_SHOT = False
 USE_PREDIST = False 
 SINC_CORRECTION = False
@@ -39,7 +38,7 @@ ROLL_OFF = 0.1
 sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=[ROLL_OFF])
 
 #%% # generate DAC samples (analytical signalg at IF)
-f_IF_nom = 1*2e9
+f_IF_nom = 2e9
 f_granularity = 1 / sig_tx.samples[0].size * sig_tx.sample_rate[0]
 f_if = round(f_IF_nom / f_granularity) * f_granularity
 print('intermediate frequency: {} MHz'.format(f_if/1e6))
@@ -63,6 +62,9 @@ if USE_PREDIST:
 
 # TODO: equalization of cosine MZM transfer function
 
+# sig_tx.plot_spectrum()
+# sig_tx.plot_constellation()
+
 # format samples so that driver can handle them (range +-1)
 maxVal = np.max(np.abs(np.concatenate((np.real(sig_tx.samples), np.imag(sig_tx.samples)))))
 samples = np.asarray(sig_tx.samples) / maxVal
@@ -75,10 +77,11 @@ if EXPERIMENT:
     if UPLOAD_SAMPLES:                    
         # write samples to AWG        
         comm.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', 
-                                                        sample_rate=[8e9], amp_pp=[0.25, 0.25], 
+                                                        sample_rate=[DAC_SR], amp_pp=[0.25, 0.25], 
                                                         channels=[1, 2], log_mode = False)
         time.sleep(2.0)
-        
+
+
     if not HOLD_SHOT:
     	# get samples from scope
         sr, samples = comm.instrument_control.get_samples_Tektronix_MSO6B(channels=[1, 2], 
