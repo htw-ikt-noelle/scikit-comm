@@ -502,9 +502,9 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
 
     """
     
-    
-    
-    
+    # limitations of specific AWG device    
+    MAX_SR = 16e9
+    MIN_SR = 1.49e3
     
     
     # =============================================================================
@@ -591,8 +591,8 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
         if any(ch_num > 2 for ch_num in channels) or any(ch_num < 1 for ch_num in channels):
             raise ValueError('Channel designation must be between 1 and 2')
 
-        if sample_rate[0] > 8e9 or sample_rate[0] < 1.49e3:
-            raise ValueError('Sample rate must be between 1.49 kSamples/s and 8 GSsamples/s')
+        if sample_rate[0] > MAX_SR or sample_rate[0] < MIN_SR:
+            raise ValueError('Sample rate not supported by specific AWG device')
 
         if any(ch_amp > 0.5 for ch_amp in amp_pp) or any(ch_amp < 0.25 for ch_amp in amp_pp):
             raise ValueError('Amplitudes must be between 0.25 and 0.5 (peak to peak)')

@@ -12,15 +12,15 @@ import comm as comm
 LASER_LINEWIDTH = 1*100e3 # [Hz]
 DAC_SR = 16e9
 EXPERIMENT = False
-UPLOAD_SAMPLES = True
+UPLOAD_SAMPLES = False
 HOLD_SHOT = False
-USE_PREDIST = False 
-SINC_CORRECTION = False
+USE_PREDIST = False
+SINC_CORRECTION = True
 SNR = 20
 
 #%% # contruct signal
 sig_tx = comm.signal.Signal(n_dims=1)
-sig_tx.symbol_rate = 3.2e9
+sig_tx.symbol_rate = 12.8e9
 
 TX_UPSAMPLE_FACTOR = DAC_SR / sig_tx.symbol_rate[0]
 
@@ -37,17 +37,6 @@ sig_tx.mapper()
 ROLL_OFF = 0.1
 sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=[ROLL_OFF])
 
-#%% # generate DAC samples (analytical signalg at IF)
-f_IF_nom = 2e9
-f_granularity = 1 / sig_tx.samples[0].size * sig_tx.sample_rate[0]
-f_if = round(f_IF_nom / f_granularity) * f_granularity
-print('intermediate frequency: {} MHz'.format(f_if/1e6))
-t = np.arange(0, np.size(sig_tx.samples[0])) / sig_tx.sample_rate
-
-#%% # upmixing to IF
-sig_tx.samples[0] = sig_tx.samples[0] * np.exp(1j * 2 * np.pi * f_if * t)
-sig_tx.center_frequency = f_if
-
 #%% # sinc correction
 if SINC_CORRECTION:
     sig_tx.samples[0] = comm.pre_distortion.dac_sinc_correction(sig_tx.samples[0],
@@ -55,15 +44,13 @@ if SINC_CORRECTION:
 
 #%% # pre-equalization of AWG frequency response
 if USE_PREDIST:
-    filtershape = np.load('setup_files/preDistFilter.npy')
+    #filtershape = np.load('setup_files/preDistFilter.npy')
+    filtershape = np.transpose(np.array([[-16e9, -8e9, -7.8e9, 0, 7.8e9, 8e9, 16e9], [-100, -100, 2, 0 , 2,-100,-100]]))
     sig_tx.samples[0] = comm.filters.filter_arbitrary(sig_tx.samples[0], 
                                                       filtershape, 
                                                       sample_rate=sig_tx.symbol_rate[0]*TX_UPSAMPLE_FACTOR)
 
 # TODO: equalization of cosine MZM transfer function
-
-# sig_tx.plot_spectrum()
-# sig_tx.plot_constellation()
 
 # format samples so that driver can handle them (range +-1)
 maxVal = np.max(np.abs(np.concatenate((np.real(sig_tx.samples), np.imag(sig_tx.samples)))))
@@ -80,8 +67,7 @@ if EXPERIMENT:
                                                         sample_rate=[DAC_SR], amp_pp=[0.25, 0.25], 
                                                         channels=[1, 2], log_mode = False)
         time.sleep(2.0)
-
-
+        
     if not HOLD_SHOT:
     	# get samples from scope
         sr, samples = comm.instrument_control.get_samples_Tektronix_MSO6B(channels=[1, 2], 
@@ -100,15 +86,16 @@ if EXPERIMENT:
         # with open('tmp_shot.obj', 'rb') as ts:
         #   tmp_shot = pickle.load(ts)
     
-    # I-Q imbalance correction (for suppressing the DD-term for high SSI-suppression)
-    IQ_imbalance = -0.45  # [dB] (a pos. value means channel I is smaller than channel Q after coh. frontend, and v.v.)
-    samples[0] = samples[0]*10**(0.5*IQ_imbalance/20)
-    samples[1] = samples[1]*10**(-0.5*IQ_imbalance/20)
+    # # I-Q imbalance correction (for suppressing the DD-term for high SSI-suppression)
+    # IQ_imbalance = -0.45  # [dB] (a pos. value means channel I is smaller than channel Q after coh. frontend, and v.v.)
+    # samples[0] = samples[0]*10**(0.5*IQ_imbalance/20)
+    # samples[1] = samples[1]*10**(-0.5*IQ_imbalance/20)
     
-    # subtration of pos. and neg. detector
-    samples = samples[0] - samples[1]
+    # # remove mean of signal
+    # samples = samples - np.mean(samples)
     
-    # remove mean of signal
+    # construct complex signal
+    samples = samples[0] + 1j * samples[1]
     samples = samples - np.mean(samples)
 
 #%% # Simulation 
@@ -116,17 +103,17 @@ else: # Simulation
     # build ideal complex signal from Tx samples (no ampl. and phase noise)
     samples = samples[0] + 1j*samples[1] 
     
-    sps = int(sig_tx.sample_rate[0] / sig_tx.symbol_rate[0])
+    sps = sig_tx.sample_rate[0] / sig_tx.symbol_rate[0]
     
     # get samples from scope (repeat rx sequence)
     ext = 40000*sps + 4000*sps
-    ratio_base = ext // samples.size
-    ratio_rem = ext % samples.size        
+    ratio_base = int(ext // samples.size)
+    ratio_rem = int(ext % samples.size        )
     samples = np.concatenate((np.tile(samples, ratio_base), samples[:ratio_rem]), axis=0)
     
-    # add artificial delay 
-    delay = 10*sps
-    samples = samples[delay:]
+    # # add artificial delay 
+    # delay = 10*sps
+    # samples = samples[delay:]
     
     # add phase ambiguity (phase rotation and conmplex conjugation)
     # w/o conjugate...
@@ -153,10 +140,8 @@ else: # Simulation
     sr_new = 1 / (t_new[1] - t_new[0])
     # interpolate signal at different timing / sampling instants
     f = sinterp.interp1d(t_old, samples, kind='cubic')
-    samples = f(t_new)
-     
-    # after heterodyne detection and balanced detection
-    samples = np.real(samples)
+    samples = f(t_new)    
+
 
 #%% Rx 
 
@@ -165,41 +150,18 @@ sig_rx = copy.deepcopy(sig_tx)
 sig_rx.samples = samples
 sig_rx.sample_rate = sr
 
-#%% # resampling to the same sample rate as at the transmitter
-sr_dsp = sig_tx.sample_rate[0]
-
-# # watch out, that this is really an integer, otherwise the samplerate is asynchronous with the data afterwards!!!
-len_dsp = sr_dsp / sig_rx.sample_rate[0] * np.size(samples)
-if len_dsp % 1:
-    raise ValueError('DSP samplerate results in asynchronous sampling of the data symbols')
-sig_rx.samples = ssignal.resample(sig_rx.samples[0], num=int(len_dsp), window=None)
-sig_rx.sample_rate = sr_dsp
-sig_rx.plot_spectrum(tit='received spectrum before IF downmixing')
-
-#%% # IQ-Downmixing and (ideal) lowpass filtering
-# ...either real signal processing
-t = comm.utils.create_time_axis(sig_rx.sample_rate[0], np.size(sig_rx.samples[0]))
-samples_r = sig_rx.samples[0] *  np.cos(2 * np.pi * f_if * t)
-fc = sig_tx.symbol_rate[0] / 2 * (1 + ROLL_OFF) * 1.1 # cuttoff frequency of filter
-fc = fc/(sig_rx.sample_rate[0]/2) # normalization to the sampling frequency
-tmp = comm.filters.ideal_lp(samples_r, fc)
-samples_r = tmp['samples_out']
-samples_i = sig_rx.samples[0] *  np.sin(2 * np.pi * f_if * t)
-tmp = comm.filters.ideal_lp(samples_i, fc)
-samples_i = tmp['samples_out']
-sig_rx.samples[0] = samples_r - 1j * samples_i
-
-# ... OR complex singal processing
-# samples_bb = samples *  np.exp(-1j*2*np.pi*(f_if+1e4*0)*t)
-# sig_rx.samples[0] = samples_bb
+sig_rx.plot_spectrum(tit='spectrum from scope')
 
 #%% # From here: "standard" coherent complex baseband signal processing ############
 #%% # resample to 2 sps
 sps_new = 2
 sps = sig_rx.sample_rate[0]/sig_rx.symbol_rate[0]
 new_length = int(sig_rx.samples[0].size/sps*sps_new)
+# TODO CHECK RESA;PLE IF UPSAMPLING AFTER SCOPE!!!!
 sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
 sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
+
+
 
 #%% # normalize samples to mean magnitude of original constellation
 mag_const = np.mean(abs(sig_rx.constellation[0]))
@@ -211,8 +173,8 @@ sig_rx.plot_constellation(hist=True, tit='constellation before EQ')
 adaptive_filter = True
 #%% # either blind adaptive filter....
 if adaptive_filter == True:    
-    results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=31, mu_cma=1e-3, 
-                                               mu_rde=1e-5, mu_dde=0.5, decimate=False, 
+    results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=51, mu_cma=1e-4, 
+                                               mu_rde=1e-5, mu_dde=0.5, decimate=True, 
                                                return_info=True, stop_adapting=-1, 
                                                start_rde=5000*0, start_dde=5000*0)
     
@@ -224,13 +186,7 @@ if adaptive_filter == True:
     plt.title('evolution of equalizer error')
     plt.xlabel('time / symbols')
     plt.ylabel('error /a.u.')
-    plt.show()
-    # plot last filter frequency response
-    plt.plot(np.abs(np.fft.fftshift(np.fft.fft(h[-1,:]))))
-    plt.title('last equalizer frequency response')
-    plt.xlabel('frequency / Hz')
-    plt.ylabel('amplitude a.u.')
-    plt.show()            
+    plt.show()       
     # plot evolution of filters frequency response
     plt.figure()
     ax = plt.subplot(projection='3d')
@@ -241,7 +197,14 @@ if adaptive_filter == True:
     plt.title('evolution of equalizer frequency response')
     plt.xlabel('frequency / Hz')
     plt.ylabel('time / symbols')  
-    plt.show()       
+    plt.show()
+     # plot last filter frequency response
+    f = np.fft.fftshift(np.fft.fftfreq(h[0,:].size, d=1/sig_rx.sample_rate[0]))
+    plt.plot(f, np.abs(np.fft.fftshift(np.fft.fft(h[-1,:]))))
+    plt.title('last equalizer frequency response')
+    plt.xlabel('frequency / Hz')
+    plt.ylabel('amplitude a.u.')
+    plt.show()               
         
     # cut away init symbols
     sps = int(sig_rx.sample_rate[0]/sig_rx.symbol_rate[0])
@@ -272,18 +235,18 @@ sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
 sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
 
 #%% # CPE
-viterbi = False
+viterbi = True
 # ...either VV
 if viterbi:
-    cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=51, 
+    cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, 
                                                       filter_shape='wiener', mth_power=4, 
-                                                      rho=.05)
+                                                      rho=.001)
     sig_rx.samples = cpe_results['rec_symbols']
     est_phase = cpe_results['phi_est'].real
 # ...or BPS
 else:
     cpe_results = comm.rx.carrier_phase_estimation_bps(sig_rx.samples[0], sig_rx.constellation[0], 
-                                               n_taps=15, n_test_phases=15, const_symmetry=np.pi/2)
+                                               n_taps=15, n_test_phases=45, const_symmetry=np.pi/2)
     sig_rx.samples = cpe_results['samples_corrected']
     est_phase = cpe_results['est_phase_noise']
     
@@ -305,7 +268,10 @@ print("EVM: {:2.2%}".format(evm[0]))
 
 #%% # estimate SNR
 snr = comm.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=False)
-print("real SNR: {:.2f} dB, est. SNR: {:.2f} dB".format(SNR, snr[0]))
+if EXPERIMENT:
+    print("est. SNR: {:.2f} dB".format(snr[0]))
+else:
+    print("real SNR: {:.2f} dB, est. SNR: {:.2f} dB".format(SNR, snr[0]))
 
 #%% # decision and demapper
 sig_rx.decision()
