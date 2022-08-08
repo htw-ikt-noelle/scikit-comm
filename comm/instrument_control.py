@@ -765,11 +765,17 @@ def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist
             dummy = osa.recv(RCV_BUFFSIZE)
 
         ## query the resolution bandwidth (RBW in Hz)
-        #osa.sendall('step:freq?;'.encode());
-        osa.sendall('step?;'.encode());
+        osa.sendall('step:freq?;'.encode());
+        #osa.sendall('step?;'.encode());
         time.sleep(sleeptime*2);
         RBW = float(osa.recv(RCV_BUFFSIZE).decode().lstrip(';\r\n').rstrip(';\r\n')); # OSA resolution bandwidth in [Hz]
         #print('ID-OSA RBW: {:3.2f} MHz'.format(RBW/1e6))
+
+        ## query the center frequency (Hz)
+        osa.sendall('cent?;'.encode()); # from LabVIEW code
+        time.sleep(sleeptime*2);
+        f_cent = float(osa.recv(RCV_BUFFSIZE).decode().lstrip(';\r\n').rstrip(';\r\n')); # spectrum center in [Hz]
+        #print('center frequency (by ID-OSA): {:3.2f} Hz'.format(f_cent))
         
         ## query total optical power from intrument (migth deviate from feteched spectrum if OSA is in RPT scan mode)
         osa.sendall('POW?;'.encode());
@@ -778,7 +784,6 @@ def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist
         #print('Total optical power (by ID-OSA): {:3.3f} dBm'.format(Power_dBm))
         
         ## query OSA trace
-        
         # fetch wavelength axis in ascending order in units of [m] (precedure adapted from LabVIEW ID-OSA driver)
         osa.sendall('FORM REAL,64;'.encode()); time.sleep(sleeptime); dummy = osa.recv(RCV_BUFFSIZE) # double is required for full resolution
         osa.sendall('x?;'.encode()); time.sleep(sleeptime); # wavelength in [m];
@@ -821,10 +826,10 @@ def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist
         #print('Total optical power (spectrum integration): {:3.3f} dBm'.format(Pwr_integrate_dBm))    
     
         output = dict()
+        output['Resolution_BW_m'] = np.abs(-c0 / f_cent**2 * RBW) # RBW in [m], referenced to center of spectrum
         output['Resolution_BW_Hz'] = RBW # [Hz]
-        output['Resolution_BW'] = np.abs(-c0 / np.mean(f_Hz)**2 * RBW) / 1e-9 # RBW in [nm], referenced to center of spectrum
-        output['WL_vector'] = WL_m # [m]
-        output['FREQ_vector'] = f_Hz # [Hz]
+        output['WL_vector_m'] = WL_m # [m]
+        output['FREQ_vector_Hz'] = f_Hz # [Hz]
         output['Trace_data'] = Spec_dBm # [dBm]
         output['Ptotal_dBm_IDOSA'] = Power_dBm # [dBm]
         output['Ptotal_dBm_integrated'] = Pwr_integrate_dBm # [dBm]
