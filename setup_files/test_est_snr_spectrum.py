@@ -56,70 +56,7 @@ noise_bw = sig.symbol_rate[0]
 sig_range = np.asarray([-7e9, 7e9])
 noise_range = np.asarray([-12e9, -8e9, 8e9, 12e9])
 
-order = 1
+order = 3
 ##############################################
 
-sig_range.sort()
-sig_range = np.expand_dims(sig_range, axis=-1)
-sig_range_idx = np.argmin(np.abs(x-sig_range), axis=-1)
-sig_range=np.squeeze(sig_range)
-
-noise_range.sort()
-
-noise_range = np.expand_dims(noise_range, axis=-1)
-noise_range_idx = np.argmin(np.abs(x-noise_range), axis=-1)
-noise_range = np.squeeze(noise_range)
-
-# noise_range_lft = noise_range[:2]
-# noise_range_lft = np.expand_dims(noise_range_lft, axis=-1)
-# noise_range_lft_idx = np.argmin(np.abs(x-noise_range_lft), axis=-1)
-# noise_range_lft = np.squeeze(noise_range_lft)
-
-# noise_range_rgt = noise_range[2:]
-# noise_range_rgt = np.expand_dims(noise_range_rgt, axis=-1)
-# noise_range_rgt_idx = np.argmin(np.abs(x-noise_range_rgt), axis=-1)
-# noise_range_rgt = np.squeeze(noise_range_rgt)
-
-y_sig_n2 = y[sig_range_idx[0]:sig_range_idx[1]]
-# dx_sig = np.diff(x[sig_range_idx[0]:sig_range_idx[1]])
-# p_sig_n2 = np.sum(y_sig_n2[:-1]*dx_sig)
-p_sig_n2 = np.trapz(y_sig_n2, x=x[sig_range_idx[0]:sig_range_idx[1]])
-
-
-x_n = np.append(x[noise_range_idx[0]:noise_range_idx[1]], x[noise_range_idx[2]:noise_range_idx[3]])
-y_n = np.append(y[noise_range_idx[0]:noise_range_idx[1]], y[noise_range_idx[2]:noise_range_idx[3]])
-c = Polynomial.fit(x_n, y_n, order)
-xx_n, yy_n = c.linspace(n=x.size, domain=[x[0], x[-1]])
-
-C = c.integ()
-
-x_sig_mean = np.mean(sig_range)
-p_n1 = C(x_sig_mean + noise_bw/2) - C(x_sig_mean - noise_bw/2)
-
-p_n2 = C(x[sig_range_idx[1]]) - C(x[sig_range_idx[0]])
-
-# print(p_n2/p_n1)
-
-snr = (p_sig_n2 - p_n2) / p_n1
-snr_db = 10 * np.log10(snr)
-
-print('est. SNR = {:.1f} dB'.format(snr_db))
-
-
-
-# plt.plot(x_n,y_n,'o')
-# plt.plot(xx_n,yy_n,'r-')
-# plt.show()
-
-plt.plot(x,y)
-plt.plot(x[sig_range_idx], y[sig_range_idx], 'o')
-plt.plot(x[noise_range_idx[0]:noise_range_idx[1]], y[noise_range_idx[0]:noise_range_idx[1]], 'r--')
-plt.plot(x[noise_range_idx[2]:noise_range_idx[3]], y[noise_range_idx[2]:noise_range_idx[3]], 'r--')
-plt.plot(xx_n,yy_n,'g-')
-
-plt.figure()
-plt.plot(x,10*np.log10(y))
-plt.plot(x[sig_range_idx], 10*np.log10(y[sig_range_idx]), 'o')
-plt.plot(x[noise_range_idx[0]:noise_range_idx[1]], 10*np.log10(y[noise_range_idx[0]:noise_range_idx[1]]), 'r--')
-plt.plot(x[noise_range_idx[2]:noise_range_idx[3]], 10*np.log10(y[noise_range_idx[2]:noise_range_idx[3]]), 'r--')
-plt.plot(xx_n,10*np.log10(yy_n),'g-')
+comm.utils.estimate_snr_spectrum(x, y, sig_range, noise_range, order=order, noise_bw=noise_bw,scaling='lin',plotting=True)
