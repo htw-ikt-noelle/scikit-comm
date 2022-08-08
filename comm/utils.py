@@ -650,6 +650,7 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         # plt.xlabel('given x value / a.u.')
         # plt.ylabel('given y value / a.u.')
         # plt.title('est. SNR = {:.1f} dB in noise bandwidth of {:.2e}'.format(snr_db, noise_bw))
+        # plt.show()
     
         # logarithmic plot
         plt.figure()
@@ -661,6 +662,7 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         plt.xlabel('given x value / a.u.')
         plt.ylabel('given y value / dB')
         plt.title('est. SNR = {:.1f} dB in noise bandwidth of {:.2e}'.format(snr_db, noise_bw))
+        plt.show()
         
     return snr_db
         
