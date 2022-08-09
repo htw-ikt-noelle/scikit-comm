@@ -913,11 +913,11 @@ def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_
                 -> Name of data:
                     -> Trace_data   : (np.array) Contains numpy array with trace data
                     -> Unit         : (string) Contains the unit of the trace data
-                    -> Sensitivity  : (float) Contains the amplitude sensitivity of the spectrum. Is always in dBm
-                    -> Start_WL     : (float) Contains the start wavelength of the spectrum (in nm)
-                    -> Stop_WL      : (float) Contains the stop wavelength of the spectrum (in nm)
-                    -> Resolution_BW: (float) Contains the resolution bandwidth of the spectrum
-                    -> WL_vector    : (np.array) Contains a numpy array with an even spaced wavelength vector between Start_WL and Stop_WL (in nm)
+                    -> Sensitivity  : (float) Contains the amplitude sensitivity of the spectrum (always in dBm)
+                    -> Start_WL     : (float) Contains the start wavelength of the spectrum (in m)
+                    -> Stop_WL      : (float) Contains the stop wavelength of the spectrum (in m)
+                    -> Resolution_BW: (float) Contains the resolution bandwidth of the spectrum (in m)
+                    -> WL_vector    : (np.array) Numpy array with evenly spaced wavelengths between Start_WL and Stop_WL (in m)
             
     Errors
     -------
@@ -1095,12 +1095,12 @@ def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_
     # Page 7-457 -> 7-458
     # Convert from m to nm Page 1-14
     # With restrip(), the terminator \n will be removed
-    start_wl = 1e9 * float(osa.query('STARTWL?').rstrip('\n') )
+    start_wl = float(osa.query('STARTWL?').rstrip('\n') )
 
     # Read stop wave length
     # Page 7-464 -> 7-465
     # Convert from m to nm Page 1-14
-    stop_wl = 1e9 * float(osa.query('STOPWL?').rstrip('\n') )
+    stop_wl = float(osa.query('STOPWL?').rstrip('\n') )
 
     # Loop through traces
     for trace_id,trace in enumerate(traces):
