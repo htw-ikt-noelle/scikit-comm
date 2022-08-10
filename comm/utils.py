@@ -587,6 +587,74 @@ def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolat
     return OSNR_01nm,OSNR_val
 
 def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9, scaling='lin', plotting=False):
+    """
+    Estimate the signal to noise ratio (SNR) from a given power spectrum.
+    
+    The SNR is estimated from a given power spectrum using the so called interpolation
+    method: The signal (and noise (n2)) power (p_sig_n2) is calculated by integration
+    of the spectrum between the given spectral signal range. 
+    Then, the noise floor is estimeted by fitting a polynomial of given order to 
+    the spectral points lying in two specified spectral ranges (given with four
+    values in noise_range). In general one spectral range left and another right
+    from the data signal is specified, which therefore makes oversampling of 
+    the signal necessary. Two noise powers (p_n1 and p_n2) are calculated from 
+    the estimated polynomial by integration of sig_range (n2) and noise_bw (n1), 
+    respectively.
+    The SNR is then estimated by SNR = (p_sig_n2 - p_n2) / p_n1.
+    
+    NOTE: The polynomial is fitted from the linear spectral values.
+    
+
+    Parameters
+    ----------
+    x : 1D array, float
+        x-axis values of the spectrum. In general either frequency of wavelength.
+        The values in this vector must be monotonically increasing.
+    y : 1D array, float
+        y-axis values of the spectrum. In general either power or power density.
+    sig_range : 1D array, float
+        Two values (same unit as x) specifying the left and right end point
+        of the data signal, respectively, therewith defining the integration 
+        boundaries for p_sig_n2.
+    noise_range : 1D array, float
+        Four values (same unit as x) specifying the first (noise_range[:2])
+        and second (noise_range[2:]) spectral range used to fit the polynomial 
+        of the noise floor. These regions general chosen to be left and right 
+        of sig_range, respectively.
+    order : int, optional
+        Order of the polynomial to be fitted. The default is 1.
+    noise_bw : float, optional
+        Noise bandwidth (same unit as x) which is used to calculate the noise 
+        power (p_n1) in the SNR formula. For optical SNR, normally set to 0.1 nm
+        or 12.5 GHz. For electrical SNR, noramlly set to the symobl rate of the 
+        data signal. The default is 12.5e9.
+    scaling : string, optional
+        Is the spectrum (y) given in linear 'lin' (W, V**2, W/Hz, V**2/nm, ...) 
+        or in logarithmic 'log' (dBm, dBm/Hz, dBm/m, ...) scale. The default is 'lin'.
+    plotting : boolean, optional
+        Should the spectrum (,integration regions and noise fit) be plotted. 
+        Normally only interesting for setup of the regions and debugging purposes. 
+        The default is False.
+
+    Returns
+    -------
+    snr_db : float
+        Estimated SNR in dB.
+
+    """
+    
+    if not (isinstance(x, np.ndarray) and isinstance(y, np.ndarray) and isinstance(noise_range, np.ndarray) and isinstance(sig_range, np.ndarray)):
+        raise TypeError('x, y, sig_range and noise range must be numpy arrays')
+    
+    if (x.ndim != 1) or (y.ndim != 1) or (noise_range.ndim != 1) or (sig_range.ndim != 1):
+        raise ValueError('x, y, sig_range and noise range must be 1 dimensional numpy arrays')
+    
+    if sig_range.size != 2:
+        raise ValueError('sig_range must be of size 2')
+        
+    if noise_range.size != 4:
+        raise ValueError('noise_range must be of size 4')
+    
     
     if scaling == 'log':
         y = 10**(y/10)
