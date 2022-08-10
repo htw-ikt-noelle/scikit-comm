@@ -726,7 +726,7 @@ def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist
         If TRUE or 1, a new OSA sweep is initiated and the spectrum is fetched thereafter.
         The device is then reset to the original sweep mode.
 
-    wl_equidist or int: boolean, optional (default: False)
+    wl_equidist: boolean or int, optional (default: False)
         If FALSE or 0, the returned wavelengths are calculated from an equidistant frequency
         vector which is always used internally by the device.
         If TRUE or 1, the spectrum is interpolated at equidistant wavelengths, where the
@@ -734,7 +734,7 @@ def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist
 
     Returns
     -------
-    trace: dictionary
+    trace: dict
         The dictionary holds the spectrum measurement results in the following key-value pairs:
             key                     value
             'Resolution_BW_Hz'      (float) The OSA resolution bandwidth in units of [Hz].
@@ -755,7 +755,7 @@ def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist
             raise TypeError('Type of ip_address must be string')
             
         if not isinstance(new_sweep, (bool,int)):
-            raise TypeError('Type of new_sweep must be boolean or int.')
+            raise TypeError('Type of new_sweep must be boolean or int')
 
         if not isinstance(wl_equidist, (bool,int)):
             raise TypeError('Type of wl_equidist must be boolean or int')
@@ -801,7 +801,7 @@ def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist
             #osa.sendall('*WAI;'.encode()); dummy = osa.recv(RCV_BUFFSIZE) # TODO: query OPC? instead of *WAI
             OPC = False
             while not(OPC): # wait for sweep complete
-                osa.sendall('*OPC?;'.encode()); time.sleep(sleeptime/4);
+                osa.sendall('*OPC?;'.encode()); time.sleep(sleeptime);
                 OPC = bool(int(osa.recv(RCV_BUFFSIZE).decode().lstrip(';\r\n').rstrip(';\r\n')))
             
         ## query the resolution bandwidth (RBW in Hz)
@@ -855,8 +855,7 @@ def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist
             WL_m = WL_m_i; del WL_m_i
             f_Hz = c0 / WL_m
             
-        ## calculate total power from spectrum
-        #Pwr_integrate_dBm = 10*np.log10(np.trapz(10**(Spec_dBm[::-1]/10-3),x=f_Hz[::-1])/RBW/1e-3)  #reverse arrays, since frequency is ascending
+        ## calculate total power from spectrum        
         Pwr_integrate_dBm = 10*np.log10(np.abs(np.trapz(10**(Spec_dBm[::-1]/10-3),x=f_Hz[::-1])/RBW/1e-3))
         #print('Total optical power (spectrum integration): {:3.3f} dBm'.format(Pwr_integrate_dBm))    
     
