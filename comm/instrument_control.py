@@ -1,8 +1,7 @@
-import sys
+import logging, struct, sys, time
 import pyvisa as visa
 import numpy as np
-import time
-import logging
+from socket import socket, AF_INET, SOCK_STREAM, SHUT_RDWR
 
 
 def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
@@ -708,6 +707,167 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
    
     # closing resource manager 
     rm.close()  
+    
+def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist = False):
+    """
+    get_spectrum_IDOSA()
+    
+    Function for reading the optical spectrum from an ID-Photonics ID-OSA.
+    OSA settings have to be adjusted externally (using e.g., the ID-OSA GUI) 
+    before reading th spectrum (for details, see Manual_IDOSA.pdf).
+
+    Parameters
+    ----------
+    ip_address : string, optional (default: '192.168.1.22')
+        Th IP-address of the device.
+        
+    new_sweep : boolean or int, optional  (default: False)
+        If FALSE or 0, the current spectrum will be fetched from the instrument. 
+        If TRUE or 1, a new OSA sweep is initiated and the spectrum is fetched thereafter.
+        The device is then reset to the original sweep mode.
+
+    wl_equidist: boolean or int, optional (default: False)
+        If FALSE or 0, the returned wavelengths are calculated from an equidistant frequency
+        vector which is always used internally by the device.
+        If TRUE or 1, the spectrum is interpolated at equidistant wavelengths, where the
+        wavelength is interpolated using the same range and number as the original wavelength axis.
+
+    Returns
+    -------
+    trace: dict
+        The dictionary holds the spectrum measurement results in the following key-value pairs:
+            key                     value
+            'Resolution_BW_Hz'      (float) The OSA resolution bandwidth in units of [Hz].
+            'Resolution_BW_m'       (float) The resolution bandwidth in units of [m], referenced to center of the spectrum.
+            'FREQ_vector_Hz'        (np.array) Contains the frequency axis (descending) in units of [Hz].
+            'WL_vector_m'           (np.array) Contains the wavelength axis (ascending) in units of [m].
+            'Trace_data'            (np.array) Contains the spectrum in log-domain in units of [dBm].
+            'Ptotal_dBm_IDOSA'      (float)    The total optical power in [dBm], interally calculated by the instrument.
+            'Ptotal_dBm_int'        (float)    The total optical power in [dBm], calculated from the fetched spectrum.
+    """
+    
+    # =============================================================================
+    #  Check inputs for correctness
+    # ============================================================================= 
+
+    try:
+        if not isinstance(ip_address, str):
+            raise TypeError('Type of ip_address must be string')
+            
+        if not isinstance(new_sweep, (bool,int)):
+            raise TypeError('Type of new_sweep must be boolean or int')
+
+        if not isinstance(wl_equidist, (bool,int)):
+            raise TypeError('Type of wl_equidist must be boolean or int')
+    except Exception as e:
+        print('{0}'.format(e))
+        sys.exit(0)
+
+    
+    sleeptime = 0.03  # [sec] pause-time between socket IO operations (increase if driver is unreliable)
+    RCV_BUFFSIZE = 32 # size for receive-buffer
+    socket_timeout = 2 # [sec] socket timeout (increase if desired)
+    tcp_port = 2000  # do not change (fix for ID-OSA)
+    c0 = 299792458.0 # [m/s] speed of light
+    
+    ## Create dictionary for trace data and wavelength information
+    trace = {'Resolution_BW_m':np.nan, 'Resolution_BW_Hz':np.nan, 'Ptotal_dBm_IDOSA':np.nan,
+             'Ptotal_dBm_int':np.nan, 'WL_vector_m':np.asarray(np.nan),
+             'FREQ_vector_Hz':np.asarray(np.nan), 'Trace_data':np.asarray(np.nan)}
+    
+    ## connect to socket
+    osa = socket(AF_INET,SOCK_STREAM) # https://docs.python.org/3/library/socket.html#socket.socket.connect
+    osa.settimeout(socket_timeout) # 2 sec timeout
+    try:
+        osa.connect( (ip_address,tcp_port) )
+    except Exception as e:
+        print(e)
+        return trace
+        sys.exit("Could not connect to socket.")
+    
+    with osa:
+        if bool(new_sweep) == True:
+            ## remember current sweep mode
+            osa.sendall('smod?;'.encode())
+            time.sleep(sleeptime/2);
+            sweep_mode = int(osa.recv(RCV_BUFFSIZE).decode().lstrip(';\r\n').rstrip(';\r\n'))
+            
+            if (sweep_mode==2 or sweep_mode==3): # if repeat or auto -> set to single sweep mode (smod 1)
+                osa.sendall('smod 1;'.encode())
+                time.sleep(sleeptime); dummy = osa.recv(RCV_BUFFSIZE) # dummy read to empty send buffer (remove \r\n etc.)
+            
+            ## initiate a single sweep
+            osa.sendall('SGL;'.encode());  dummy = osa.recv(RCV_BUFFSIZE)
+            #osa.sendall('*WAI;'.encode()); dummy = osa.recv(RCV_BUFFSIZE) # TODO: query OPC? instead of *WAI
+            OPC = False
+            while not(OPC): # wait for sweep complete
+                osa.sendall('*OPC?;'.encode()); time.sleep(sleeptime);
+                OPC = bool(int(osa.recv(RCV_BUFFSIZE).decode().lstrip(';\r\n').rstrip(';\r\n')))
+            
+        ## query the resolution bandwidth (RBW in Hz)
+        osa.sendall('step:freq?;'.encode()); time.sleep(sleeptime*2);
+        RBW = float(osa.recv(RCV_BUFFSIZE).decode().lstrip(';\r\n').rstrip(';\r\n')); # OSA resolution bandwidth in [Hz]
+        #print('ID-OSA RBW: {:3.2f} MHz'.format(RBW/1e6))
+
+        ## query the center frequency (Hz) 
+        osa.sendall('cent?;'.encode()); time.sleep(sleeptime*2);
+        f_cent = float(osa.recv(RCV_BUFFSIZE).decode().lstrip(';\r\n').rstrip(';\r\n')); # spectrum center in [Hz]
+        #print('center frequency (by ID-OSA): {:3.2f} Hz'.format(f_cent))
+        
+        ## query total optical power from intrument (migth deviate from feteched spectrum if OSA is in RPT scan mode)
+        osa.sendall('POW?;'.encode()); time.sleep(sleeptime*2);
+        Power_dBm = float(osa.recv(RCV_BUFFSIZE).decode().lstrip(';\r\n').rstrip(';\r\n'));
+        #print('Total optical power (by ID-OSA): {:3.3f} dBm'.format(Power_dBm))
+        
+        ## query OSA trace
+        # fetch wavelength axis in ascending order in units of [m] (precedure adapted from LabVIEW ID-OSA driver)
+        osa.sendall('FORM REAL,64;'.encode()); time.sleep(sleeptime); dummy = osa.recv(RCV_BUFFSIZE) # double is required for full resolution
+        osa.sendall('x?;'.encode()); time.sleep(sleeptime); # wavelength in [m];
+        digits = int(osa.recv(2).decode().lstrip(';\r\n').rstrip(';\r\n')[1]); time.sleep(sleeptime) # no. of digits to read
+        num_bytes = int(osa.recv(digits).decode().lstrip(';\r\n').rstrip(';\r\n')); time.sleep(sleeptime); # no. of bytes to read
+        x = osa.recv(num_bytes+3); # binary data block [{+3 bytes: needed to capture term sequence}
+        databytes = bytes(list(zip(*list(struct.iter_unpack("B",x[0:-3]))))[0][::-1]) # [0:-3]: strip off term sequence | unpack and reverse | cast to bytes
+        WL_m = np.asarray(list(struct.iter_unpack(">d",databytes))).flatten()[::-1] #">d" for big-endian (8-byte) double (https://docs.python.org/3/library/struct.html)
+        f_Hz = c0/WL_m # EQUIDISTANT frequency axis
+        
+        # fetch y-data (power spectrum) in units of [dBm]
+        osa.sendall(':TRACE:DATA:LINLOG LOG;'.encode()); time.sleep(sleeptime); dummy = osa.recv(RCV_BUFFSIZE*3); # set to dBm
+        osa.sendall('FORM REAL,32;'.encode()); time.sleep(sleeptime); dummy = osa.recv(RCV_BUFFSIZE) # 32-bit float sufficient for spectrum in dB 
+        osa.sendall('y?;'.encode()); time.sleep(sleeptime); # power spectrum in units of (dBm in RBW)
+        digits = int(osa.recv(2).decode().lstrip(';\r\n').rstrip(';\r\n')[1]); time.sleep(sleeptime) # no. of digits to read
+        num_bytes = int(osa.recv(digits).decode().lstrip(';\r\n').rstrip(';\r\n')); time.sleep(sleeptime); # no. of bytes to read
+        y = osa.recv(num_bytes+3); # binary data block [{+3 bytes: needed to capture term sequence}
+        sb = bytes(list(zip(*list(struct.iter_unpack("B",y[0:-3]))))[0][::-1]) # y[0:-3]: strip off term sequence
+        Spec_dBm = np.asarray(list(struct.iter_unpack(">f",sb))).flatten()[::-1] #">f" for big-endian (4-byte) float
+
+        ## reset OSA to original sweep mode
+        if new_sweep == True and (sweep_mode==2 or sweep_mode==3):
+            osa.sendall('RPT;'.encode()); time.sleep(sleeptime); dummy = osa.recv(RCV_BUFFSIZE)
+            
+        ## close socket connection
+        osa.shutdown(SHUT_RDWR)
+        osa.close()
+
+        ## resample spectrum to equidistant wavelength steps (experimental)
+        if bool(wl_equidist) == True:
+            WL_m_i = np.linspace(np.min(WL_m),np.max(WL_m),WL_m.size,endpoint=True) # [m]
+            Spec_dBm = np.interp(WL_m_i, WL_m, Spec_dBm) #[dBm]
+            WL_m = WL_m_i; del WL_m_i
+            f_Hz = c0 / WL_m
+            
+        ## calculate total power from spectrum        
+        Pwr_integrate_dBm = 10*np.log10(np.abs(np.trapz(10**(Spec_dBm[::-1]/10-3),x=f_Hz[::-1])/RBW/1e-3))
+        #print('Total optical power (spectrum integration): {:3.3f} dBm'.format(Pwr_integrate_dBm))    
+    
+        
+        trace['Resolution_BW_m'] = np.abs(-c0 / f_cent**2 * RBW) # RBW in [m], referenced to center of spectrum
+        trace['Resolution_BW_Hz'] = RBW # [Hz]
+        trace['WL_vector_m'] = WL_m # [m]
+        trace['FREQ_vector_Hz'] = f_Hz # [Hz]
+        trace['Trace_data'] = Spec_dBm # [dBm]
+        trace['Ptotal_dBm_IDOSA'] = Power_dBm # [dBm]
+        trace['Ptotal_dBm_int'] = Pwr_integrate_dBm # [dBm]
+        return trace    
 
 
 def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_mode = False, single_sweep = False):
@@ -752,11 +912,11 @@ def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_
                 -> Name of data:
                     -> Trace_data   : (np.array) Contains numpy array with trace data
                     -> Unit         : (string) Contains the unit of the trace data
-                    -> Sensitivity  : (float) Contains the amplitude sensitivity of the spectrum. Is always in dBm
-                    -> Start_WL     : (float) Contains the start wavelength of the spectrum (in nm)
-                    -> Stop_WL      : (float) Contains the stop wavelength of the spectrum (in nm)
-                    -> Resolution_BW: (float) Contains the resolution bandwidth of the spectrum
-                    -> WL_vector    : (np.array) Contains a numpy array with an even spaced wavelength vector between Start_WL and Stop_WL (in nm)
+                    -> Sensitivity  : (float) Contains the amplitude sensitivity of the spectrum (always in dBm)
+                    -> Start_WL     : (float) Contains the start wavelength of the spectrum (in m)
+                    -> Stop_WL      : (float) Contains the stop wavelength of the spectrum (in m)
+                    -> Resolution_BW: (float) Contains the resolution bandwidth of the spectrum (in m)
+                    -> WL_vector    : (np.array) Numpy array with evenly spaced wavelengths between Start_WL and Stop_WL (in m)
             
     Errors
     -------
@@ -934,12 +1094,12 @@ def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_
     # Page 7-457 -> 7-458
     # Convert from m to nm Page 1-14
     # With restrip(), the terminator \n will be removed
-    start_wl = 1e9 * float(osa.query('STARTWL?').rstrip('\n') )
+    start_wl = float(osa.query('STARTWL?').rstrip('\n') )
 
     # Read stop wave length
     # Page 7-464 -> 7-465
     # Convert from m to nm Page 1-14
-    stop_wl = 1e9 * float(osa.query('STOPWL?').rstrip('\n') )
+    stop_wl = float(osa.query('STOPWL?').rstrip('\n') )
 
     # Loop through traces
     for trace_id,trace in enumerate(traces):
