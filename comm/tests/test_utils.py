@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from numpy.testing import (
-        assert_, assert_raises, assert_equal, assert_warns,
+        assert_, assert_raises, assert_equal, assert_almost_equal, assert_warns,
         assert_no_warnings, assert_array_equal, assert_array_almost_equal,
         suppress_warnings
         )
@@ -98,6 +98,29 @@ class TestBitsToDec(unittest.TestCase):
         dec_dummy = comm.utils.bits_to_dec(dummy,4)
         bits = comm.utils.dec_to_bits(dec_dummy,4)
         assert_equal(bits,dummy)
+        
+class TestEstimateSnrSpectrum(unittest.TestCase):
+    """
+    Test class for estimate_snr_spectrum
+    """
+    
+    def test_correct_snr(self):
+        
+        x = np.arange(-10, 11, 1)
+        # noise = 0.5
+        y = np.ones_like(x) * 0.5
+        #  signal + noise = 6
+        y[int(x.size/2)-1:int(x.size/2)+2] = 6
+        noise_range = np.asarray([-4.2, -8.0, 4.1, 8.4])
+        sig_range = np.asarray([-0.9, 0.6])
+        noise_bw = 1
+        order = 1
+
+        snr = comm.utils.estimate_snr_spectrum(x, y, sig_range, noise_range, 
+                                               order=order, noise_bw=noise_bw, 
+                                               scaling='lin', plotting=False)
+        
+        assert_almost_equal(snr, 10.0, decimal=10)
     
         
         

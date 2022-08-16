@@ -585,6 +585,156 @@ def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolat
         plt.grid()
 
     return OSNR_01nm,OSNR_val
+
+def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9, scaling='lin', plotting=False):
+    """
+    Estimate the signal to noise ratio (SNR) from a given power spectrum.
+    
+    The SNR is estimated from a given power spectrum using the so called interpolation
+    method: The signal (and noise (n2)) power (p_sig_n2) is calculated by integration
+    of the spectrum between the given spectral signal range. 
+    Then, the noise floor is estimated by fitting a polynomial of given order to 
+    the spectral points lying in two specified spectral ranges (given by the four
+    values in noise_range). In general, one spectral range left and another one right
+    from the data signal is specified, which therefore requires some oversampling of 
+    the data signal. Two noise powers (p_n1 and p_n2) are calculated from 
+    the estimated polynomial by integration within noise_bw (n1) and sig_range (n2), 
+    respectively.
+    The SNR is then estimated by SNR = (p_sig_n2 - p_n2) / p_n1.
+    
+    NOTE: The polynomial is fitted from the spectrum in linear domain.
+    
+
+    Parameters
+    ----------
+    x : 1D array, float
+        "x-axis" values of the spectrum. In general either frequency or wavelength.
+        The values in this vector must be monotonically increasing.
+    y : 1D array, float
+        "y-axis" values of the spectrum. In general either power or power density.
+    sig_range : 1D array, float
+        Two values (same unit as x) that specify the left and right corner points
+        of the data signal, respectively, and thus define the integration limits 
+        for p_sig_n2.
+    noise_range : 1D array, float
+        Four values (same unit as x) indicating the first (noise_range[:2]) and 
+        second (noise_range[2:]) spectral ranges used to fit the polynomial of 
+        the noise floor. These ranges are generally chosen to lie to the left 
+        and right of sig_range, respectively.
+    order : int, optional
+        Order of the polynomial to be fitted. The default is 1.
+    noise_bw : float, optional
+        Noise bandwidth (same unit as x) used to calculate the noise power (p_n1) 
+        in the SNR formula. For optical SNR, usually set to 0.1 nm or 12.5 GHz. 
+        For electrical SNR, usually set to the symmetrical rate of the data signal. 
+        The default value is 12.5e9.
+    scaling : string, optional
+        Is the spectrum (y) given in linear 'lin' (W, V**2, W/Hz, V**2/nm, ...) 
+        or in logarithmic 'log' (dBm, dBm/Hz, dBm/m, ...) scale. The default is 'lin'.
+    plotting : boolean, optional
+        Shall the spectrum (plus integration regions and noise fit) be plotted?
+        Useful for tuning sig_range and noise_range and verifying the fitting results.
+        The default is False.
+
+    Returns
+    -------
+    snr_db : float
+        Estimated SNR in dB.
+
+    """
+    
+    if not (isinstance(x, np.ndarray) and isinstance(y, np.ndarray) and isinstance(noise_range, np.ndarray) and isinstance(sig_range, np.ndarray)):
+        raise TypeError('x, y, sig_range and noise range must be numpy arrays')
+    
+    if (x.ndim != 1) or (y.ndim != 1) or (noise_range.ndim != 1) or (sig_range.ndim != 1):
+        raise ValueError('x, y, sig_range and noise range must be 1 dimensional numpy arrays')
+    
+    if sig_range.size != 2:
+        raise ValueError('sig_range must be of size 2')
+        
+    if noise_range.size != 4:
+        raise ValueError('noise_range must be of size 4')
+    
+    
+    if scaling == 'log':
+        y = 10**(y/10)
+    elif scaling == 'lin':
+        pass
+    else:
+        raise ValueError('parameter scaling must be either "log" or "lin"')
+    
+    # prepare signal range    
+    sig_range.sort()
+    sig_range = np.expand_dims(sig_range, axis=-1)
+    # find x axis samples closest to given signal range
+    sig_range_idx = np.argmin(np.abs(x-sig_range), axis=-1)
+    sig_range=np.squeeze(sig_range)
+
+    # prepare noise ranges
+    noise_range.sort()
+    noise_range = np.expand_dims(noise_range, axis=-1)
+    # find x axis samples closest to given noise ranges range
+    noise_range_idx = np.argmin(np.abs(x-noise_range), axis=-1)
+    noise_range = np.squeeze(noise_range)
+
+    # calc signal and noise power (sig+n2) in signal range numerically from given y
+    y_sig_n2 = y[sig_range_idx[0]:sig_range_idx[1]]    
+    p_sig_n2 = np.trapz(y_sig_n2, x=x[sig_range_idx[0]:sig_range_idx[1]])
+
+    # fit a polynominal with given order from the samples of y which are in noise_range
+    # --> supposed to be the noise part of the spectrum
+    x_n = np.append(x[noise_range_idx[0]:noise_range_idx[1]], x[noise_range_idx[2]:noise_range_idx[3]])
+    y_n = np.append(y[noise_range_idx[0]:noise_range_idx[1]], y[noise_range_idx[2]:noise_range_idx[3]])
+    c = Polynomial.fit(x_n, y_n, order)
+    
+    # find the (coefficients of the) indefinite integral of the fitted polynominal
+    C = c.integ()
+    
+    # calc the power of the fitted polynominal in noise_bw centered around mean signal_range
+    # --> integration of fitted polynominal 
+    # --> supposed to be the noise power (in noise_bw) under the data signal (n1)
+    x_sig_mean = np.mean(sig_range)
+    p_n1 = C(x_sig_mean + noise_bw/2) - C(x_sig_mean - noise_bw/2)
+    
+    # calc the power of the fitted polynominal in signal range
+    # --> integration of fitted polynominal 
+    # --> supposed to be the noise power which was included in the numverical integration of y (n2)
+    p_n2 = C(x[sig_range_idx[1]]) - C(x[sig_range_idx[0]])
+    
+    # calc SNR
+    snr = (p_sig_n2 - p_n2) / p_n1
+    snr_db = 10 * np.log10(snr)
+    
+    if plotting:   
+        # create samples of fitted polynominal within the range of x (for plotting only)
+        xx_n, yy_n = c.linspace(n=x.size, domain=[x[0], x[-1]])
+        
+        # # linear plot
+        # plt.plot(x,y)
+        # plt.plot(x[sig_range_idx], y[sig_range_idx], 'o')
+        # plt.plot(x[noise_range_idx[0]:noise_range_idx[1]], y[noise_range_idx[0]:noise_range_idx[1]], 'r--')
+        # plt.plot(x[noise_range_idx[2]:noise_range_idx[3]], y[noise_range_idx[2]:noise_range_idx[3]], 'r--')
+        # plt.plot(xx_n,yy_n,'g-')
+        # plt.xlabel('given x value / a.u.')
+        # plt.ylabel('given y value / a.u.')
+        # plt.title('est. SNR = {:.1f} dB in noise bandwidth of {:.2e}'.format(snr_db, noise_bw))
+        # plt.show()
+    
+        # logarithmic plot
+        plt.figure()
+        plt.plot(x,10*np.log10(y))
+        plt.plot(x[sig_range_idx], 10*np.log10(y[sig_range_idx]), 'o')
+        plt.plot(x[noise_range_idx[0]:noise_range_idx[1]], 10*np.log10(y[noise_range_idx[0]:noise_range_idx[1]]), 'r--')
+        plt.plot(x[noise_range_idx[2]:noise_range_idx[3]], 10*np.log10(y[noise_range_idx[2]:noise_range_idx[3]]), 'r--')
+        plt.plot(xx_n,10*np.log10(yy_n),'g-')
+        plt.xlabel('given x value / a.u.')
+        plt.ylabel('given y value / dB')
+        plt.title('est. SNR = {:.1f} dB in noise bandwidth of {:.2e}'.format(snr_db, noise_bw))
+        plt.show()
+        
+    return snr_db
+        
+    
     
         
 def estimate_snr_nda(sig,block_size=-1,bias_comp=True):
