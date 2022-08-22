@@ -5,7 +5,7 @@ import copy
 
 #### diversity gain test
 n_dims = np.arange(2,21)
-MC_runs = 50
+MC_runs = 100
 
 # combining function
 def combining(sig_div,comb_method='MRC',est_method='spectrum'):
@@ -59,12 +59,16 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum'):
         # print estimated SNR
         # print('True vs. estimated SNR for channel {}: {:.2f} vs. {:.2f} dB.'.format(i,snr[i],snr_vec[i]))
         
-    # scaling
+    # scaling    
     if comb_method == 'MRC':
         for i in range(len(sig.samples)):
             sig.samples[i] = sig.samples[i] * (10**(snr_vec[i]/10))
     elif comb_method == 'EGC':
         pass
+    elif comb_method == 'SDC':
+        mask = np.where(snr_vec == np.max(snr_vec),1,0)
+        for i in range(len(sig.samples)):
+            sig.samples[i] = sig.samples[i] * mask[i]
     else:
         raise ValueError("Combining method not implemented.")
     # combination
@@ -74,11 +78,13 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum'):
     return sig
 
 #### MC simulation
-mean_MRC_EGC_gain = np.full_like(n_dims,0,dtype='float')
+mean_MRC_SDC_gain = np.full_like(n_dims,0,dtype='float')
+mean_EGC_SDC_gain = np.full_like(n_dims,0,dtype='float')
 # n_apertures loop
 for i in n_dims:
     # MC loop
-    MRC_EGC_gain = np.zeros((MC_runs,),dtype='float')
+    MRC_SDC_gain = np.zeros((MC_runs,),dtype='float')
+    EGC_SDC_gain = np.zeros((MC_runs,),dtype='float')
     for j in range(MC_runs):
         sig = comm.signal.Signal(n_dims=int(i))
         sig.symbol_rate = 5e9
@@ -96,6 +102,14 @@ for i in n_dims:
         #### CH
         sig.set_snr(snr_dB=snr,seed=snr_seeds)
         #### RX
+        # SDC combining
+        sig_comb_SDC = combining(sig,comb_method='SDC')
+        x_comb_SDC = np.linspace(-(sig_comb_SDC.sample_rate[0]+df)/2,(sig_comb_SDC.sample_rate[0]-df)/2,sig_comb_SDC.samples[0].size)
+        y_comb_SDC = np.abs(np.fft.fftshift(np.fft.fft(sig_comb_SDC.samples[0])))**2
+        snr_comb_SDC = comm.utils.estimate_snr_spectrum(x_comb_SDC,y_comb_SDC,sig_range=np.array([-sig_comb_SDC.symbol_rate[0]/2,sig_comb_SDC.symbol_rate[0]/2]),
+                                                      noise_range=np.array([-sig_comb_SDC.symbol_rate[0]/2-1e9,-sig_comb_SDC.symbol_rate[0]/2,sig_comb_SDC.symbol_rate[0]/2,sig_comb_SDC.symbol_rate[0]/2+1e9]),
+                                                      order=1,noise_bw=sig_comb_SDC.symbol_rate[0],plotting=False)
+        
         # MRC combining
         sig_comb_MRC = combining(sig,comb_method='MRC')
         x_comb_MRC = np.linspace(-(sig_comb_MRC.sample_rate[0]+df)/2,(sig_comb_MRC.sample_rate[0]-df)/2,sig_comb_MRC.samples[0].size)
@@ -112,9 +126,11 @@ for i in n_dims:
                                                       noise_range=np.array([-sig_comb_EGC.symbol_rate[0]/2-1e9,-sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2+1e9]),
                                                       order=1,noise_bw=sig_comb_EGC.symbol_rate[0],plotting=False)
         
-        MRC_EGC_gain[j] = snr_comb_MRC - snr_comb_EGC
+        MRC_SDC_gain[j] = snr_comb_MRC - snr_comb_SDC
+        EGC_SDC_gain[j] = snr_comb_EGC - snr_comb_SDC
         
-    mean_MRC_EGC_gain[i-2] = np.mean(MRC_EGC_gain)
+    mean_MRC_SDC_gain[i-2] = np.mean(MRC_SDC_gain)
+    mean_EGC_SDC_gain[i-2] = np.mean(EGC_SDC_gain)
 # print('Average SNR over all {} channels: {:.2f} dB.'.format(n_dims,np.mean(np.array(snr))))
 # print('Estimated SNR after EGC combining: {:.2f} dB.'.format(snr_comb_EGC))
 # print('Estimated SNR after MRC combining: {:.2f} dB.'.format(snr_comb_MRC))
@@ -122,10 +138,12 @@ for i in n_dims:
 # print('MRC gain over Selection Combining = {:.2f} dB.'.format(snr_comb_MRC-np.max(np.array(snr))))
 
 plt.figure(1)
-plt.plot(n_dims,mean_MRC_EGC_gain)
+plt.plot(n_dims,mean_MRC_SDC_gain)
+plt.plot(n_dims,mean_EGC_SDC_gain)
 plt.grid()
 plt.xticks(ticks=n_dims)
-plt.title('MRC SNR gain over EGC')
+plt.title('mean MRC/EGC SNR gain over SDC over {} runs'.format(MC_runs))
 plt.xlabel('Number of antennas')
 plt.ylabel('SNR gain [dB]')
+plt.legend(('MRC gain over SDC','EGC gain over SDC'))
 plt.show()
