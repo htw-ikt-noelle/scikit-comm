@@ -4,66 +4,10 @@ import matplotlib.pyplot as plt
 import copy
 
 #### diversity gain test
-n_dims = 2
-sig = comm.signal.Signal(n_dims=n_dims)
-sig.symbol_rate = 5e9
-sig.sample_rate = 15e9
-# x_pol_snr = np.random.randint(0,20)
-# y_pol_snr = np.random.randint(0,20)
-snr = np.random.randint(0,20,size=(n_dims,)).tolist()
-snr_seeds = np.random.randint(0,1000,size=(n_dims,)).tolist()
-bit_seeds = np.tile(np.random.randint(0,1000,size=(1,)),n_dims).tolist()
-n_bits = 2**16
-df = sig.sample_rate[0]/n_bits
-#### TX
-sig.generate_bits(n_bits=n_bits,seed=bit_seeds)
-sig.generate_constellation(format='QAM',order=4)
-sig.mapper()
-sig.pulseshaper(upsampling=sig.sample_rate[0]/sig.symbol_rate[0],pulseshape='rrc',roll_off=.0)
-#### CH
-sig.set_snr(snr_dB=snr,seed=snr_seeds)
-# x_pol = comm.channel.set_snr(sig.samples[0],snr_dB=x_pol_snr,seed=1)
-# y_pol = comm.channel.set_snr(sig.samples[1],snr_dB=y_pol_snr,seed=1)
-#### RX
-# pre-combining SNR estimation
-# x_snr_est = comm.utils.estimate_snr_spectrum(np.linspace(-sig.sample_rate[0]/2+df/2,sig.sample_rate[0]/2-df/2,sig.samples[0].size), 
-#                                              np.abs(np.fft.fftshift(np.fft.fft(sig.samples[0])))**2, 
-#                                              sig_range=np.array([-3e9,3e9]), 
-#                                              noise_range=np.array([-4e9,-3e9,3e9,4e9]),
-#                                              order=1,
-#                                              noise_bw=sig.sample_rate[0],
-#                                              plotting=False)
+n_dims = np.arange(2,21)
+MC_runs = 50
 
-# y_snr_est = comm.utils.estimate_snr_spectrum(np.linspace(-sig.sample_rate[0]/2+df/2,sig.sample_rate[0]/2-df/2,sig.samples[0].size), 
-#                                              np.abs(np.fft.fftshift(np.fft.fft(sig.samples[1])))**2, 
-#                                              sig_range=np.array([-3e9,3e9]), 
-#                                              noise_range=np.array([-4e9,-3e9,3e9,4e9]),
-#                                              order=1,
-#                                              noise_bw=sig.sample_rate[0],
-#                                              plotting=False)
-# # EGC combining
-# sig_EGC = sig.samples[0] + sig.samples[1]
-# EGC_snr_est = comm.utils.estimate_snr_spectrum(np.linspace(-sig.sample_rate[0]/2+df/2,sig.sample_rate[0]/2-df/2,sig.samples[0].size), 
-#                                              np.abs(np.fft.fftshift(np.fft.fft(sig_EGC)))**2, 
-#                                              sig_range=np.array([-3e9,3e9]), 
-#                                              noise_range=np.array([-4e9,-3e9,3e9,4e9]),
-#                                              order=1,
-#                                              noise_bw=sig.sample_rate[0],
-#                                              plotting=False)
-# # MRC combining
-# sig_MRC = (10**(x_snr_est/10))*sig.samples[0] + (10**(y_snr_est/10))*sig.samples[1]
-# MRC_snr_est = comm.utils.estimate_snr_spectrum(np.linspace(-sig.sample_rate[0]/2+df/2,sig.sample_rate[0]/2-df/2,sig.samples[0].size), 
-#                                              np.abs(np.fft.fftshift(np.fft.fft(sig_MRC)))**2, 
-#                                              sig_range=np.array([-3e9,3e9]), 
-#                                              noise_range=np.array([-4e9,-3e9,3e9,4e9]),
-#                                              order=1,
-#                                              noise_bw=sig.sample_rate[0],
-#                                              plotting=False)
-
-# print('Sum of individual channel SNRs = {:.2f} dB.'.format(x_snr_est+y_snr_est))
-# print('MRC SNR = {:.2f} dB.'.format(MRC_snr_est))
-# print('MRC SNR gain = {:.2f} dB.'.format(MRC_snr_est-EGC_snr_est))
-
+# combining function
 def combining(sig_div,comb_method='MRC',est_method='spectrum'):
     """
     Performs Diversity Combining of the rows of an incoming signal matrix,
@@ -113,7 +57,7 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum'):
                                                       noise_range=np.array([-sig.symbol_rate[i]/2-3e9,-sig.symbol_rate[i]/2,sig.symbol_rate[i]/2,sig.symbol_rate[i]/2+3e9]),
                                                       order=1,noise_bw=sig.symbol_rate[i],plotting=False)
         # print estimated SNR
-        print('True vs. estimated SNR for channel {}: {:.2f} vs. {:.2f} dB.'.format(i,snr[i],snr_vec[i]))
+        # print('True vs. estimated SNR for channel {}: {:.2f} vs. {:.2f} dB.'.format(i,snr[i],snr_vec[i]))
         
     # scaling
     if comb_method == 'MRC':
@@ -129,23 +73,59 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum'):
     sig.samples = np.sum(sig.samples,axis=0)
     return sig
 
-# MRC combining
-sig_comb_MRC = combining(sig,comb_method='MRC')
-x_comb_MRC = np.linspace(-(sig_comb_MRC.sample_rate[0]+df)/2,(sig_comb_MRC.sample_rate[0]-df)/2,sig_comb_MRC.samples[0].size)
-y_comb_MRC = np.abs(np.fft.fftshift(np.fft.fft(sig_comb_MRC.samples[0])))**2
-snr_comb_MRC = comm.utils.estimate_snr_spectrum(x_comb_MRC,y_comb_MRC,sig_range=np.array([-sig_comb_MRC.symbol_rate[0]/2,sig_comb_MRC.symbol_rate[0]/2]),
-                                              noise_range=np.array([-sig_comb_MRC.symbol_rate[0]/2-1e9,-sig_comb_MRC.symbol_rate[0]/2,sig_comb_MRC.symbol_rate[0]/2,sig_comb_MRC.symbol_rate[0]/2+1e9]),
-                                              order=1,noise_bw=sig_comb_MRC.symbol_rate[0],plotting=False)
+#### MC simulation
+mean_MRC_EGC_gain = np.full_like(n_dims,0,dtype='float')
+# n_apertures loop
+for i in n_dims:
+    # MC loop
+    MRC_EGC_gain = np.zeros((MC_runs,),dtype='float')
+    for j in range(MC_runs):
+        sig = comm.signal.Signal(n_dims=int(i))
+        sig.symbol_rate = 5e9
+        sig.sample_rate = 15e9
+        snr = np.random.randint(0,20,size=(i,)).tolist()
+        snr_seeds = np.random.randint(0,1000,size=(i,)).tolist()
+        bit_seeds = np.tile(np.random.randint(0,1000,size=(1,)),i).tolist()
+        n_bits = 2**14
+        df = sig.sample_rate[0]/n_bits
+        #### TX
+        sig.generate_bits(n_bits=n_bits,seed=bit_seeds)
+        sig.generate_constellation(format='QAM',order=4)
+        sig.mapper()
+        sig.pulseshaper(upsampling=sig.sample_rate[0]/sig.symbol_rate[0],pulseshape='rrc',roll_off=.0)
+        #### CH
+        sig.set_snr(snr_dB=snr,seed=snr_seeds)
+        #### RX
+        # MRC combining
+        sig_comb_MRC = combining(sig,comb_method='MRC')
+        x_comb_MRC = np.linspace(-(sig_comb_MRC.sample_rate[0]+df)/2,(sig_comb_MRC.sample_rate[0]-df)/2,sig_comb_MRC.samples[0].size)
+        y_comb_MRC = np.abs(np.fft.fftshift(np.fft.fft(sig_comb_MRC.samples[0])))**2
+        snr_comb_MRC = comm.utils.estimate_snr_spectrum(x_comb_MRC,y_comb_MRC,sig_range=np.array([-sig_comb_MRC.symbol_rate[0]/2,sig_comb_MRC.symbol_rate[0]/2]),
+                                                      noise_range=np.array([-sig_comb_MRC.symbol_rate[0]/2-1e9,-sig_comb_MRC.symbol_rate[0]/2,sig_comb_MRC.symbol_rate[0]/2,sig_comb_MRC.symbol_rate[0]/2+1e9]),
+                                                      order=1,noise_bw=sig_comb_MRC.symbol_rate[0],plotting=False)
+        
+        # EGC combining
+        sig_comb_EGC = combining(sig,comb_method='EGC')
+        x_comb_EGC = np.linspace(-(sig_comb_EGC.sample_rate[0]+df)/2,(sig_comb_EGC.sample_rate[0]-df)/2,sig_comb_EGC.samples[0].size)
+        y_comb_EGC = np.abs(np.fft.fftshift(np.fft.fft(sig_comb_EGC.samples[0])))**2
+        snr_comb_EGC = comm.utils.estimate_snr_spectrum(x_comb_EGC,y_comb_EGC,sig_range=np.array([-sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2]),
+                                                      noise_range=np.array([-sig_comb_EGC.symbol_rate[0]/2-1e9,-sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2+1e9]),
+                                                      order=1,noise_bw=sig_comb_EGC.symbol_rate[0],plotting=False)
+        
+        MRC_EGC_gain[j] = snr_comb_MRC - snr_comb_EGC
+        
+    mean_MRC_EGC_gain[i-2] = np.mean(MRC_EGC_gain)
+# print('Average SNR over all {} channels: {:.2f} dB.'.format(n_dims,np.mean(np.array(snr))))
+# print('Estimated SNR after EGC combining: {:.2f} dB.'.format(snr_comb_EGC))
+# print('Estimated SNR after MRC combining: {:.2f} dB.'.format(snr_comb_MRC))
+# print('MRC SNR gain over EGC = {:.2f} dB.'.format(snr_comb_MRC-snr_comb_EGC))
+# print('MRC gain over Selection Combining = {:.2f} dB.'.format(snr_comb_MRC-np.max(np.array(snr))))
 
-# EGC combining
-sig_comb_EGC = combining(sig,comb_method='EGC')
-x_comb_EGC = np.linspace(-(sig_comb_EGC.sample_rate[0]+df)/2,(sig_comb_EGC.sample_rate[0]-df)/2,sig_comb_EGC.samples[0].size)
-y_comb_EGC = np.abs(np.fft.fftshift(np.fft.fft(sig_comb_EGC.samples[0])))**2
-snr_comb_EGC = comm.utils.estimate_snr_spectrum(x_comb_EGC,y_comb_EGC,sig_range=np.array([-sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2]),
-                                              noise_range=np.array([-sig_comb_EGC.symbol_rate[0]/2-1e9,-sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2+1e9]),
-                                              order=1,noise_bw=sig_comb_EGC.symbol_rate[0],plotting=False)
-
-print('Average SNR over all {} channels: {:.2f} dB.'.format(n_dims,np.mean(np.array(snr))))
-print('Estimated SNR after EGC combining: {:.2f} dB.'.format(snr_comb_EGC))
-print('Estimated SNR after MRC combining: {:.2f} dB.'.format(snr_comb_MRC))
-print('MRC SNR gain over EGC = {:.2f} dB.'.format(snr_comb_MRC-snr_comb_EGC))
+plt.figure(1)
+plt.plot(n_dims,mean_MRC_EGC_gain)
+plt.grid()
+plt.xticks(ticks=n_dims)
+plt.title('MRC SNR gain over EGC')
+plt.xlabel('Number of antennas')
+plt.ylabel('SNR gain [dB]')
+plt.show()
