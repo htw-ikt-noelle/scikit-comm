@@ -3,20 +3,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #### diversity gain test
-sig = comm.signal.Signal(n_dims=2)
+n_dims = 2
+sig = comm.signal.Signal(n_dims=n_dims)
 sig.symbol_rate = 5e9
 sig.sample_rate = 15e9
-x_pol_snr = np.random.randint(0,20)
-y_pol_snr = np.random.randint(0,20)
+# x_pol_snr = np.random.randint(0,20)
+# y_pol_snr = np.random.randint(0,20)
+snr = np.random.randint(0,20,size=(n_dims,)).tolist()
+snr_seeds = np.random.randint(0,100,size=(n_dims,)).tolist()
 n_bits = 2**16
 df = sig.sample_rate[0]/n_bits
 #### TX
 sig.generate_bits(n_bits=n_bits,seed=None)
 sig.generate_constellation(format='QAM',order=4)
 sig.mapper()
-sig.pulseshaper(upsampling=sig.sample_rate[0]/sig.symbol_rate[0],pulseshape='rrc',roll_off=.2)
+sig.pulseshaper(upsampling=sig.sample_rate[0]/sig.symbol_rate[0],pulseshape='rrc',roll_off=.0)
 #### CH
-sig.set_snr(snr_dB=[x_pol_snr,y_pol_snr],seed=None)
+sig.set_snr(snr_dB=snr,seed=snr_seeds)
 # x_pol = comm.channel.set_snr(sig.samples[0],snr_dB=x_pol_snr,seed=1)
 # y_pol = comm.channel.set_snr(sig.samples[1],snr_dB=y_pol_snr,seed=1)
 #### RX
@@ -86,30 +89,43 @@ def combining(sig,comb_method='MRC',est_method='spectrum'):
 
     """
     # error checks
-    if sig.samples.shape[0] < 2:
+    if len(sig.samples) < 2:
         raise TypeError('Signal must have at least two sample arrays in list for diversity combining to be performed.')
-    if len(sig.samples.shape) > 2:
-        raise TypeError('Samples attribute of signal object may not have more than 2 dimensions.')
-    if est_method != 'MRC':
+    # if len(sig.samples.shape) > 2:
+    #     raise TypeError('Samples attribute of signal object may not have more than 2 dimensions.')
+    if est_method != 'spectrum':
         raise ValueError('No other SNR estimation methods besides spectrum are implemented yet.')
     
-    # vector of SNR estimates
-    snr_vec = np.zeros((sig.samples.shape[0],),dtype='float')
+    # init vector of SNR estimates
+    snr_vec = np.zeros((len(sig.samples),),dtype='float')
     # SNR estimation
-    for i in range(sig.samples.shape[0]):
+    for i in range(len(sig.samples)):
         df = sig.sample_rate[i]/sig.samples[i].size
-        x = np.linspace(-(sig.sample_rate[i]+df)/2,(sig.sample_rate[i]-df)/2,sig.samples[i].size)
+        x = np.linspace(-(sig.sample_rate[i]+df)/2,(sig.sample_rate[i]-df)/2,sig.samples[i].size,)
         y = np.abs(np.fft.fftshift(np.fft.fft(sig.samples[i])))**2
         # TODO: adjust signal range according to roll off factor
-        snr_vec[i] = comm.utils.estimate_snr_spectrum(x,y,sig_range=np.array([-sig.sample_rate[i]/2,sig.sample_rate[i]/2]),
-                                                      noise_range=np.array([-sig.sample_rate[i]/2-1e9,-sig.sample_rate[i]/2,sig.sample_rate[i]/2,sig.sample_rate[i]/2+1e9]),
-                                                      order=1,plotting=False)
+        # TODO: Polynomial fit fails for some reason, carefully check dimensions of y!
+        snr_vec[i] = comm.utils.estimate_snr_spectrum(x,y,sig_range=np.array([-sig.symbol_rate[i]/2,sig.symbol_rate[i]/2]),
+                                                      noise_range=np.array([-sig.symbol_rate[i]/2-3e9,-sig.symbol_rate[i]/2,sig.symbol_rate[i]/2,sig.symbol_rate[i]/2+3e9]),
+                                                      order=1,noise_bw=sig.symbol_rate[i],plotting=False)
+        # print estimated SNR
+        print('True vs. estimated SNR for channel {}: {:.2f} vs. {:.2f} dB.'.format(i,snr[i],snr_vec[i]))
         
     # scaling
-    for i in range(sig.samples.shape[0]):
+    for i in range(len(sig.samples)):
         sig.samples[i] = sig.samples[i] * (10**(snr_vec[i]/10))
     # combination
     # TODO: samples attribute is currently being overwritten - is this practical
     # for our simulation? Should we add a new attribute?
     sig.samples = np.sum(sig.samples,axis=0)
     return sig
+
+sig_comb = combining(sig)
+
+x_comb = np.linspace(-(sig.sample_rate[0]+df)/2,(sig.sample_rate[0]-df)/2,sig.samples[0].size,)
+y_comb = np.abs(np.fft.fftshift(np.fft.fft(sig.samples[0])))**2
+snr_comb = comm.utils.estimate_snr_spectrum(x_comb,y_comb,sig_range=np.array([-sig.symbol_rate[0]/2,sig.symbol_rate[0]/2]),
+                                              noise_range=np.array([-sig.symbol_rate[0]/2-1e9,-sig.symbol_rate[0]/2,sig.symbol_rate[0]/2,sig.symbol_rate[0]/2+1e9]),
+                                              order=1,noise_bw=sig.symbol_rate[0],plotting=False)
+
+print('Estimated SNR after combining: {:.2f} dB.'.format(snr_comb))
