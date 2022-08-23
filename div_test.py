@@ -4,8 +4,10 @@ import matplotlib.pyplot as plt
 import copy
 
 #### diversity gain test
+# number of apertures/antennas
 n_dims = np.arange(2,21)
-MC_runs = 100
+# number of simulation runs
+MC_runs = 50
 
 # combining function
 def combining(sig_div,comb_method='MRC',est_method='spectrum'):
@@ -80,11 +82,15 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum'):
 #### MC simulation
 mean_MRC_SDC_gain = np.full_like(n_dims,0,dtype='float')
 mean_EGC_SDC_gain = np.full_like(n_dims,0,dtype='float')
+mean_MRC_AVG_gain = np.full_like(n_dims,0,dtype='float')
+mean_EGC_AVG_gain = np.full_like(n_dims,0,dtype='float')
 # n_apertures loop
 for i in n_dims:
     # MC loop
     MRC_SDC_gain = np.zeros((MC_runs,),dtype='float')
     EGC_SDC_gain = np.zeros((MC_runs,),dtype='float')
+    MRC_AVG_gain = np.zeros((MC_runs,),dtype='float')
+    EGC_AVG_gain = np.zeros((MC_runs,),dtype='float')
     for j in range(MC_runs):
         sig = comm.signal.Signal(n_dims=int(i))
         sig.symbol_rate = 5e9
@@ -126,11 +132,18 @@ for i in n_dims:
                                                       noise_range=np.array([-sig_comb_EGC.symbol_rate[0]/2-1e9,-sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2+1e9]),
                                                       order=1,noise_bw=sig_comb_EGC.symbol_rate[0],plotting=False)
         
+        # SNR gain over SDC
         MRC_SDC_gain[j] = snr_comb_MRC - snr_comb_SDC
         EGC_SDC_gain[j] = snr_comb_EGC - snr_comb_SDC
+        # SNR gain over single antenna with average SNR
+        MRC_AVG_gain[j] = snr_comb_MRC - np.mean(np.array(snr))
+        EGC_AVG_gain[j] = snr_comb_EGC - np.mean(np.array(snr))
         
     mean_MRC_SDC_gain[i-2] = np.mean(MRC_SDC_gain)
     mean_EGC_SDC_gain[i-2] = np.mean(EGC_SDC_gain)
+    
+    mean_MRC_AVG_gain[i-2] = np.mean(MRC_AVG_gain)
+    mean_EGC_AVG_gain[i-2] = np.mean(EGC_AVG_gain)
 # print('Average SNR over all {} channels: {:.2f} dB.'.format(n_dims,np.mean(np.array(snr))))
 # print('Estimated SNR after EGC combining: {:.2f} dB.'.format(snr_comb_EGC))
 # print('Estimated SNR after MRC combining: {:.2f} dB.'.format(snr_comb_MRC))
@@ -138,12 +151,23 @@ for i in n_dims:
 # print('MRC gain over Selection Combining = {:.2f} dB.'.format(snr_comb_MRC-np.max(np.array(snr))))
 
 plt.figure(1)
-plt.plot(n_dims,mean_MRC_SDC_gain)
-plt.plot(n_dims,mean_EGC_SDC_gain)
+plt.plot(n_dims,mean_MRC_SDC_gain,color='r')
+plt.plot(n_dims,mean_EGC_SDC_gain,color='b')
 plt.grid()
 plt.xticks(ticks=n_dims)
 plt.title('mean MRC/EGC SNR gain over SDC over {} runs'.format(MC_runs))
 plt.xlabel('Number of antennas')
 plt.ylabel('SNR gain [dB]')
-plt.legend(('MRC gain over SDC','EGC gain over SDC'))
+plt.legend(("MRC gain over SDC",'EGC gain over SDC'))
+plt.show()
+
+plt.figure(2)
+plt.plot(n_dims,mean_MRC_AVG_gain,color='r')
+plt.plot(n_dims,mean_EGC_AVG_gain,color='b')
+plt.grid()
+plt.xticks(ticks=n_dims)
+plt.title('mean MRC/EGC SNR gain over single antenna over {} runs'.format(MC_runs))
+plt.xlabel('Number of antennas')
+plt.ylabel('SNR gain [dB]')
+plt.legend(("MRC gain over AVG",'EGC gain over AVG'))
 plt.show()
