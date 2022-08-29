@@ -586,7 +586,7 @@ def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolat
 
     return OSNR_01nm,OSNR_val
 
-def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9, scaling='lin', plotting=False):
+def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9, scaling='lin', fit_lin=True, plotting=False):
     """
     Estimate the signal to noise ratio (SNR) from a given power spectrum.
     
@@ -602,7 +602,8 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
     respectively.
     The SNR is then estimated by SNR = (p_sig_n2 - p_n2) / p_n1.
     
-    NOTE: The polynomial is fitted from the spectrum in linear domain.
+    It can be specified if the polynomial is fitted from the spectrum either
+    in linear or in logarithmic domain.
     
 
     Parameters
@@ -631,6 +632,9 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
     scaling : string, optional
         Is the spectrum (y) given in linear 'lin' (W, V**2, W/Hz, V**2/nm, ...) 
         or in logarithmic 'log' (dBm, dBm/Hz, dBm/m, ...) scale. The default is 'lin'.
+    fit_lin : bool, optional
+        Is the polynomial fitted from the spectrum linear (True) or logarithmic 
+        spectrum (False)? The default is True.
     plotting : boolean, optional
         Shall the spectrum (plus integration regions and noise fit) be plotted?
         Useful for tuning sig_range and noise_range and verifying the fitting results.
@@ -680,34 +684,64 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
     # calc signal and noise power (sig+n2) in signal range numerically from given y
     y_sig_n2 = y[sig_range_idx[0]:sig_range_idx[1]]    
     p_sig_n2 = np.trapz(y_sig_n2, x=x[sig_range_idx[0]:sig_range_idx[1]])
-
-    # fit a polynominal with given order from the samples of y which are in noise_range
-    # --> supposed to be the noise part of the spectrum
-    x_n = np.append(x[noise_range_idx[0]:noise_range_idx[1]], x[noise_range_idx[2]:noise_range_idx[3]])
-    y_n = np.append(y[noise_range_idx[0]:noise_range_idx[1]], y[noise_range_idx[2]:noise_range_idx[3]])
-    c = Polynomial.fit(x_n, y_n, order)
     
-    # find the (coefficients of the) indefinite integral of the fitted polynominal
-    C = c.integ()
-    
-    # calc the power of the fitted polynominal in noise_bw centered around mean signal_range
-    # --> integration of fitted polynominal 
-    # --> supposed to be the noise power (in noise_bw) under the data signal (n1)
-    x_sig_mean = np.mean(sig_range)
-    p_n1 = C(x_sig_mean + noise_bw/2) - C(x_sig_mean - noise_bw/2)
-    
-    # calc the power of the fitted polynominal in signal range
-    # --> integration of fitted polynominal 
-    # --> supposed to be the noise power which was included in the numverical integration of y (n2)
-    p_n2 = C(x[sig_range_idx[1]]) - C(x[sig_range_idx[0]])
+    if fit_lin:
+        # fit a polynominal with given order from the samples of y which are in noise_range
+        # --> supposed to be the noise part of the spectrum
+        x_n = np.append(x[noise_range_idx[0]:noise_range_idx[1]], x[noise_range_idx[2]:noise_range_idx[3]])
+        y_n = np.append(y[noise_range_idx[0]:noise_range_idx[1]], y[noise_range_idx[2]:noise_range_idx[3]])
+        c = Polynomial.fit(x_n, y_n, order)
+        
+        # find the (coefficients of the) indefinite integral of the fitted polynominal
+        C = c.integ()
+        
+        # calc the power of the fitted polynominal in noise_bw centered around mean signal_range
+        # --> integration of fitted polynominal 
+        # --> supposed to be the noise power (in noise_bw) under the data signal (n1)
+        x_sig_mean = np.mean(sig_range)
+        p_n1 = C(x_sig_mean + noise_bw/2) - C(x_sig_mean - noise_bw/2)
+        
+        # calc the power of the fitted polynominal in signal range
+        # --> integration of fitted polynominal 
+        # --> supposed to be the noise power which was included in the numverical integration of y (n2)
+        p_n2 = C(x[sig_range_idx[1]]) - C(x[sig_range_idx[0]])        
+    else:
+        # fit a polynominal with given order from the samples of y in logarithmic scale
+        # which are in noise_range
+        # --> supposed to be the noise part of the spectrum
+        x_n = np.append(x[noise_range_idx[0]:noise_range_idx[1]], 
+                        x[noise_range_idx[2]:noise_range_idx[3]])
+        
+        y_n = 10*np. log10(np.append(y[noise_range_idx[0]:noise_range_idx[1]], 
+                                     y[noise_range_idx[2]:noise_range_idx[3]]))
+        c = Polynomial.fit(x_n, y_n, order)
+        
+        # calc the power of the fitted polynominal in noise_bw centered around mean signal_range
+        # --> numerical integration of fitted polynominal 
+        # --> supposed to be the noise power (in noise_bw) under the data signal (n1)
+        x_sig_mean = np.mean(sig_range)
+        noise_bw_first_idx = np.argmin(np.abs(x - (x_sig_mean - noise_bw/2)), axis=-1)
+        noise_bw_last_idx = np.argmin(np.abs(x - (x_sig_mean + noise_bw/2)), axis=-1)
+        x_n1 = x[noise_bw_first_idx:noise_bw_last_idx+1]
+        y_n1 = 10**(c(x_n1)/10)
+        p_n1 = np.trapz(y_n1, x=x_n1)
+        
+        # calc the power of the fitted polynominal in signal range
+        # --> numerical integration of fitted polynominal 
+        # --> supposed to be the noise power which was included in the numverical integration of y (n2)
+        x_n2 = x[sig_range_idx[0]:sig_range_idx[1]+1]
+        y_n2 = 10**(c(x_n2)/10)
+        p_n2 = np.trapz(y_n2, x=x_n2)
     
     # calc SNR
     snr = (p_sig_n2 - p_n2) / p_n1
     snr_db = 10 * np.log10(snr)
     
-    if plotting:   
+    if plotting:
         # create samples of fitted polynominal within the range of x (for plotting only)
         xx_n, yy_n = c.linspace(n=x.size, domain=[x[0], x[-1]])
+        if not fit_lin:
+            yy_n = 10**(yy_n/10)
         
         # # linear plot
         # plt.plot(x,y)
@@ -724,8 +758,8 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         plt.figure()
         plt.plot(x,10*np.log10(y))
         plt.plot(x[sig_range_idx], 10*np.log10(y[sig_range_idx]), 'o')
-        plt.plot(x[noise_range_idx[0]:noise_range_idx[1]], 10*np.log10(y[noise_range_idx[0]:noise_range_idx[1]]), 'r--')
-        plt.plot(x[noise_range_idx[2]:noise_range_idx[3]], 10*np.log10(y[noise_range_idx[2]:noise_range_idx[3]]), 'r--')
+        plt.plot(x[noise_range_idx[0]:noise_range_idx[1]], 10*np.log10(y[noise_range_idx[0]:noise_range_idx[1]]), 'ro-')
+        plt.plot(x[noise_range_idx[2]:noise_range_idx[3]], 10*np.log10(y[noise_range_idx[2]:noise_range_idx[3]]), 'ro-')
         plt.plot(xx_n,10*np.log10(yy_n),'g-')
         plt.xlabel('given x value / a.u.')
         plt.ylabel('given y value / dB')
