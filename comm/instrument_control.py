@@ -100,7 +100,7 @@ def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
     return sample_rate, wfm
 
 
-def write_samples_Agilent_33522A(samples, ip_address='192.168.1.44', sample_rate=[250e6], offset=[0.0], amp_pp=[1.0], channels=[1], out_filter=['normal']):
+def write_samples_Agilent_33522A(samples, ip_address='192.168.1.44', sample_rate=[250e6], offset=[0.0], amp_pp=[1.0], channels=[1], out_filter=['normal'], wait_for_ext_trigger=[False], trig_delay=[0.0]):
     """
     write_samples_Agilent_33522A
     
@@ -123,6 +123,13 @@ def write_samples_Agilent_33522A(samples, ip_address='192.168.1.44', sample_rate
         channels to be programmed and output. The default is [1].
     out_filter : list of strings, optional
         used output filter of each channel ['normal', 'off', 'step']. The default is ['normal'].
+    wait_for_ext_trigger: list of bools
+        Should the device wait for an external trigger (raising edge at the device 
+        backpanel "Ext trig") to start the ouput? The default is [False].
+    trig_delay: list of floats
+        The signal is output trig_delay seconds after the trigger event. This parameter
+        takes only effect if wait_for_eyt_trigger is True. The default is 0.0.  
+        
 
     Returns
     -------
@@ -189,17 +196,29 @@ def write_samples_Agilent_33522A(samples, ip_address='192.168.1.44', sample_rate
         # setting output waveform of channel to ARB
         awg.write(':SOUR{0:d}:FUNC:SHAP:ARB "arb{0:d}"'.format(ch))
         #awg.write(':SOUR%d:FUNC:SHAP:ARBitrary "arb%d"' % (ch, ch))
-       
-        # applying output filter mode
-        awg.write(':SOUR{0:d}:FUNC:SHAP:ARB:FILT {1:s}'.format(ch, out_filter[ch_idx].upper()))
- 
+              
         # applying sample rate, amplitude and Offset        
         awg.write(':SOUR{0:d}:APPL:ARB {1:g},{2:g}, {3:g}'.format(ch, sample_rate[ch_idx], amp_pp[ch_idx], offset[ch_idx]))
         #awg.write(':SOURce%d:APPLy:ARBitrary %s,%s,%s' % (ch, sample_rate[ch_idx], amp_pp[ch_idx], offset[ch_idx]))
         
+        # applying output filter mode
+        awg.write(':SOUR{0:d}:FUNC:SHAP:ARB:FILT {1:s}'.format(ch, out_filter[ch_idx].upper()))
+        
         # wait a moment to have the output to turned on
         time.sleep(0.1)
         
+        if wait_for_ext_trigger:
+            # set external trigger and delay
+            awg.write('TRIG{:d}:DELAY {:.1e}'.format(ch, trig_delay[ch_idx]))
+            awg.write('TRIG{:d}:SOURCE EXTERNAL'.format(ch))
+            # set burst mode (device triggers only in burst or wobble mode)
+            # device waits for trigger event and outputs the waveform continously
+            # --> only single trigger event needed, further trigger events have no effect
+            awg.write('SOUR{:d}:BURST:MODE TRIGGERED'.format(ch))
+            awg.write('SOUR{:d}:BURST:NCYCLES INFINITY'.format(ch))
+            awg.write('SOUR{:d}:BURST:PHASE 0.0'.format(ch))
+            awg.write('SOUR{:d}:BURST:STATE ON'.format(ch))
+            
                
     awg.write(':SOUR{0:d}:FUNC:ARB:SYNC'.format(ch))  # synchronising channels
         
