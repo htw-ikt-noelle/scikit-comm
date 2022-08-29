@@ -5,12 +5,13 @@ import copy
 
 #### diversity gain test
 # number of apertures/antennas
-n_dims = np.arange(2,21)
+n_dims = np.arange(2,11)
 # number of simulation runs
-MC_runs = 10
+MC_runs = 5
 # decide if SNR should be random, but equal per channel (matches theory perfectly), 
 # or is set randomly with equal distribution within the interval of 0-20 dB
-snr_type = 'constant' # options: 'random', 'constant'
+snr_type = 'constant' # options: 'random', 'constant', any integer/float
+roll_off = 0.0
 
 # combining function
 def combining(sig_div,comb_method='MRC',est_method='spectrum'):
@@ -35,8 +36,9 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum'):
 
     Returns
     -------
-    sig_combined : 1d array
-        MRC combined signal.
+    sig_combined : signal object
+        SIgnal after combining. The sample attribute now has the combined sample
+        array in every dimension.
 
     """
     # deep copy of signal
@@ -67,9 +69,11 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum'):
     # scaling    
     if comb_method == 'MRC':
         for i in range(len(sig.samples)):
-            sig.samples[i] = sig.samples[i] * (10**(snr_vec[i]/10))
+            sig.samples[i] = sig.samples[i] * (10**(snr_vec[i]/10)) / np.sum(10**(snr_vec/10)) # Normalisierung auf Gesamt-SNR
     elif comb_method == 'EGC':
-        pass
+        # pass
+        for i in range(len(sig.samples)):
+            sig.samples[i] = sig.samples[i] / len(sig.samples) # np.sum(10**(snr_vec/10)) 
     elif comb_method == 'SDC':
         mask = np.where(snr_vec == np.max(snr_vec),1,0)
         for i in range(len(sig.samples)):
@@ -104,21 +108,27 @@ for i in n_dims:
         sig = comm.signal.Signal(n_dims=int(i))
         sig.symbol_rate = 5e9
         sig.sample_rate = 15e9
-        if snr_type == 'random':
-            snr = np.random.randint(0,20,size=(i,)).tolist()
-        elif snr_type == 'constant':
-            snr = np.random.randint(0,20,size=(1)).tolist()*i
+        if type(snr_type) == str:
+            if snr_type == 'random':
+                snr = np.random.randint(0,20,size=(i,)).tolist()
+            elif snr_type == 'constant':
+                snr = np.random.randint(0,20,size=(1)).tolist()*i
+            else:
+                raise ValueError("SNR type should be either 'random', 'constant', or a single integer/float.")
+        elif type(snr_type) in [int, float]:
+            snr = [snr_type]*i
         else:
-            raise ValueError("SNR type should be either 'random' or 'constant'.")
+            raise ValueError("SNR type should be either 'random', 'constant', or a single integer/float.")
+            
         snr_seeds = np.random.randint(0,1000,size=(i,)).tolist()
-        bit_seeds = np.tile(np.random.randint(0,1000,size=(1,)),i).tolist()
+        bit_seeds = 1 # np.tile(np.random.randint(0,1000,size=(1,)),i).tolist()
         n_bits = 2**14
         df = sig.sample_rate[0]/n_bits
         #### TX
         sig.generate_bits(n_bits=n_bits,seed=bit_seeds)
         sig.generate_constellation(format='QAM',order=4)
         sig.mapper()
-        sig.pulseshaper(upsampling=sig.sample_rate[0]/sig.symbol_rate[0],pulseshape='rrc',roll_off=.0)
+        sig.pulseshaper(upsampling=sig.sample_rate[0]/sig.symbol_rate[0],pulseshape='rrc',roll_off=roll_off)
         #### CH
         sig.set_snr(snr_dB=snr,seed=snr_seeds)
         #### RX
@@ -146,6 +156,28 @@ for i in n_dims:
                                                       noise_range=np.array([-sig_comb_EGC.symbol_rate[0]/2-1e9,-sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2+1e9]),
                                                       order=1,noise_bw=sig_comb_EGC.symbol_rate[0],plotting=False)
         
+        # matched filter
+        sig_comb_SDC.samples[0] = comm.filters.raised_cosine_filter(sig_comb_SDC.samples[0],
+                                                                    sig_comb_SDC.sample_rate[0],
+                                                                    sig_comb_SDC.symbol_rate[0],
+                                                                    roll_off,root_raised=True)
+        sig_comb_MRC.samples[0] = comm.filters.raised_cosine_filter(sig_comb_MRC.samples[0],
+                                                                    sig_comb_MRC.sample_rate[0],
+                                                                    sig_comb_MRC.symbol_rate[0],
+                                                                    roll_off,root_raised=True)
+        sig_comb_EGC.samples[0] = comm.filters.raised_cosine_filter(sig_comb_EGC.samples[0],
+                                                                    sig_comb_EGC.sample_rate[0],
+                                                                    sig_comb_EGC.symbol_rate[0],
+                                                                    roll_off,root_raised=True)        
+        # downsampling to 1sps
+        sig_comb_SDC.samples[0] = sig_comb_SDC.samples[0][::int(sig_comb_SDC.sample_rate[0]/sig_comb_SDC.symbol_rate[0])]
+        sig_comb_MRC.samples[0] = sig_comb_MRC.samples[0][::int(sig_comb_MRC.sample_rate[0]/sig_comb_MRC.symbol_rate[0])]
+        sig_comb_EGC.samples[0] = sig_comb_EGC.samples[0][::int(sig_comb_EGC.sample_rate[0]/sig_comb_EGC.symbol_rate[0])]
+        # symbol sequence sync
+        sig_comb_SDC = comm.rx.symbol_sequence_sync(sig_comb_SDC, dimension=-1)
+        sig_comb_MRC = comm.rx.symbol_sequence_sync(sig_comb_MRC, dimension=-1)
+        sig_comb_EGC = comm.rx.symbol_sequence_sync(sig_comb_EGC, dimension=-1)
+        
         # BER
         sig_comb_SDC.decision()
         sig_comb_EGC.decision()
@@ -160,17 +192,17 @@ for i in n_dims:
         SDC_BER[j] = comm.rx.count_errors(sig_comb_SDC.bits[0],sig_comb_SDC.samples[0])['ber']
         
         # SNR gain over SDC (best antenna)
-        MRC_SDC_gain[j] = snr_comb_MRC - snr_comb_SDC
-        EGC_SDC_gain[j] = snr_comb_EGC - snr_comb_SDC
+        MRC_SDC_gain[j] = 10*np.log10((10**(snr_comb_MRC/10)) / (10**(snr_comb_SDC/10)))
+        EGC_SDC_gain[j] = 10*np.log10((10**(snr_comb_EGC/10)) / (10**(snr_comb_SDC/10)))
         # SNR gain over single antenna with average SNR
-        MRC_AVG_gain[j] = snr_comb_MRC - np.mean(np.array(snr))
-        EGC_AVG_gain[j] = snr_comb_EGC - np.mean(np.array(snr))
+        MRC_AVG_gain[j] = 10*np.log10((10**(snr_comb_MRC/10)) / (10**(np.mean(np.array(snr))/10)))
+        EGC_AVG_gain[j] = 10*np.log10((10**(snr_comb_EGC/10)) / (10**(np.mean(np.array(snr))/10)))
         
-    mean_MRC_SDC_gain[i-2] = np.mean(MRC_SDC_gain)
-    mean_EGC_SDC_gain[i-2] = np.mean(EGC_SDC_gain)
+    mean_MRC_SDC_gain[i-2] = 10*np.log10(np.mean(10**(MRC_SDC_gain/10)))
+    mean_EGC_SDC_gain[i-2] = 10*np.log10(np.mean(10**(EGC_SDC_gain/10)))
     
-    mean_MRC_AVG_gain[i-2] = np.mean(MRC_AVG_gain)
-    mean_EGC_AVG_gain[i-2] = np.mean(EGC_AVG_gain)
+    mean_MRC_AVG_gain[i-2] = 10*np.log10(np.mean(10**(MRC_AVG_gain/10)))
+    mean_EGC_AVG_gain[i-2] = 10*np.log10(np.mean(10**(EGC_AVG_gain/10)))
     
     mean_MRC_BER[i-2] = np.mean(MRC_BER)
     mean_EGC_BER[i-2] = np.mean(EGC_BER)
@@ -192,12 +224,14 @@ plt.legend(("MRC gain over SDC",'EGC gain over SDC'))
 plt.figure(2)
 plt.plot(n_dims,mean_MRC_AVG_gain,color='r')
 plt.plot(n_dims,mean_EGC_AVG_gain,color='b')
+plt.plot(n_dims,10*np.log10(n_dims),color='salmon')
+plt.plot(n_dims,10*np.log10(n_dims*np.pi/4),color='steelblue')
 plt.grid()
 plt.xticks(ticks=n_dims)
 plt.title('mean MRC/EGC SNR gain over single (average) antenna over {} runs'.format(MC_runs))
 plt.xlabel('Number of antennas')
 plt.ylabel('SNR gain [dB]')
-plt.legend(("MRC gain over AVG",'EGC gain over AVG'))
+plt.legend(("MRC gain over AVG",'EGC gain over AVG','MRC theory','EGC theory'))
 plt.show()
 
 plt.figure(3)
