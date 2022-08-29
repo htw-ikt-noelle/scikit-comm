@@ -118,7 +118,15 @@ class TestEstimateSnrSpectrum(unittest.TestCase):
 
         snr = comm.utils.estimate_snr_spectrum(x, y, sig_range, noise_range, 
                                                order=order, noise_bw=noise_bw, 
-                                               scaling='lin', plotting=False)
+                                               scaling='lin', fit_lin=False, 
+                                               plotting=False)
+        
+        assert_almost_equal(snr, 10.0, decimal=10)
+        
+        snr = comm.utils.estimate_snr_spectrum(x, y, sig_range, noise_range, 
+                                               order=order, noise_bw=noise_bw, 
+                                               scaling='lin', fit_lin=True, 
+                                               plotting=False)
         
         assert_almost_equal(snr, 10.0, decimal=10)
     

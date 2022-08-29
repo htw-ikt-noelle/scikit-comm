@@ -722,14 +722,14 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         x_sig_mean = np.mean(sig_range)
         noise_bw_first_idx = np.argmin(np.abs(x - (x_sig_mean - noise_bw/2)), axis=-1)
         noise_bw_last_idx = np.argmin(np.abs(x - (x_sig_mean + noise_bw/2)), axis=-1)
-        x_n1 = x[noise_bw_first_idx:noise_bw_last_idx]
+        x_n1 = x[noise_bw_first_idx:noise_bw_last_idx+1]
         y_n1 = 10**(c(x_n1)/10)
         p_n1 = np.trapz(y_n1, x=x_n1)
         
         # calc the power of the fitted polynominal in signal range
         # --> numerical integration of fitted polynominal 
         # --> supposed to be the noise power which was included in the numverical integration of y (n2)
-        x_n2 = x[sig_range_idx[0]:sig_range_idx[1]]
+        x_n2 = x[sig_range_idx[0]:sig_range_idx[1]+1]
         y_n2 = 10**(c(x_n2)/10)
         p_n2 = np.trapz(y_n2, x=x_n2)
     
