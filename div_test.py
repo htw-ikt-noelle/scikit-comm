@@ -7,7 +7,10 @@ import copy
 # number of apertures/antennas
 n_dims = np.arange(2,21)
 # number of simulation runs
-MC_runs = 50
+MC_runs = 10
+# decide if SNR should be random, but equal per channel (matches theory perfectly), 
+# or is set randomly with equal distribution within the interval of 0-20 dB
+snr_type = 'constant' # options: 'random', 'constant'
 
 # combining function
 def combining(sig_div,comb_method='MRC',est_method='spectrum'):
@@ -84,6 +87,9 @@ mean_MRC_SDC_gain = np.full_like(n_dims,0,dtype='float')
 mean_EGC_SDC_gain = np.full_like(n_dims,0,dtype='float')
 mean_MRC_AVG_gain = np.full_like(n_dims,0,dtype='float')
 mean_EGC_AVG_gain = np.full_like(n_dims,0,dtype='float')
+mean_MRC_BER = np.full_like(n_dims,0,dtype='float')
+mean_EGC_BER = np.full_like(n_dims,0,dtype='float')
+mean_SDC_BER = np.full_like(n_dims,0,dtype='float')
 # n_apertures loop
 for i in n_dims:
     # MC loop
@@ -91,11 +97,19 @@ for i in n_dims:
     EGC_SDC_gain = np.zeros((MC_runs,),dtype='float')
     MRC_AVG_gain = np.zeros((MC_runs,),dtype='float')
     EGC_AVG_gain = np.zeros((MC_runs,),dtype='float')
+    MRC_BER = np.zeros((MC_runs,),dtype='float')
+    EGC_BER = np.zeros((MC_runs,),dtype='float')
+    SDC_BER = np.zeros((MC_runs,),dtype='float')
     for j in range(MC_runs):
         sig = comm.signal.Signal(n_dims=int(i))
         sig.symbol_rate = 5e9
         sig.sample_rate = 15e9
-        snr = np.random.randint(0,20,size=(i,)).tolist()
+        if snr_type == 'random':
+            snr = np.random.randint(0,20,size=(i,)).tolist()
+        elif snr_type == 'constant':
+            snr = np.random.randint(0,20,size=(1)).tolist()*i
+        else:
+            raise ValueError("SNR type should be either 'random' or 'constant'.")
         snr_seeds = np.random.randint(0,1000,size=(i,)).tolist()
         bit_seeds = np.tile(np.random.randint(0,1000,size=(1,)),i).tolist()
         n_bits = 2**14
@@ -132,7 +146,20 @@ for i in n_dims:
                                                       noise_range=np.array([-sig_comb_EGC.symbol_rate[0]/2-1e9,-sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2,sig_comb_EGC.symbol_rate[0]/2+1e9]),
                                                       order=1,noise_bw=sig_comb_EGC.symbol_rate[0],plotting=False)
         
-        # SNR gain over SDC
+        # BER
+        sig_comb_SDC.decision()
+        sig_comb_EGC.decision()
+        sig_comb_MRC.decision()
+        
+        sig_comb_SDC.demapper()
+        sig_comb_EGC.demapper()
+        sig_comb_MRC.demapper()
+        
+        MRC_BER[j] = comm.rx.count_errors(sig_comb_MRC.bits[0],sig_comb_MRC.samples[0])['ber']
+        EGC_BER[j] = comm.rx.count_errors(sig_comb_EGC.bits[0],sig_comb_EGC.samples[0])['ber']
+        SDC_BER[j] = comm.rx.count_errors(sig_comb_SDC.bits[0],sig_comb_SDC.samples[0])['ber']
+        
+        # SNR gain over SDC (best antenna)
         MRC_SDC_gain[j] = snr_comb_MRC - snr_comb_SDC
         EGC_SDC_gain[j] = snr_comb_EGC - snr_comb_SDC
         # SNR gain over single antenna with average SNR
@@ -144,30 +171,43 @@ for i in n_dims:
     
     mean_MRC_AVG_gain[i-2] = np.mean(MRC_AVG_gain)
     mean_EGC_AVG_gain[i-2] = np.mean(EGC_AVG_gain)
-# print('Average SNR over all {} channels: {:.2f} dB.'.format(n_dims,np.mean(np.array(snr))))
-# print('Estimated SNR after EGC combining: {:.2f} dB.'.format(snr_comb_EGC))
-# print('Estimated SNR after MRC combining: {:.2f} dB.'.format(snr_comb_MRC))
-# print('MRC SNR gain over EGC = {:.2f} dB.'.format(snr_comb_MRC-snr_comb_EGC))
-# print('MRC gain over Selection Combining = {:.2f} dB.'.format(snr_comb_MRC-np.max(np.array(snr))))
+    
+    mean_MRC_BER[i-2] = np.mean(MRC_BER)
+    mean_EGC_BER[i-2] = np.mean(EGC_BER)
+    mean_SDC_BER[i-2] = np.mean(SDC_BER)
+
+# close all figures
+plt.close('all')
 
 plt.figure(1)
 plt.plot(n_dims,mean_MRC_SDC_gain,color='r')
 plt.plot(n_dims,mean_EGC_SDC_gain,color='b')
 plt.grid()
 plt.xticks(ticks=n_dims)
-plt.title('mean MRC/EGC SNR gain over SDC over {} runs'.format(MC_runs))
+plt.title('mean MRC/EGC SNR gain over best antenna (SDC) over {} runs'.format(MC_runs))
 plt.xlabel('Number of antennas')
 plt.ylabel('SNR gain [dB]')
 plt.legend(("MRC gain over SDC",'EGC gain over SDC'))
-plt.show()
 
 plt.figure(2)
 plt.plot(n_dims,mean_MRC_AVG_gain,color='r')
 plt.plot(n_dims,mean_EGC_AVG_gain,color='b')
 plt.grid()
 plt.xticks(ticks=n_dims)
-plt.title('mean MRC/EGC SNR gain over single antenna over {} runs'.format(MC_runs))
+plt.title('mean MRC/EGC SNR gain over single (average) antenna over {} runs'.format(MC_runs))
 plt.xlabel('Number of antennas')
 plt.ylabel('SNR gain [dB]')
 plt.legend(("MRC gain over AVG",'EGC gain over AVG'))
+plt.show()
+
+plt.figure(3)
+plt.semilogy(n_dims,mean_MRC_BER,color='r')
+plt.semilogy(n_dims,mean_EGC_BER,color='b')
+plt.semilogy(n_dims,mean_SDC_BER,color='g')
+plt.grid()
+plt.xticks(ticks=n_dims)
+plt.title('mean MRC/EGC/SDC BER over {} runs'.format(MC_runs))
+plt.xlabel('Number of antennas')
+plt.ylabel('BER')
+plt.legend(('MRC','EGC','SDC'))
 plt.show()
