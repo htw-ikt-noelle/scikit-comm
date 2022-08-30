@@ -7,10 +7,10 @@ import copy
 # number of apertures/antennas
 n_dims = np.arange(2,11)
 # number of simulation runs
-MC_runs = 5
+MC_runs = 10
 # decide if SNR should be random, but equal per channel (matches theory perfectly), 
 # or is set randomly with equal distribution within the interval of 0-20 dB
-snr_type = 'constant' # options: 'random', 'constant', any integer/float
+snr_type = 'random' # options: 'random', 'constant', any integer/float
 roll_off = 0.0
 
 # combining function
@@ -66,14 +66,17 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum'):
         # print estimated SNR
         # print('True vs. estimated SNR for channel {}: {:.2f} vs. {:.2f} dB.'.format(i,snr[i],snr_vec[i]))
         
-    # scaling    
+    # scaling   
+    # replace estimated SNRs with true SNRs, eliminating possible estimation
+    # error, if desired
+    # snr_vec = np.asarray(snr)
     if comb_method == 'MRC':
         for i in range(len(sig.samples)):
             sig.samples[i] = sig.samples[i] * (10**(snr_vec[i]/10)) / np.sum(10**(snr_vec/10)) # Normalisierung auf Gesamt-SNR
     elif comb_method == 'EGC':
         # pass
         for i in range(len(sig.samples)):
-            sig.samples[i] = sig.samples[i] / len(sig.samples) # np.sum(10**(snr_vec/10)) 
+            sig.samples[i] = sig.samples[i] / np.sum(10**(snr_vec/10)) 
     elif comb_method == 'SDC':
         mask = np.where(snr_vec == np.max(snr_vec),1,0)
         for i in range(len(sig.samples)):
@@ -110,7 +113,10 @@ for i in n_dims:
         sig.sample_rate = 15e9
         if type(snr_type) == str:
             if snr_type == 'random':
-                snr = np.random.randint(0,20,size=(i,)).tolist()
+                # init RNG
+                rng = np.random.default_rng(seed=None)
+                snr = rng.rayleigh(scale=1,size=(i,)).tolist()
+                # snr = rng.standard_normal(size=(i,)).tolist()
             elif snr_type == 'constant':
                 snr = np.random.randint(0,20,size=(1)).tolist()*i
             else:
@@ -122,7 +128,7 @@ for i in n_dims:
             
         snr_seeds = np.random.randint(0,1000,size=(i,)).tolist()
         bit_seeds = 1 # np.tile(np.random.randint(0,1000,size=(1,)),i).tolist()
-        n_bits = 2**14
+        n_bits = 2**12
         df = sig.sample_rate[0]/n_bits
         #### TX
         sig.generate_bits(n_bits=n_bits,seed=bit_seeds)
