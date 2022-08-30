@@ -193,17 +193,21 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation', h
     
 def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, tit = 'Poincaré sphere', labels=True):
     """
-    Plot the signal (given as Jones vectors) on the Poincaré sphere.
+    Plot the signal (given as components of the Jones vector) on the Poincaré sphere.
     
     This function converts the given signal, specified by the two components of
-    the Jones vector (array samplesX (e_x) and samplesY (e_y)), into the Stokes
-    representation and plots it onto the Poincaré sphere in the three 
+    the Jones vector [1] (array samplesX (e_x) and samplesY (e_y)), into the Stokes
+    representation [2] and plots it onto the Poincaré sphere [3] in the three 
     dimensional Stokes space (S1, S2, S3). 
     
     Please note that the Stokes parameters S1, S2 and S3 are normalized to the 
     total instantaneous signal power (S0). Therefore, the Poincaré sphere plot
     in this implementation does not reveal any information on degree of 
     polarization of the signal.
+    
+    [1] https://en.wikipedia.org/wiki/Jones_calculus#Jones_vector
+    [2] https://en.wikipedia.org/wiki/Stokes_parameters
+    [3] https://en.wikipedia.org/wiki/Polarization_(waves)#Poincar%C3%A9_sphere
 
     Parameters
     ----------
