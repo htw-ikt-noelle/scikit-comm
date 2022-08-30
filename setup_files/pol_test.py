@@ -36,11 +36,11 @@ comm.visualizer.plot_poincare_sphere(sig_tx.samples[0],
                                      decimation=1, 
                                      fNum = 1, 
                                      tit = 'Poincaré sphere simple',
-                                     simple_plot=True)
+                                     labels=True)
 
 comm.visualizer.plot_poincare_sphere(sig_tx.samples[0],
                                      sig_tx.samples[1],
                                      decimation=1, 
                                      fNum = 1, 
                                      tit = 'Poincaré sphere',
-                                     simple_plot=False)
+                                     labels=False)

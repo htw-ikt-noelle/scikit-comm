@@ -191,7 +191,48 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation', h
     plt.show()
     
     
-def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, tit = 'Poincaré sphere', simple_plot=False):
+def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, tit = 'Poincaré sphere', labels=True):
+    """
+    Plot the signal (given as Jones vectors) on the Poincaré sphere.
+    
+    This function converts the given signal, specified by the two components of
+    the Jones vector (array samplesX (e_x) and samplesY (e_y)), into the Stokes
+    representation and plots it onto the Poincaré sphere in the three 
+    dimensional Stokes space (S1, S2, S3). 
+    
+    Please note that the Stokes parameters S1, S2 and S3 are normalized to the 
+    total instantaneous signal power (S0). Therefore, the Poincaré sphere plot
+    in this implementation does not reveal any information on degree of 
+    polarization of the signal.
+
+    Parameters
+    ----------
+    samplesX : 1D numpy array, complex
+        samples of the input signal, representing the (time dependent) 
+        first component of the Jones vector (e_x). Commonly reffered to as the 
+        X (or horizontal (H)) polarization component.
+    samplesY : 1D numpy array, complex
+        samples of the input signal, representing the (time dependent) 
+        second component of the Jones vector (e_y). Commonly reffered to as the 
+        Y (or vertical (V)) polarization component.
+    decimation : int, optional
+        take only every decimations-th sample of the input signal. 
+        The default is 1.
+    fNum : int, optional
+        figure number of the plot to be created. The default is 1.        
+    tit : string, optional
+        title of the plot to be created. The default is 'Poincaré sphere'.
+    labels : bool, optional
+        Should the Poincaré sphere be plotted with additional labels indicating
+        certain, specific polarization states (like H, V, right circular 
+        polarized (RCP), etc. (True) or as a plain sphere only showing the three
+        coordinate axes (False)? The default is True.
+
+    Returns
+    -------
+    None.
+
+    """
     
     samplesX = samplesX[0::decimation]
     samplesY = samplesY[0::decimation]
@@ -215,19 +256,7 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, tit = 'Poin
     y = np.sin(u) * np.sin(v)
     z = np.cos(v)
     
-    if simple_plot:
-        # plot sphere
-        ax.view_init(elev=25, azim=45)        
-        ax.plot_wireframe(x, y, z, alpha=0.1, color='k')
-        # plot axis
-        len = 1.8
-        ax.quiver(0, 0, 0, 0, 0, len, color='k')
-        ax.quiver(0, 0, 0, len, 0, 0, color='k')
-        ax.quiver(0, 0, 0, 0, len, 0, color='k')
-        ax.text(len*1.2, 0, 0, 'S1', size=15)
-        ax.text(0, len*1.2, 0, 'S2', size=15)
-        ax.text(0, 0, len, 'S3', size=15)        
-    else:
+    if labels:
         # plot sphere
         ax.plot_surface(x, y, z, alpha=0.2)
         ax.view_init(elev=15, azim=-65)          
@@ -252,7 +281,19 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, tit = 'Poin
         ax.plot3D(0, 1, 0, 'ko', markersize=ms)
         ax.text(0, 1.2, 0, '45')
         ax.plot3D(0, -1, 0, 'ko', markersize=ms)
-        ax.text(0, -1.3, 0, '-45')        
+        ax.text(0, -1.3, 0, '-45')                     
+    else:
+        # plot sphere
+        ax.view_init(elev=25, azim=45)        
+        ax.plot_wireframe(x, y, z, alpha=0.1, color='k')
+        # plot axis
+        len = 1.8
+        ax.quiver(0, 0, 0, 0, 0, len, color='k')
+        ax.quiver(0, 0, 0, len, 0, 0, color='k')
+        ax.quiver(0, 0, 0, 0, len, 0, color='k')
+        ax.text(len*1.2, 0, 0, 'S1', size=15)
+        ax.text(0, len*1.2, 0, 'S2', size=15)
+        ax.text(0, 0, len, 'S3', size=15)           
     
     # plot data
     ax.plot3D(s1/s0, s2/s0, s3/s0, '.b')   
