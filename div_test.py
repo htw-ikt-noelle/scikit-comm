@@ -240,14 +240,78 @@ plt.ylabel('SNR gain [dB]')
 plt.legend(("MRC gain over AVG",'EGC gain over AVG','MRC theory','EGC theory'))
 plt.show()
 
+
+#### sim 2
+snr_dB = np.arange(0,21)
+MC_runs = 10
+n_apertures = [1,2,4]
+
+MRC_mean = np.zeros(shape=(len(n_apertures),snr_dB.size))
+EGC_mean = np.zeros(shape=(len(n_apertures),snr_dB.size))
+for idx, i in enumerate(n_apertures):
+    sig2 = comm.signal.Signal(n_dims=i)
+    sig2.generate_bits(n_bits=2**14,seed=1)
+    sig2.generate_constellation(format='QAM',order=4)
+    sig2.mapper()
+    sig2.pulseshaper(upsampling=2,pulseshape='rrc',roll_off=.2)
+    
+    for j in snr_dB:
+        BER_MRC = np.zeros(shape=(MC_runs,))
+        BER_EGC = np.zeros(shape=(MC_runs,))
+        for k in range(MC_runs):
+            sig_tmp = copy.deepcopy(sig2)
+            snr_seeds = np.random.randint(0,1000,size=(i,)).tolist()
+            rng = np.random.default_rng(seed=None)
+            snr_normal = rng.standard_normal(size=(i,))
+            snr_scaled = (snr_normal  * (j/np.mean(snr_normal))).tolist()
+            # Ch
+            sig_tmp.set_snr(snr_dB=snr_scaled,seed=snr_seeds)
+            # Rx
+            if sig_tmp.n_dims > 1:
+                sig_MRC = combining(sig_tmp,comb_method='MRC')
+                sig_EGC = combining(sig_tmp,comb_method='EGC')
+            else:
+                sig_MRC = copy.deepcopy(sig_tmp)
+                sig_EGC = copy.deepcopy(sig_tmp)
+            
+            sig_MRC.samples[0] = comm.filters.raised_cosine_filter(sig_MRC.samples[0],
+                                                                   sample_rate=2,
+                                                                   symbol_rate=1,
+                                                                   roll_off=.2,
+                                                                   root_raised=True)
+            sig_EGC.samples[0] = comm.filters.raised_cosine_filter(sig_EGC.samples[0],
+                                                                   sample_rate=2,
+                                                                   symbol_rate=1,
+                                                                   roll_off=.2,
+                                                                   root_raised=True)
+            sig_MRC.samples[0] = sig_MRC.samples[0][::2]
+            sig_EGC.samples[0] = sig_EGC.samples[0][::2]
+            
+            sig_MRC.decision()
+            sig_EGC.decision()
+            sig_MRC.demapper()
+            sig_EGC.demapper()
+            # count errors
+            BER_MRC[k] = comm.rx.count_errors(sig_MRC.bits[0], sig_MRC.samples[0])['ber']
+            BER_EGC[k] = comm.rx.count_errors(sig_EGC.bits[0], sig_EGC.samples[0])['ber']
+            
+        MRC_mean[idx,j] = np.mean(BER_MRC)
+        EGC_mean[idx,j] = np.mean(BER_EGC)
+            
 plt.figure(3)
-plt.semilogy(n_dims,mean_MRC_BER,color='r')
-plt.semilogy(n_dims,mean_EGC_BER,color='b')
-plt.semilogy(n_dims,mean_SDC_BER,color='g')
+plt.semilogy(snr_dB,MRC_mean[0,:],color='r')
+plt.semilogy(snr_dB,EGC_mean[0,:],color='b')
+
+plt.semilogy(snr_dB,MRC_mean[1,:],color='salmon')
+plt.semilogy(snr_dB,EGC_mean[1,:],color='steelblue')
+
+plt.semilogy(snr_dB,MRC_mean[2,:],color='yellow')
+plt.semilogy(snr_dB,EGC_mean[2,:],color='green')
+
 plt.grid()
-plt.xticks(ticks=n_dims)
-plt.title('mean MRC/EGC/SDC BER over {} runs'.format(MC_runs))
-plt.xlabel('Number of antennas')
+plt.xticks(ticks=snr_dB)
+plt.title('mean MRC/EGC BER with different number of apertures over {} runs'.format(MC_runs))
+plt.xlabel('SNR [dB]')
 plt.ylabel('BER')
-plt.legend(('MRC','EGC','SDC'))
+plt.legend(('MRC, 1','EGC, 1','MRC, 2','EGC, 2','MRC, 4','EGC, 4'))
 plt.show()
