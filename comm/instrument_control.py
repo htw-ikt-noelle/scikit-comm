@@ -588,13 +588,13 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',number_o
             exit()
 
         # Reading vertical scaling of the scope (Voltage per div)
-        ver_scale = float(scope.query('CH{0:d}:SCAle?'.format(ch),delay = 0.5))
+        ver_scale = float(scope.query('CH{0:d}:SCAle?'.format(ch)))
 
         # Reading vertical position ( Y-Position on scope screen)
-        ver_position = float(scope.query('CH{0:d}:POSition?'.format(ch),delay = 0.5))
+        ver_position = float(scope.query('CH{0:d}:POSition?'.format(ch)))
 
         # Reading offset from scope
-        offset = float(scope.query('CH{0:d}:OFFSet?'.format(ch),delay = 0.5))
+        offset = float(scope.query('CH{0:d}:OFFSet?'.format(ch)))
 
         # Scale amplitude
         #wfm.append(5 * ver_scale / (2 ** (float(number_of_bytes) * 7)) * tmp  + ver_offset)
