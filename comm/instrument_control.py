@@ -588,13 +588,13 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',number_o
             exit()
 
         # Reading vertical scaling of the scope (Voltage per div)
-        ver_scale = float(scope.query('CH{0:d}:SCAle?'.format(ch),delay = 0.5))
+        ver_scale = float(scope.query('CH{0:d}:SCAle?'.format(ch)))
 
         # Reading vertical position ( Y-Position on scope screen)
-        ver_position = float(scope.query('CH{0:d}:POSition?'.format(ch),delay = 0.5))
+        ver_position = float(scope.query('CH{0:d}:POSition?'.format(ch)))
 
         # Reading offset from scope
-        offset = float(scope.query('CH{0:d}:OFFSet?'.format(ch),delay = 0.5))
+        offset = float(scope.query('CH{0:d}:OFFSet?'.format(ch)))
 
         # Scale amplitude
         #wfm.append(5 * ver_scale / (2 ** (float(number_of_bytes) * 7)) * tmp  + ver_offset)
@@ -917,9 +917,9 @@ def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist
             key                     value
             'Resolution_BW_Hz'      (float) The OSA resolution bandwidth in units of [Hz].
             'Resolution_BW_m'       (float) The resolution bandwidth in units of [m], referenced to center of the spectrum.
-            'FREQ_vector_Hz'        (np.array) Contains the frequency axis (descending) in units of [Hz].
-            'WL_vector_m'           (np.array) Contains the wavelength axis (ascending) in units of [m].
-            'Trace_data'            (np.array) Contains the spectrum in log-domain in units of [dBm].
+            'frequency'        (np.array) Contains the frequency axis (descending) in units of [Hz].
+            'wavelength'           (np.array) Contains the wavelength axis (ascending) in units of [m].
+            'spectrum_dBm'            (np.array) Contains the spectrum in log-domain in units of [dBm].
             'Ptotal_dBm_IDOSA'      (float)    The total optical power in [dBm], interally calculated by the instrument.
             'Ptotal_dBm_int'        (float)    The total optical power in [dBm], calculated from the fetched spectrum.
     """
@@ -950,8 +950,8 @@ def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist
     
     ## Create dictionary for trace data and wavelength information
     trace = {'Resolution_BW_m':np.nan, 'Resolution_BW_Hz':np.nan, 'Ptotal_dBm_IDOSA':np.nan,
-             'Ptotal_dBm_int':np.nan, 'WL_vector_m':np.asarray(np.nan),
-             'FREQ_vector_Hz':np.asarray(np.nan), 'Trace_data':np.asarray(np.nan)}
+             'Ptotal_dBm_int':np.nan, 'wavelength':np.asarray(np.nan),
+             'frequency':np.asarray(np.nan), 'spectrum_dBm':np.asarray(np.nan)}
     
     ## connect to socket
     osa = socket(AF_INET,SOCK_STREAM) # https://docs.python.org/3/library/socket.html#socket.socket.connect
@@ -1040,9 +1040,9 @@ def get_spectrum_IDOSA(ip_address='192.168.1.22', new_sweep = False, wl_equidist
         
         trace['Resolution_BW_m'] = np.abs(-c0 / f_cent**2 * RBW) # RBW in [m], referenced to center of spectrum
         trace['Resolution_BW_Hz'] = RBW # [Hz]
-        trace['WL_vector_m'] = WL_m # [m]
-        trace['FREQ_vector_Hz'] = f_Hz # [Hz]
-        trace['Trace_data'] = Spec_dBm # [dBm]
+        trace['wavelength'] = WL_m # [m]
+        trace['frequency'] = f_Hz # [Hz]
+        trace['spectrum_dBm'] = Spec_dBm # [dBm]
         trace['Ptotal_dBm_IDOSA'] = Power_dBm # [dBm]
         trace['Ptotal_dBm_int'] = Pwr_integrate_dBm # [dBm]
         return trace    
@@ -1088,13 +1088,13 @@ def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_
                     -> B : Trace B
                     -> C : Trace C
                 -> Name of data:
-                    -> Trace_data   : (np.array) Contains numpy array with trace data
+                    -> spectrum   : (np.array) Contains numpy array with trace data
                     -> Unit         : (string) Contains the unit of the trace data
                     -> Sensitivity  : (float) Contains the amplitude sensitivity of the spectrum (always in dBm)
                     -> Start_WL     : (float) Contains the start wavelength of the spectrum (in m)
                     -> Stop_WL      : (float) Contains the stop wavelength of the spectrum (in m)
                     -> Resolution_BW: (float) Contains the resolution bandwidth of the spectrum (in m)
-                    -> WL_vector    : (np.array) Numpy array with evenly spaced wavelengths between Start_WL and Stop_WL (in m)
+                    -> wavelength    : (np.array) Numpy array with evenly spaced wavelengths between Start_WL and Stop_WL (in m)
             
     Errors
     -------
@@ -1283,7 +1283,7 @@ def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_
     for trace_id,trace in enumerate(traces):
 
         # Create dictionary for trace data and wave length information
-        data_dict = {'Trace_data':[],'Unit':[],'Sensitivity':[],'Start_WL':[],'Stop_WL':[],'Resolution_BW':[], 'WL_Vector':[]}
+        data_dict = {'spectrum':[],'Unit':[],'Sensitivity':[],'Start_WL':[],'Stop_WL':[],'Resolution_BW':[], 'wavelength':[]}
 
         # Setting length of Trace
         # Page 7-506 -> 7-507
@@ -1299,13 +1299,13 @@ def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_
         if is_log:
             # One measurement unit is equal to one hundreth of a dBm
             # To get the dBm the trace data from the scope has to be divided by 100
-            data_dict['Trace_data']= tmp / 100
+            data_dict['spectrum']= tmp / 100
         else:
             # Read reference level
             # For linear the measurment units are between 0 and 10000
             # To convert theme to the real values, the measurment units has to be mapped to the reference level
             reference_level = float(osa.query('RL?').rstrip('\n'))
-            data_dict['Trace_data'] = tmp / 10000 * reference_level
+            data_dict['spectrum'] = tmp / 10000 * reference_level
 
         # Write unit infromation to data dict
         data_dict['Unit'] = amplitude_unit
@@ -1323,7 +1323,7 @@ def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_
         data_dict['Stop_WL'] = stop_wl
 
         # Create wavelength vector
-        data_dict['WL_Vector'] = np.linspace(start_wl, stop_wl, data_dict['Trace_data'].shape[0])
+        data_dict['wavelength'] = np.linspace(start_wl, stop_wl, data_dict['spectrum'].shape[0])
 
         trace_information[trace]=data_dict
         
