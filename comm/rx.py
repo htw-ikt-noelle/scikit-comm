@@ -1011,6 +1011,80 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     results['eps'] = eps_tmp
     return results
 
+def combining(sig_div,comb_method='MRC',est_method='spectrum',snr_true=None):
+    """
+    Performs Diversity Combining of the rows of an incoming signal object,
+    where each row represents the signal captured by an antenna of a SIMO 
+    system. The SNR is calculated per row and the individual rows are then
+    scaled according to the chosen combination method and added together.
+    
+    Different SNR estimation methods can be selected by altering the est_method
+    parameter. 
+
+    Parameters
+    ----------
+    sig_div : signal object
+        n-dimensional signal object with list of sample arrays in the 'samples'
+        attribute.
+    comb_method : str, optional
+        Combining method. MRC and EGC are available. The default is 'MRC'.
+    est_method : str, optional
+        SNR estimation method. The default is 'spectrum'.
+    snr_true : ndarray
+        If the true SNR values (in dB) are known and should be used instead of 
+        the estimates, they can be passed as an array here.
+
+    Returns
+    -------
+    sig_combined : signal object
+        SIgnal after combining. The sample attribute now has the combined sample
+        array in every dimension.
+
+    """
+    # deep copy of signal
+    sig = copy.deepcopy(sig_div)
+    # error checks
+    if len(sig.samples) < 2:
+        raise TypeError('Signal must have at least two sample arrays in list for diversity combining to be performed.')
+    if est_method != 'spectrum':
+        raise ValueError('No other SNR estimation methods besides spectrum are implemented yet.')
+    
+    # init vector of SNR estimates
+    snr_vec = np.zeros((len(sig.samples),),dtype='float')
+    # SNR estimation
+    for i in range(len(sig.samples)):
+        df = sig.sample_rate[i]/sig.samples[i].size
+        x = np.linspace(-(sig.sample_rate[i]+df)/2,(sig.sample_rate[i]-df)/2,sig.samples[i].size,)
+        y = np.abs(np.fft.fftshift(np.fft.fft(sig.samples[i])))**2
+        # TODO: adjust signal range according to roll off factor
+        snr_vec[i] = comm.utils.estimate_snr_spectrum(x,y,sig_range=np.array([-sig.symbol_rate[i]/2,sig.symbol_rate[i]/2]),
+                                                      noise_range=np.array([-sig.symbol_rate[i]/2-3e9,-sig.symbol_rate[i]/2,sig.symbol_rate[i]/2,sig.symbol_rate[i]/2+3e9]),
+                                                      order=1,noise_bw=sig.symbol_rate[i],plotting=False)
+        # print estimated SNR
+        # print('True vs. estimated SNR for channel {}: {:.2f} vs. {:.2f} dB.'.format(i,snr[i],snr_vec[i]))
+        
+    # replace estimated SNRs with true SNRs, eliminating possible estimation
+    # error, if desired
+    if snr_true:
+        snr_vec = np.asarray(snr_true)
+    # scaling           
+    if comb_method == 'MRC':
+        for i in range(len(sig.samples)):
+            sig.samples[i] = sig.samples[i] * (10**(snr_vec[i]/20)) 
+    elif comb_method == 'EGC':
+        pass
+    elif comb_method == 'SDC':
+        mask = np.where(snr_vec == np.max(snr_vec),1,0)
+        for i in range(len(sig.samples)):
+            sig.samples[i] = sig.samples[i] * mask[i]
+    else:
+        raise ValueError("Combining method not implemented.")
+    # combination
+    # TODO: samples attribute is currently being overwritten - is this practical
+    # for our simulation? Should we add a new attribute?
+    sig.samples = np.sum(sig.samples,axis=0)
+    return sig
+
 def frequency_offset_estimation(samples, sample_rate=1.0, order=4):
     """
     Frequency offset estimation and recovery (FOE and FOR).
