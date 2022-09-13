@@ -7,7 +7,7 @@ import copy
 # number of apertures/antennas
 n_dims = np.arange(2,11)
 # number of simulation runs
-MC_runs = 100
+MC_runs = 10
 # Rayleigh distribution parameters
 rayleigh_mean_dB = 20 # in dB
 # rayleigh_scale = 2 # must be positive
@@ -205,17 +205,17 @@ for i in n_dims:
     MRC_y_axis = np.abs(np.fft.fftshift(np.fft.fft(MRC_MC_array)))**2
     EGC_y_axis = np.abs(np.fft.fftshift(np.fft.fft(EGC_MC_array)))**2
     
-    # MRC_mean_snr[i-2] = comm.utils.estimate_snr_spectrum(est_x_axis,MRC_y_axis,sig_range=np.array([-symb_rate/2,symb_rate/2]),
-    #                                                    noise_range=np.array([-symb_rate/2-3e9,-symb_rate/2,symb_rate/2,symb_rate/2+3e9]),
-    #                                                    order=1,noise_bw=symb_rate,scaling='lin',plotting=True)
-    # EGC_mean_snr[i-2] = comm.utils.estimate_snr_spectrum(est_x_axis,EGC_y_axis,sig_range=np.array([-symb_rate/2,symb_rate/2]),
-    #                                                    noise_range=np.array([-symb_rate/2-3e9,-symb_rate/2,symb_rate/2,symb_rate/2+3e9]),
-    #                                                    order=1,noise_bw=symb_rate,scaling='lin',plotting=False) 
+    MRC_mean_snr[i-2] = comm.utils.estimate_snr_spectrum(est_x_axis,MRC_y_axis,sig_range=np.array([-symb_rate/2,symb_rate/2]),
+                                                        noise_range=np.array([-symb_rate/2-3e9,-symb_rate/2,symb_rate/2,symb_rate/2+3e9]),
+                                                        order=1,noise_bw=symb_rate,scaling='lin',plotting=True)
+    EGC_mean_snr[i-2] = comm.utils.estimate_snr_spectrum(est_x_axis,EGC_y_axis,sig_range=np.array([-symb_rate/2,symb_rate/2]),
+                                                        noise_range=np.array([-symb_rate/2-3e9,-symb_rate/2,symb_rate/2,symb_rate/2+3e9]),
+                                                        order=1,noise_bw=symb_rate,scaling='lin',plotting=False) 
     
     # downsample
     MRC_MC_array_tmp = MRC_MC_array[::int(samp_rate/symb_rate)]
     EGC_MC_array_tmp = EGC_MC_array[::int(samp_rate/symb_rate)]
-    MRC_mean_snr[i-2] = comm.utils.estimate_SNR_evm()
+    # MRC_mean_snr[i-2] = comm.utils.estimate_SNR_evm()
     
     # calc mean SNR gain
     mean_MRC_AVG_gain[i-2] = 10*np.log10((10**(MRC_mean_snr[i-2]/10)) / (10**(mean_true_snr[i-2]/10)))
