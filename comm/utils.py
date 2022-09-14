@@ -937,6 +937,30 @@ def estimate_snr_nda(sig,block_size=-1,bias_comp=True):
         
     return snr_estimate
 
+def estimate_SNR_m2m4(samples, constellation):
+    # normalize samples to have a mean power of 1
+    samples_norm = samples / np.sqrt(np.mean(np.abs(samples)**2))
+    # normalize constellation to have a mean power of 1 (?)
+    const_norm = constellation / np.sqrt(np.mean(np.abs(constellation)**2))
+    # find number of unique amplitudes in ideal constellation and how often they appear
+    A, A_cnt = np.unique(np.abs(const_norm),return_counts=True)
+    # find probability of constellation point with unique amplitude occuring
+    p = A_cnt / (const_norm.size)
+    # calc constellation moments
+    c2 = 1 # due to normalization to mean power of 1
+    c4 = np.sum(p*(A**4))
+    # c6 = np.sum(p*(A**6))
+    # calc sample moments
+    M2 = np.mean(np.abs(samples_norm)**2)
+    M4 = np.mean(np.abs(samples_norm)**4)
+    # calc enumerator and denominator of final SNR estimation eq
+    enum = 1 - 2*((M2**2)/M4) - np.sqrt((2-c4)*((2*(M2**4)/(M4**2))-((M2**2)/M4)))
+    denom = (c4 * (M2**2) / M4) - 1
+    
+    snr_estimate_m2m4 = enum/denom
+    
+    return snr_estimate_m2m4
+
 def estimate_SNR_evm(sig, **kwargs):
     """
     Estimate SNR (in dB) based on the calculated EVM.
