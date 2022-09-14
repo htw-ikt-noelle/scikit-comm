@@ -10,7 +10,7 @@ mod_order = 4
 
 # monte carlo parameters
 block_size = 64
-n_blocks = 100
+n_blocks = 10000
 
 # simulation parameters
 mean_snr_dB = 15
@@ -28,6 +28,8 @@ snr_post_comb_sim = np.zeros(shape=(n_blocks,),dtype='float')
 snr_post_comb_theory = np.zeros(shape=(n_blocks,),dtype='float')
 mean_snr_pre_comb = np.zeros(shape=(n_blocks,),dtype='float')
 
+samples_MRC = np.zeros(shape=(int(n_blocks*block_size),),dtype='complex')
+samples_EGC = np.zeros(shape=(int(n_blocks*block_size),),dtype='complex')
 # monte carlo loop
 for i in range(n_blocks):
     # standard signal generation block
@@ -44,22 +46,34 @@ for i in range(n_blocks):
     sig.set_snr(snr_dB=(10*np.log10(rayleigh_snr_lin[i,:])).tolist(),seed=None)
     
     # combining
-    sig_comb = comm.rx.combining(sig,comb_method=comb_method,snr_true=(10*np.log10(rayleigh_snr_lin[i,:])).tolist())
+    sig_comb_MRC = comm.rx.combining(sig,comb_method='MRC',snr_true=(10*np.log10(rayleigh_snr_lin[i,:])).tolist())
+    sig_comb_EGC = comm.rx.combining(sig,comb_method='EGC',snr_true=(10*np.log10(rayleigh_snr_lin[i,:])).tolist())
     # normalizing
-    sig_comb.samples = sig_comb.samples[0] * (1/np.mean(np.abs(sig_comb.samples[0])))
+    # sig_comb_MRC.samples = sig_comb_MRC.samples[0] * (1/np.mean(np.abs(sig_comb_MRC.samples[0])))
+    # sig_comb_EGC.samples = sig_comb_EGC.samples[0] * (1/np.mean(np.abs(sig_comb_EGC.samples[0])))
     
     # snr post-combining
-    # (Abi's 'data-aided' method for zero-mean signal and noise)
-    # snr_post_comb_sim[i] = 10*np.log10(np.var(sig_comb.symbols[0])/np.var(sig_comb.samples[0]-sig_comb.symbols[0]))
     # M2M4 estimator
-    snr_post_comb_sim[i] = 10*np.log10(comm.utils.estimate_SNR_m2m4(sig_comb.samples[0], sig_comb.constellation[0]))
+    # snr_post_comb_sim[i] = 10*np.log10(comm.utils.estimate_SNR_m2m4(sig_comb.samples[0], sig_comb.constellation[0]))
     snr_post_comb_theory[i] = 10*np.log10(np.sum(rayleigh_snr_lin[i,:]))
     mean_snr_pre_comb[i] = 10*np.log10(np.mean(rayleigh_snr_lin[i,:]))
+    # write combined samples to array
+    samples_MRC[int(i*block_size):int((i+1)*block_size)] = sig_comb_MRC.samples[0]
+    samples_EGC[int(i*block_size):int((i+1)*block_size)] = sig_comb_EGC.samples[0]
 
-MRC_gain_sim = 10*np.log10(np.mean((10**(snr_post_comb_sim/10))/(10**(mean_snr_pre_comb/10))))
+# SNR post-combining
+MRC_SNR = comm.utils.estimate_SNR_m2m4(samples_MRC, sig_comb_MRC.constellation[0])
+EGC_SNR = comm.utils.estimate_SNR_m2m4(samples_EGC, sig_comb_MRC.constellation[0])
+# mean SNR pre-combining
+mean_SNR_sim = np.mean(mean_snr_pre_comb)
+
+MRC_gain_sim = (MRC_SNR) - mean_SNR_sim
+EGC_gain_sim = 10*np.log10(EGC_SNR) - mean_SNR_sim
+# MRC_gain_sim = 10*np.log10(np.mean((10**(snr_post_comb_sim/10))/(10**(mean_snr_pre_comb/10))))
 MRC_gain_theory = 10*np.log10(np.mean((10**(snr_post_comb_theory/10))/(10**(mean_snr_pre_comb/10))))
-print('MRC gain sim: {}'.format(MRC_gain_sim))
-print('MRC gain theory: {}'.format(MRC_gain_theory))
+print('MRC gain sim: {:.2f} dB'.format(MRC_gain_sim))
+print('EGC gain sim: {:.2f} dB'.format(EGC_gain_sim))
+print('MRC gain theory: {:.2f} dB'.format(MRC_gain_theory))
 
 #### M2M4 SNR estimator test
 # true_snr = 20

@@ -5,6 +5,8 @@ import scipy.signal as ssignal
 from scipy import interpolate
 from scipy import optimize
 import matplotlib.pyplot as plt
+import copy
+import comm
 
 from . import utils
 from . import filters
@@ -1057,9 +1059,9 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum',snr_true=None):
         x = np.linspace(-(sig.sample_rate[i]+df)/2,(sig.sample_rate[i]-df)/2,sig.samples[i].size,)
         y = np.abs(np.fft.fftshift(np.fft.fft(sig.samples[i])))**2
         # TODO: adjust signal range according to roll off factor
-        snr_vec[i] = comm.utils.estimate_snr_spectrum(x,y,sig_range=np.array([-sig.symbol_rate[i]/2,sig.symbol_rate[i]/2]),
-                                                      noise_range=np.array([-sig.symbol_rate[i]/2-3e9,-sig.symbol_rate[i]/2,sig.symbol_rate[i]/2,sig.symbol_rate[i]/2+3e9]),
-                                                      order=1,noise_bw=sig.symbol_rate[i],plotting=False)
+        # snr_vec[i] = comm.utils.estimate_snr_spectrum(x,y,sig_range=np.array([-sig.symbol_rate[i]/2,sig.symbol_rate[i]/2]),
+        #                                               noise_range=np.array([-sig.symbol_rate[i]/2-3e9,-sig.symbol_rate[i]/2,sig.symbol_rate[i]/2,sig.symbol_rate[i]/2+3e9]),
+        #                                               order=1,noise_bw=sig.symbol_rate[i],plotting=False)
         # print estimated SNR
         # print('True vs. estimated SNR for channel {}: {:.2f} vs. {:.2f} dB.'.format(i,snr[i],snr_vec[i]))
         

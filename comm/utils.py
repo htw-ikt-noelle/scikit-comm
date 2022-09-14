@@ -938,6 +938,23 @@ def estimate_snr_nda(sig,block_size=-1,bias_comp=True):
     return snr_estimate
 
 def estimate_SNR_m2m4(samples, constellation):
+    """
+    ref.: Aifen Wang; Hua Xu; Jing Ke, "NDA moment-based SNR estimation for 
+    envelope-based QAM", 2012 IEEE 11th International Conference on Signal Processing
+
+    Parameters
+    ----------
+    samples : TYPE
+        DESCRIPTION.
+    constellation : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    snr_estimate_m2m4 : TYPE
+        DESCRIPTION.
+
+    """
     # normalize samples to have a mean power of 1
     samples_norm = samples / np.sqrt(np.mean(np.abs(samples)**2))
     # normalize constellation to have a mean power of 1 (?)
