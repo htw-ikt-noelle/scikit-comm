@@ -1,4 +1,7 @@
 import math
+import pickle
+import time
+import copy
 
 import numpy as np
 from scipy import optimize
@@ -1206,7 +1209,7 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
     return evm
 
 
-def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9):
+def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9, save_fig=False, f_name=None):
     """
     Combine multiple spectra of an optical spectrum analyzer.
     
@@ -1278,8 +1281,8 @@ def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9):
     if ((x0 < np.min(x_data[0])) or (x0 > np.max(x_data[0]))):
         raise ValueError('x0 needs to be within x axis range')
         
-    comb = y_data[0]
-    plt.figure(0)
+    comb = copy.deepcopy(y_data[0])
+    f1 = plt.figure(0)
     plt.plot(x_data[0], y_data[0])
     plt.xlabel('wavelength / m or frequency / Hz')
     plt.ylabel('power / dBm or W')
@@ -1302,15 +1305,19 @@ def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9):
     plt.show()
     att0 = comb[np.argmin(np.abs(x_data[0]-x0))]
         
-    plt.figure()
+    f2 = plt.figure()
     plt.plot(x_data[0], comb)
     plt.plot(x0, att0, 'ro', label='{:.1f} dB'.format(att0))
     plt.legend()
     plt.grid()
     plt.xlabel('wavelength / m or frequency / Hz')
-    plt.ylabel('gain / dB')
+    plt.ylabel('gain / dB') 
     plt.show()
     
+    if save_fig:
+        f1.savefig(f_name + '_1.png', dpi='figure', format='png')
+        f2.savefig(f_name + '_2.png', dpi='figure', format='png')
+           
     return comb
     
 def edfa_model(samples, sample_rate, opt_mid_wl=1550e-9, mode="APC", opt_target=0, opt_noise_figure=4.5, seed=None):
@@ -1377,3 +1384,25 @@ def edfa_model(samples, sample_rate, opt_mid_wl=1550e-9, mode="APC", opt_target=
     samples = samples + (noise.view(dtype=np.complex128)).flatten()
 
     return samples
+
+
+def save_pickle(data, folder='.', f_name='tmp', add_timestamp=False):
+    
+    if add_timestamp:
+        f_name = folder + '/' + time.strftime('%Y-%m-%dT%H%M%S_') + f_name + '.pickle'
+    else:
+        f_name = folder + '/' + f_name + '.pickle'
+        
+    with open(f_name, 'wb') as f:    
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+        
+        
+def load_pickle(folder='.', f_name='tmp', ext='pickle'):
+    
+    f_name = folder + '/' + f_name + '.' + ext
+    
+    with open(f_name, 'rb') as f:    
+        data = pickle.load(f)
+        
+    return data
+    
