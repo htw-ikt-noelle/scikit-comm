@@ -1868,6 +1868,66 @@ def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [
     return channel_information
 
 
+
+def get_opt_power_HP8163B(channels=['1'], ip_address='192.168.1.1'):
+    
+    rm = visa.ResourceManager('@py')
+   
+    # pm = rsm.open_resource('TCPIP0::' + ip_address + '::INST1::INSTR')
+    # pm = rsm.open_resource('TCPIP0::' + ip_address + '::INST1::INSTR')
+    pm = rm.open_resource('TCPIP0::' + ip_address + '::5025::SOCKET', 
+                          read_termination='\n', write_termination='\n', 
+                          timeout=3000)
+    
+    # used_modules = pm.query('*OPT?').rstrip('\n')
+
+    # =============================================================================
+    #  Settings for the analyzer
+    # ============================================================================= 
+    
+    # Note: Page numbers refer to the "Operating and Programming Manual HP8153A Lightwave Multimeter".
+    # Create dict with the the keys
+    channel_information = dict.fromkeys(channels)
+    
+     
+    for channel in channels:
+        
+        
+        # Acquire power values
+        #page (8-8 , 8-9)
+        channel_power_level = float(pm.query('fetch:chan{0:s}:power?'.format(channel)))
+                       
+        read_wavelength = float(pm.query('sense:chan{0:s}:power:wavelength?'.format(channel)))
+    
+        # Get the module name
+        # module = used_modules.split(',')[int(channel)-1]
+        
+        # Get power unit
+        #page (8-21)
+        read_power_unit = pm.query('sense:chan{0:s}:POWer:UNIT?'.format(channel)).rstrip('\n')
+        
+        if read_power_unit == '+0':
+            read_power_unit = 'DBM'
+        if read_power_unit == '+1':
+            read_power_unit = 'Watt'
+    
+        #make dictionary for power level ,power, wavelength and the name of the inserted module
+        data_dict={'Power':channel_power_level , 'Unit':read_power_unit , 
+                   'Wavelength':read_wavelength}
+
+        #write the data in the dictionary 
+        channel_information[channel]=data_dict
+    
+
+    # closing lwm connection
+    pm.close()
+   
+    # closing resource manager 
+    rm.close()
+
+    return channel_information
+
+
 def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = [None], wavelengths = [None], GPIB_address='12', log_mode = False):
 
     """
