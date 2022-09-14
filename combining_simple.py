@@ -6,11 +6,11 @@ import copy
 # signal parameters
 n_dims = 4
 mod_format = 'QAM'
-mod_order = 4
+mod_order = 16
 
 # monte carlo parameters
-block_size = 64
-n_blocks = 10000
+block_size = int(2**14)
+n_blocks = 1000
 
 # simulation parameters
 mean_snr_dB = 15
@@ -21,7 +21,12 @@ comb_method = 'MRC'
 mean_snr_lin = 10**(mean_snr_dB/10)
 
 rng = np.random.default_rng(seed=None)
-rayleigh_snr_lin = rng.rayleigh(scale=mean_snr_lin,size=(n_blocks,n_dims))
+#### rayleigh
+rayleigh_snr_lin = rng.rayleigh(scale=mean_snr_lin/np.sqrt(np.pi/2),size=(n_blocks,n_dims))
+#### normal
+# rayleigh_snr_lin = rng.normal(loc=(10**(mean_snr_dB/10)),scale=5,size=(n_blocks,n_dims))
+#### uniform
+# rayleigh_snr_lin = rng.uniform(low=1,high=100,size=(n_blocks,n_dims))
 
 # init arrays for SNR values
 snr_post_comb_sim = np.zeros(shape=(n_blocks,),dtype='float')
@@ -67,7 +72,7 @@ EGC_SNR = comm.utils.estimate_SNR_m2m4(samples_EGC, sig_comb_MRC.constellation[0
 # mean SNR pre-combining
 mean_SNR_sim = np.mean(mean_snr_pre_comb)
 
-MRC_gain_sim = (MRC_SNR) - mean_SNR_sim
+MRC_gain_sim = 10*np.log10(MRC_SNR) - mean_SNR_sim
 EGC_gain_sim = 10*np.log10(EGC_SNR) - mean_SNR_sim
 # MRC_gain_sim = 10*np.log10(np.mean((10**(snr_post_comb_sim/10))/(10**(mean_snr_pre_comb/10))))
 MRC_gain_theory = 10*np.log10(np.mean((10**(snr_post_comb_theory/10))/(10**(mean_snr_pre_comb/10))))
@@ -78,7 +83,7 @@ print('MRC gain theory: {:.2f} dB'.format(MRC_gain_theory))
 #### M2M4 SNR estimator test
 # true_snr = 20
 # sig_snr = comm.signal.Signal(n_dims=1)
-# sig_snr.generate_bits(n_bits=2**6,seed=None)
+# sig_snr.generate_bits(n_bits=2**10,seed=None)
 # sig_snr.generate_constellation(format='QAM',order=4)
 # sig_snr.mapper()
 # sig_snr.pulseshaper(upsampling=1,pulseshape=None)

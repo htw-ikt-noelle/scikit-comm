@@ -1085,6 +1085,8 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum',snr_true=None):
     # TODO: samples attribute is currently being overwritten - is this practical
     # for our simulation? Should we add a new attribute?
     sig.samples = np.sum(sig.samples,axis=0)
+    # normalize samples to mean power of 1
+    sig.samples = sig.samples[0] / (np.sqrt(np.mean(np.abs(sig.samples[0])**2)))
     return sig
 
 def frequency_offset_estimation(samples, sample_rate=1.0, order=4):
