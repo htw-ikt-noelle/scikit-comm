@@ -12,7 +12,7 @@ sample_rate = 5e9
 
 # monte carlo parameters
 block_size = int((2**12)*np.log2(mod_order)*(sample_rate/symb_rate))
-n_blocks = 1000
+n_blocks = 100
 
 # simulation parameters
 mean_snr_dB = 15
@@ -66,9 +66,12 @@ for idx, n_dims in enumerate(n_apertures):
         
         #### CH signal block
         #### Abi's method: 
+        # normalize each dimension to have a mean power of 1
+        for j in range(sig.n_dims):
+            sig.samples[j] = sig.samples[j] / np.sqrt(np.mean(np.abs(sig.samples[j])**2))
         # scale samples with np.sqrt(rayleigh_snr_lin), add AWGN with mean=0,std=1 (rng.standard_normal)
         for j in range(sig.n_dims):
-            sig.samples[j] = sig.samples[j] * np.sqrt(rayleigh_snr_lin[i,j]) + rng.standard_normal(size=(sig.samples[j].size,)) + 1j*rng.standard_normal(size=(sig.samples[j].size,))
+            sig.samples[j] = sig.samples[j] * np.sqrt(rayleigh_snr_lin[i,j]) + np.sqrt(0.5)*(rng.standard_normal(size=(sig.samples[j].size,)) + 1j*rng.standard_normal(size=(sig.samples[j].size,)))
         #### set SNR method
         # set SNR per aperture
         # sig.set_snr(snr_dB=(10*np.log10(rayleigh_snr_lin[i,:])).tolist(),seed=None)
