@@ -12,7 +12,7 @@ sample_rate = 5e9
 
 # monte carlo parameters
 block_size = int((2**12)*np.log2(mod_order)*(sample_rate/symb_rate))
-n_blocks = 50
+n_blocks = 200
 
 # simulation parameters
 mean_snr_dB = 15
@@ -34,11 +34,12 @@ for idx, n_dims in enumerate(n_apertures):
     rng = np.random.default_rng(seed=None)
     #### rayleigh
     if SNR_distribution == 'rayleigh':
-        rayleigh_snr_lin = rng.rayleigh(scale=mean_snr_lin/np.sqrt(np.pi/2),size=(n_blocks,n_dims))
+        # rayleigh_amplitude = rng.rayleigh(scale=mean_snr_lin/np.sqrt(np.pi/2),size=(n_blocks,n_dims))
+        rayleigh_amplitude = rng.rayleigh(scale=np.sqrt(mean_snr_lin/2),size=(n_blocks,n_dims))
     elif SNR_distribution in ['normal','gaussian']:
-        rayleigh_snr_lin = rng.normal(loc=(10**(mean_snr_dB/10)),scale=1+(mean_snr_dB/10),size=(n_blocks,n_dims))
+        rayleigh_amplitude = rng.normal(loc=(10**(mean_snr_dB/10)),scale=1+(mean_snr_dB/10),size=(n_blocks,n_dims))
     elif SNR_distribution == 'uniform':
-        rayleigh_snr_lin = rng.uniform(low=0.25*(10**(mean_snr_dB/10)),high=4*(10**(mean_snr_dB/10)),size=(n_blocks,n_dims))
+        rayleigh_amplitude = rng.uniform(low=0.25*(10**(mean_snr_dB/10)),high=4*(10**(mean_snr_dB/10)),size=(n_blocks,n_dims))
     else:
         raise ValueError('SNR distribution not implemented at the moment.')
     
@@ -75,25 +76,25 @@ for idx, n_dims in enumerate(n_apertures):
         # normalize each dimension to have a mean power of 1
         for j in range(sig.n_dims):
             sig.samples[j] = sig.samples[j] / np.sqrt(np.mean(np.abs(sig.samples[j])**2))
-        # scale samples with np.sqrt(rayleigh_snr_lin), add AWGN with mean=0,std=1 (rng.standard_normal)
+        # scale samples with np.sqrt(rayleigh_amplitude), add AWGN with mean=0,std=1 (rng.standard_normal)
         for j in range(sig.n_dims):
-            sig.samples[j] = sig.samples[j] * np.sqrt(rayleigh_snr_lin[i,j]) + np.sqrt(0.5)*(rng.standard_normal(size=(sig.samples[j].size,)) + 1j*rng.standard_normal(size=(sig.samples[j].size,)))
+            sig.samples[j] = sig.samples[j] * rayleigh_amplitude[i,j] + np.sqrt(0.5)*(rng.standard_normal(size=(sig.samples[j].size,)) + 1j*rng.standard_normal(size=(sig.samples[j].size,)))
         #### set SNR method
         # set SNR per aperture
-        # sig.set_snr(snr_dB=(10*np.log10(rayleigh_snr_lin[i,:])).tolist(),seed=None)
+        # sig.set_snr(snr_dB=(10*np.log10(rayleigh_amplitude[i,:])).tolist(),seed=None)
         
         #### RX signal block
         # combining
-        sig_comb_MRC = comm.rx.combining(sig,comb_method='MRC',snr_true=(10*np.log10(rayleigh_snr_lin[i,:])).tolist())
-        sig_comb_EGC = comm.rx.combining(sig,comb_method='EGC',snr_true=(10*np.log10(rayleigh_snr_lin[i,:])).tolist())
+        sig_comb_MRC = comm.rx.combining(sig,comb_method='MRC',snr_true=(10*np.log10(rayleigh_amplitude[i,:]**2)).tolist())
+        sig_comb_EGC = comm.rx.combining(sig,comb_method='EGC',snr_true=(10*np.log10(rayleigh_amplitude[i,:]**2)).tolist())
     
         #### post-sim evaluation block
         # theory curves for linear SNR values after combining
-        mrc_snr_theory[i] = np.sum(rayleigh_snr_lin[i,:]) # ref.: pretty much every source
-        egc_snr_theory[i] = (1/n_dims) * (np.sum(np.abs(np.sqrt(rayleigh_snr_lin[i,:])))**2) # ref.: H. Nuszkowski
+        mrc_snr_theory[i] = np.sum(rayleigh_amplitude[i,:]**2) # ref.: pretty much every source
+        egc_snr_theory[i] = (1/n_dims) * (np.sum(np.abs(np.sqrt(rayleigh_amplitude[i,:]**2)))**2) # ref.: H. Nuszkowski
         # M2M4 estimator
-        snr_post_comb_theory[i] = 10*np.log10(np.sum(rayleigh_snr_lin[i,:]))
-        mean_snr_pre_comb = np.mean(rayleigh_snr_lin[i,:])
+        snr_post_comb_theory[i] = 10*np.log10(np.sum(rayleigh_amplitude[i,:]))
+        mean_snr_pre_comb = np.mean(rayleigh_amplitude[i,:]**2)
     
         # SNR post-combining
         MRC_SNR[i] = comm.utils.estimate_SNR_m2m4(sig_comb_MRC.samples[0], sig_comb_MRC.constellation[0])
