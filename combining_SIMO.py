@@ -34,12 +34,19 @@ for idx, n_dims in enumerate(n_apertures):
     rng = np.random.default_rng(seed=None)
     #### rayleigh
     if SNR_distribution == 'rayleigh':
-        # rayleigh_amplitude = rng.rayleigh(scale=mean_snr_lin/np.sqrt(np.pi/2),size=(n_blocks,n_dims))
+        # In a rayleigh channel, amplitudes of channel coefficients are rayleigh-
+        # distributed. Linear SNRs are thus chi-square-distributed (with 2 degrees
+        # of freedom), since the SNR is proportional to the square of the amplitude 
+        # of the coefficients if the noise variance is assumed to be equal to 1.
+        # The scale parameter of the rayleigh-distributed amplitudes must be set
+        # to sqrt(mean_snr_lin/2), proof of which can be found in the accompanying 
+        # PDF doc.
         rayleigh_amplitude = rng.rayleigh(scale=np.sqrt(mean_snr_lin/2),size=(n_blocks,n_dims))
-    elif SNR_distribution in ['normal','gaussian']:
-        rayleigh_amplitude = rng.normal(loc=(10**(mean_snr_dB/10)),scale=1+(mean_snr_dB/10),size=(n_blocks,n_dims))
-    elif SNR_distribution == 'uniform':
-        rayleigh_amplitude = rng.uniform(low=0.25*(10**(mean_snr_dB/10)),high=4*(10**(mean_snr_dB/10)),size=(n_blocks,n_dims))
+    # # other distributions are disabled atm
+    # elif SNR_distribution in ['normal','gaussian']:
+    #     rayleigh_amplitude = rng.normal(loc=(10**(mean_snr_dB/10)),scale=1+(mean_snr_dB/10),size=(n_blocks,n_dims))
+    # elif SNR_distribution == 'uniform':
+    #     rayleigh_amplitude = rng.uniform(low=0.25*(10**(mean_snr_dB/10)),high=4*(10**(mean_snr_dB/10)),size=(n_blocks,n_dims))
     else:
         raise ValueError('SNR distribution not implemented at the moment.')
     
@@ -76,12 +83,9 @@ for idx, n_dims in enumerate(n_apertures):
         # normalize each dimension to have a mean power of 1
         for j in range(sig.n_dims):
             sig.samples[j] = sig.samples[j] / np.sqrt(np.mean(np.abs(sig.samples[j])**2))
-        # scale samples with np.sqrt(rayleigh_amplitude), add AWGN with mean=0,std=1 (rng.standard_normal)
+        # scale samples with rayleigh_amplitude, add AWGN with mean=0,var=1, and power distributed equally among real and imaginary part
         for j in range(sig.n_dims):
             sig.samples[j] = sig.samples[j] * rayleigh_amplitude[i,j] + np.sqrt(0.5)*(rng.standard_normal(size=(sig.samples[j].size,)) + 1j*rng.standard_normal(size=(sig.samples[j].size,)))
-        #### set SNR method
-        # set SNR per aperture
-        # sig.set_snr(snr_dB=(10*np.log10(rayleigh_amplitude[i,:])).tolist(),seed=None)
         
         #### RX signal block
         # combining
@@ -89,6 +93,9 @@ for idx, n_dims in enumerate(n_apertures):
         sig_comb_EGC = comm.rx.combining(sig,comb_method='EGC',snr_true=(10*np.log10(rayleigh_amplitude[i,:]**2)).tolist())
     
         #### post-sim evaluation block
+        # ! from here on out, linear SNR is equal to square of the rayleigh-distributed
+        # channel coefficient amplitudes, since noise variance is equal to 1!
+        
         # theory curves for linear SNR values after combining
         mrc_snr_theory[i] = np.sum(rayleigh_amplitude[i,:]**2) # ref.: pretty much every source
         egc_snr_theory[i] = (1/n_dims) * (np.sum(np.abs(np.sqrt(rayleigh_amplitude[i,:]**2)))**2) # ref.: H. Nuszkowski
@@ -151,65 +158,4 @@ props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
 textstr = '\n'.join(("Theory MRC:", r"$$\gamma_{R} = L$$", "Theory EGC:", r"$$\gamma_{R} = 1+(L-1) \cdot \frac{\pi}{4}$$"))
 plt.text(0.6, 0.4, textstr, fontsize=10, verticalalignment='top', bbox=props, transform=plt.gca().transAxes)
 
-
 plt.show()
-
-
-# plt.plot(n_apertures,np.abs(MRC_MC_gain-MRC_gain_theory),color='salmon',linestyle='dashed')
-# plt.plot(n_apertures,np.abs(EGC_MC_gain-EGC_gain_theory),color='steelblue',linestyle='dashed')
-# # attributes
-# plt.grid()
-# plt.title('Simulation-Theory gap, '+str(mod_order)+'-'+str(mod_format))
-# plt.xlabel('Number of apertures')
-# plt.xticks(n_apertures)
-# plt.ylabel('absolute error of normalized SNR [dB]')
-# plt.legend(('MRC sim-theory gap','EGC sim-theory gap'))
-# plt.show()
-
-
-# # theory curves
-# MRC_gain_theory = 10*np.log10(mrc_mc_snr_theory) - 10*np.log10(mean_SNR_sim) # for n_apertures >> 2: MRC_gain_theory = 10*np.log10(n_apertures)
-# EGC_gain_theory = 10*np.log10(egc_mc_snr_theory) - 10*np.log10(mean_SNR_sim) # for n_apertures >> 2: EGC_gain_theory = 10*np.log10(n_apertures*np.pi/4)
-# # close all open plots
-# plt.close('all')
-# # figures
-# plt.figure(1)
-# # curves
-# plt.plot(n_apertures,MRC_gain_theory,color='salmon',linestyle='dashed')
-# plt.scatter(n_apertures,MRC_MC_gain,color='r')
-# plt.plot(n_apertures,EGC_gain_theory,color='steelblue',linestyle='dashed')
-# plt.scatter(n_apertures,EGC_MC_gain,color='b')
-# # attributes
-# plt.grid()
-# plt.title('Normalized SNR with different combining techniques, '+str(mod_order)+'-'+str(mod_format))
-# plt.xlabel('Number of apertures')
-# plt.xticks(n_apertures)
-# plt.ylabel('Normalized SNR [dB]')
-# plt.legend(('MRC, theory','MRC, simulation','EGC, theory','EGC, simulation'))
-# plt.show()
-
-# plt.figure(2)
-# # curves
-# plt.plot(n_apertures,np.abs(MRC_MC_gain-MRC_gain_theory),color='salmon',linestyle='dashed')
-# plt.plot(n_apertures,np.abs(EGC_MC_gain-EGC_gain_theory),color='steelblue',linestyle='dashed')
-# # attributes
-# plt.grid()
-# plt.title('Simulation-Theory gap, '+str(mod_order)+'-'+str(mod_format))
-# plt.xlabel('Number of apertures')
-# plt.xticks(n_apertures)
-# plt.ylabel('absolute error of normalized SNR [dB]')
-# plt.legend(('MRC sim-theory gap','EGC sim-theory gap'))
-# plt.show()
-
-# plt.figure(3)
-# # curves
-# plt.plot(n_apertures,(10*np.log10(n_apertures))-MRC_gain_theory,color='salmon',linestyle='dashed')
-# plt.plot(n_apertures,(10*np.log10(n_apertures*np.pi/4))-EGC_gain_theory,color='steelblue',linestyle='dashed')
-# # attributes
-# plt.grid()
-# plt.title('approximation error of normalized SNR, '+str(mod_order)+'-'+str(mod_format))
-# plt.xlabel('Number of apertures')
-# plt.xticks(n_apertures)
-# plt.ylabel('absolute error ormalized SNR [dB]')
-# plt.legend(('MRC theory-approximation gap','EGC theory-approximation gap'))
-# plt.show()
