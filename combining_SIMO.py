@@ -8,11 +8,12 @@ n_apertures = np.arange(2,11)
 mod_format = 'QAM'
 mod_order = 4
 symb_rate = 5e9
-sample_rate = 5e9
+sample_rate = 15e9
+roll_off = 0.2
 
 # monte carlo parameters
 block_size = int((2**12)*np.log2(mod_order)*(sample_rate/symb_rate))
-n_blocks = 200
+n_blocks = 1000
 
 # simulation parameters
 mean_snr_dB = 15
@@ -76,10 +77,11 @@ for idx, n_dims in enumerate(n_apertures):
         sig.generate_constellation(format=mod_format,order=mod_order)
         sig.mapper()
         # only integer upsampling factors for now
-        sig.pulseshaper(upsampling=int(sample_rate/symb_rate),pulseshape='rrc',roll_off=0.2)
+        sig.pulseshaper(upsampling=sample_rate/symb_rate,pulseshape='rrc',roll_off=roll_off)
         
         #### CH signal block
         #### Abi's method: 
+        sps = np.array(sig.sample_rate)/np.array(sig.symbol_rate)
         # normalize each dimension to have a mean power of 1
         for j in range(sig.n_dims):
             sig.samples[j] = sig.samples[j] / np.sqrt(np.mean(np.abs(sig.samples[j])**2))
@@ -103,10 +105,14 @@ for idx, n_dims in enumerate(n_apertures):
         snr_post_comb_theory[i] = 10*np.log10(np.sum(rayleigh_amplitude[i,:]))
         mean_snr_pre_comb = np.mean(rayleigh_amplitude[i,:]**2)
     
-        # SNR post-combining
-        MRC_SNR[i] = comm.utils.estimate_SNR_m2m4(sig_comb_MRC.samples[0], sig_comb_MRC.constellation[0])
-        EGC_SNR[i] = comm.utils.estimate_SNR_m2m4(sig_comb_EGC.samples[0], sig_comb_MRC.constellation[0])
-
+        #### SNR post-combining
+        # moment-based estimator
+        # MRC_SNR[i] = comm.utils.estimate_SNR_m2m4(sig_comb_MRC.samples[0], sig_comb_MRC.constellation[0])
+        # EGC_SNR[i] = comm.utils.estimate_SNR_m2m4(sig_comb_EGC.samples[0], sig_comb_MRC.constellation[0])
+        # spectral estimator
+        MRC_SNR[i] = comm.utils.est_snr_spec_wrapper(sig_comb_MRC,np.tile(np.array([roll_off]),n_dims))[0]
+        EGC_SNR[i] = comm.utils.est_snr_spec_wrapper(sig_comb_EGC,np.tile(np.array([roll_off]),n_dims))[0]
+        
         # mean SNR pre-combining
         mean_SNR_sim = np.mean(mean_snr_pre_comb)
         # SNR combining gain (simulation)
