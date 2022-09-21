@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import comm
 
 # signal attributes
-n_dims = 1
+n_dims = 4
 mod_format = 'QAM'
 mod_order = 4
 symb_rate = 5e9
@@ -15,8 +15,8 @@ n_samples = (n_bits/np.log2(mod_order))*(samp_rate/symb_rate)
 roll_off = np.tile(np.array([0.2]),n_dims)
 
 # sim attributes
-mc_runs = 100
-snr_dB = np.arange(0,21)
+mc_runs = 500
+snr_dB = np.arange(-10,21)
 plotting = False
 
 rmse_norm_estimation = np.zeros((snr_dB.size,),dtype='float')
@@ -52,6 +52,7 @@ plt.semilogy(snr_dB,rmse_norm_estimation,color='r')
 plt.xlabel('true SNR [dB]')
 plt.xticks(snr_dB[::2])
 plt.ylabel('normalized RMSE')
-plt.title('Normalized RMSE of spectral SNR estimation, {} across {} runs.'.format(str(str(mod_order)+mod_format),n_dims*mc_runs))
+plt.title('Normalized RMSE of spectral SNR estimation, {} across {} runs.'.format(str(str(mod_order)+"-"+mod_format),n_dims*mc_runs))
+plt.legend(('block size = '+str(n_samples)+'samples',))
 plt.grid()
 plt.show()
