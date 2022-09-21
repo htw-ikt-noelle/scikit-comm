@@ -767,6 +767,30 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         plt.show()
         
     return snr_db
+
+def est_snr_spec_wrapper(sig,roll_off):
+    
+    # init snr_dB array
+    snr_dB = np.zeros(shape=(sig.n_dims,),dtype='float')
+    # loop over signal dimensions
+    for dim in range(sig.n_dims):
+        #### generate freq axis from signal attributes
+        sr = sig.sample_rate[dim]
+        n_samples = sig.samples[dim].size
+        # frequency delta
+        df = sr/n_samples
+        faxis = np.linspace((-sr+df)/2,(sr-df)/2,n_samples)
+        #### calc power spectrum
+        pwr_vec = 10*np.log10(np.abs(sig.samples[dim])**2)
+        #### calc bandwidth from symbol rate and roll off factor
+        bw_half = sig.symbol_rate[dim]/2 + (1+roll_off[dim])
+        sig_range = [-bw_half,bw_half]
+        #### calc noise range
+        noise_range = [0,-bw_half,bw_half,sig.sample_rate[0]]
+        #### call estimation function
+        snr_dB[dim] = estimate_snr_spectrum(faxis, pwr_vec, sig_range, noise_range)
+        
+    return snr_dB
         
     
     
