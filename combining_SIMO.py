@@ -13,7 +13,7 @@ roll_off = 0.2
 
 # monte carlo parameters
 block_size = int((2**12)*np.log2(mod_order)*(sample_rate/symb_rate))
-n_blocks = 1000
+n_blocks = 10
 
 # simulation parameters
 mean_snr_dB = 15
@@ -84,10 +84,12 @@ for idx, n_dims in enumerate(n_apertures):
         sps = np.array(sig.sample_rate)/np.array(sig.symbol_rate)
         # normalize each dimension to have a mean power of 1
         for j in range(sig.n_dims):
-            sig.samples[j] = sig.samples[j] / np.sqrt(np.mean(np.abs(sig.samples[j])**2))
+            sig.samples[j] = sig.samples[j]/np.sqrt(np.mean(np.abs(sig.samples[j])**2))
         # scale samples with rayleigh_amplitude, add AWGN with mean=0,var=1, and power distributed equally among real and imaginary part
         for j in range(sig.n_dims):
-            sig.samples[j] = sig.samples[j] * rayleigh_amplitude[i,j] + np.sqrt(0.5)*(rng.standard_normal(size=(sig.samples[j].size,)) + 1j*rng.standard_normal(size=(sig.samples[j].size,)))
+            #sig.samples[j] = sig.samples[j] * rayleigh_amplitude[i,j] + np.sqrt(0.5)*(rng.standard_normal(size=(sig.samples[j].size,)) + 1j*rng.standard_normal(size=(sig.samples[j].size,)))
+            n = (rng.standard_normal(size=(sig.samples[j].size,)) + 1j*rng.standard_normal(size=(sig.samples[j].size,)))
+            sig.samples[j] = sig.samples[j] * rayleigh_amplitude[i,j]/np.sqrt(sps[j]) + np.sqrt(0.5)*n
         
         #### RX signal block
         # combining
@@ -107,12 +109,30 @@ for idx, n_dims in enumerate(n_apertures):
     
         #### SNR post-combining
         # moment-based estimator
-        # MRC_SNR[i] = comm.utils.estimate_SNR_m2m4(sig_comb_MRC.samples[0], sig_comb_MRC.constellation[0])
-        # EGC_SNR[i] = comm.utils.estimate_SNR_m2m4(sig_comb_EGC.samples[0], sig_comb_MRC.constellation[0])
+        #MRC_SNR[i] = comm.utils.estimate_SNR_m2m4(sig_comb_MRC.samples[0], sig_comb_MRC.constellation[0])
+        #EGC_SNR[i] = comm.utils.estimate_SNR_m2m4(sig_comb_EGC.samples[0], sig_comb_MRC.constellation[0])
         # spectral estimator
-        MRC_SNR[i] = comm.utils.est_snr_spec_wrapper(sig_comb_MRC,np.tile(np.array([roll_off]),n_dims))[0]
-        EGC_SNR[i] = comm.utils.est_snr_spec_wrapper(sig_comb_EGC,np.tile(np.array([roll_off]),n_dims))[0]
+        #MRC_SNR[i] = 10**(comm.utils.est_snr_spec_wrapper(sig_comb_MRC,np.tile(np.array([roll_off]),n_dims),plotting=False)[0]/10)
+        #EGC_SNR[i] = 10**(comm.utils.est_snr_spec_wrapper(sig_comb_EGC,np.tile(np.array([roll_off]),n_dims),plotting=False)[0]/10)
+
+        # abi Testing
+        sig_range = np.array([-sig_comb_EGC.symbol_rate[0]/2-(sig_comb_EGC.symbol_rate[0]/2*roll_off),sig_comb_EGC.symbol_rate[0]/2+(sig_comb_EGC.symbol_rate[0]/2*roll_off)])
+        noise_range = np.array([-sig_comb_EGC.symbol_rate[0]/2-(sig_comb_EGC.symbol_rate[0]/2*roll_off)-1e9,-sig_comb_EGC.symbol_rate[0]/2-(sig_comb_EGC.symbol_rate[0]/2*roll_off),sig_comb_EGC.symbol_rate[0]/2+(sig_comb_EGC.symbol_rate[0]/2*roll_off),sig_comb_EGC.symbol_rate[0]/2+1e9+(sig_comb_EGC.symbol_rate[0]/2*roll_off)])
         
+        x_comb_EGC = np.fft.fftshift(np.fft.fftfreq(len(sig_comb_EGC.samples[0]),1/sig_comb_EGC.sample_rate[0]))
+        y_comb_EGC = np.abs(np.fft.fftshift(np.fft.fft(sig_comb_EGC.samples[0])))**2 
+        EGC_SNR[i] = comm.utils.estimate_snr_spectrum(x_comb_EGC,y_comb_EGC,sig_range=sig_range, noise_range=noise_range, 
+                                                      order=1,noise_bw=sig_comb_EGC.symbol_rate[0],plotting=False) 
+
+        EGC_SNR[i] = 10**(EGC_SNR[i]/10)
+
+        x_comb_MRC = np.fft.fftshift(np.fft.fftfreq(len(sig_comb_MRC.samples[0]),1/sig_comb_MRC.sample_rate[0]))
+        y_comb_MRC = np.abs(np.fft.fftshift(np.fft.fft(sig_comb_MRC.samples[0])))**2 
+        MRC_SNR[i] = comm.utils.estimate_snr_spectrum(x_comb_MRC,y_comb_MRC,sig_range=sig_range, noise_range= noise_range, 
+                                                      order=1,noise_bw=sig_comb_EGC.symbol_rate[0],plotting=False) 
+         
+        MRC_SNR[i] = 10**(MRC_SNR[i]/10)
+
         # mean SNR pre-combining
         mean_SNR_sim = np.mean(mean_snr_pre_comb)
         # SNR combining gain (simulation)
