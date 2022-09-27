@@ -1047,28 +1047,37 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum',snr_true=None):
     sig = copy.deepcopy(sig_div)
     # error checks
     if len(sig.samples) < 2:
-        raise TypeError('Signal must have at least two sample arrays in list for diversity combining to be performed.')
-    if est_method != 'spectrum':
-        raise ValueError('No other SNR estimation methods besides spectrum are implemented yet.')
+        print('Signal object only has one dimension. No combining was performed.')
+        return sig
     
     # init vector of SNR estimates
     snr_vec = np.zeros((len(sig.samples),),dtype='float')
-    # SNR estimation
-    for i in range(len(sig.samples)):
-        df = sig.sample_rate[i]/sig.samples[i].size
-        x = np.linspace(-(sig.sample_rate[i]+df)/2,(sig.sample_rate[i]-df)/2,sig.samples[i].size,)
-        y = np.abs(np.fft.fftshift(np.fft.fft(sig.samples[i])))**2
-        # TODO: adjust signal range according to roll off factor
-        # snr_vec[i] = comm.utils.estimate_snr_spectrum(x,y,sig_range=np.array([-sig.symbol_rate[i]/2,sig.symbol_rate[i]/2]),
-        #                                               noise_range=np.array([-sig.symbol_rate[i]/2-3e9,-sig.symbol_rate[i]/2,sig.symbol_rate[i]/2,sig.symbol_rate[i]/2+3e9]),
-        #                                               order=1,noise_bw=sig.symbol_rate[i],plotting=False)
-        # print estimated SNR
-        # print('True vs. estimated SNR for channel {}: {:.2f} vs. {:.2f} dB.'.format(i,snr[i],snr_vec[i]))
-        
+    
     # replace estimated SNRs with true SNRs, eliminating possible estimation
     # error, if desired
     if snr_true:
         snr_vec = np.asarray(snr_true)
+    else:
+        # SNR estimation    
+        if est_method == 'spectrum':
+            for dim in range(sig.n_dims):
+                if sig.sample_rate[dim]/sig.symbol_rate[dim] <= 1:
+                    raise ValueError('Spectral SNR estimator mandates the signal to be upsampled above 1 SPS, which is not the case in dimension {}. Process was terminated.'.format(dim))
+                # roll_off must be given
+                roll_off = 0.2
+                # return logarithmic SNR in dB
+                snr_vec = comm.utils.est_snr_spec_wrapper(sig, roll_off)
+        elif est_method == 'm2m4':
+            for dim in range(sig.n_dims):
+                if sig.sample_rate[dim]/sig.symbol_rate[dim] > 1:
+                    raise ValueError('M2M4 estimator mandates the signal to be sampled at 1 SPS, which is not the case in dimension {}. Process was terminated.'.format(dim))
+                # return linear SNR
+                snr_vec[dim] = comm.utils.estimate_SNR_m2m4(sig.samples[dim], sig.constellation[dim])
+                # convert to logarithmic
+                snr_vec = 10*np.log10(snr_vec)
+        else:
+            raise ValueError("No other SNR estimation methods besides 'spectrum' and 'm2m4' are implemented yet.")
+        
     # scaling           
     if comb_method == 'MRC':
         for i in range(len(sig.samples)):
