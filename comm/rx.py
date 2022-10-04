@@ -1013,7 +1013,7 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     results['eps'] = eps_tmp
     return results
 
-def combining(sig_div,comb_method='MRC',est_method='spectrum',snr_true=None):
+def combining(sig_div,comb_method='MRC',est_method='spectrum',roll_off=None,snr_true=None):
     """
     Performs Diversity Combining of the rows of an incoming signal object,
     where each row represents the signal captured by an antenna of a SIMO 
@@ -1064,7 +1064,7 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum',snr_true=None):
                 if sig.sample_rate[dim]/sig.symbol_rate[dim] <= 1:
                     raise ValueError('Spectral SNR estimator mandates the signal to be upsampled above 1 SPS, which is not the case in dimension {}. Process was terminated.'.format(dim))
                 # roll_off must be given
-                roll_off = 0.2
+                # roll_off = np.array([0.1]*sig.n_dims)
                 # return logarithmic SNR in dB
                 snr_vec = comm.utils.est_snr_spec_wrapper(sig, roll_off)
         elif est_method == 'm2m4':

@@ -7,6 +7,7 @@ import scipy.special as sspecial
 import matplotlib.pyplot as plt
 from numpy.polynomial import Polynomial
 import scipy.signal as ssignal
+import scipy.interpolate as sinterp
 
 from . import signal
 from . import rx
@@ -789,7 +790,7 @@ def est_snr_spec_wrapper(sig,roll_off,plotting=False):
         bw_half = sig.symbol_rate[dim]/2 + (1+roll_off[dim])
         sig_range = np.array([-bw_half,bw_half])
         #### calc noise range
-        noise_range = np.array([-2.5*bw_half,-1.5*bw_half,1.5*bw_half,2.5*bw_half])
+        noise_range = np.array([-bw_half-1e9,-bw_half,bw_half,bw_half+1e9])
         #### call estimation function
         snr_dB[dim] = estimate_snr_spectrum(faxis, pwr_vec, sig_range, noise_range,
                                             order=1,noise_bw=sig.symbol_rate[dim],
@@ -1397,3 +1398,57 @@ def resample(sig,target_sps):
         # calc and set new sample rate
         sig.sample_rate[dim] = target_sps*sig.symbol_rate[dim]
     return sig
+
+def add_sampling_error(sig,ratio):
+    """
+    Adds artificial sampling clock error by resampling samples attribute of a 
+    signal-class object.
+
+    Parameters
+    ----------
+    sig : signal-class object
+        DESCRIPTION.
+    ratio : float
+        Ratio of wrong/new sampling rate to ideal sampling rate.
+
+    Returns
+    -------
+    sig : signal-class object
+        DESCRIPTION.
+
+    """
+    # iterate over signal dimensions
+    for dim in range(sig.n_dims):
+        n_old = np.size(sig.samples[dim], axis=0)
+        t_old = np.arange(n_old) / sig.sample_rate[dim]
+        n_new = int(np.round(ratio * n_old))
+        t_new = np.linspace(start=t_old[0], stop=t_old[-1], num=n_new, endpoint=True)
+        sr_new = 1 / (t_new[1] - t_new[0])
+        # interpolate signal at different timing / sampling instants
+        f = sinterp.interp1d(t_old, sig.samples[dim], kind='cubic')
+        sig.samples[dim] = f(t_new) 
+    return sig
+
+def emulate_AWG(samples,n_samples_new):
+    """
+    Emulates the looping behaviour of an AWG by repeating a sequence of samples
+    until the desired number of samples is reached.
+
+    Parameters
+    ----------
+    samples : np 1d array
+        samples sequence to be repeated.
+    n_samples_new : int
+        target number of samples.
+
+    Returns
+    -------
+    samples_tiled : np 1d array
+        repeated sample sequence.
+
+    """
+    ratio_base = int(n_samples_new // samples.size)
+    ratio_rem = int(n_samples_new % samples.size)
+    samples_tiled = np.concatenate((np.tile(samples, ratio_base), samples[:ratio_rem]), axis=0)
+    
+    return samples_tiled
