@@ -1098,6 +1098,121 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum',roll_off=None,snr_
     sig.samples = sig.samples[0] / (np.sqrt(np.mean(np.abs(sig.samples[0])**2)))
     return sig
 
+def comb_timedelay_compensation(x, y, sr=1, method="zeropad"):
+    """
+    Compensate the delay on sample basis between x and y. This is done by using
+    crosscorrelation to estimate the "lag" between both numpy arrays (which can be complex).
+    Specifing samplerate sr correctly results in calculated delay time between both.  
+    There are two modes of timedelay compensation results:
+
+        - "CROP" means, only overlapping values will be returned, values which are not present in 
+        both (the samples in the lag time regime) are cropped.
+
+        - "ZEROPAD" works with zeropadding and add zeros to the lag samples of the different vector.
+    
+    If the returned time value is positive, y is delayed to x and vice versa if lag is negative.
+    
+    Please note: This function is designed to work with arrays of complex values. (Unscaled) real valued arrays 
+    leading to a less precise correlation and therefore possible errors.
+    
+    Parameters
+    ----------
+    x : np.array
+        First vector
+    y : np.array
+        Second vector
+    sr : int, optional
+        sample rate of the vectors. Default is 1.
+    method : string, optional
+        method for return arrays. See docstring for help. Default is "zeropad". 
+    
+
+    Returns
+    -------
+    x : np.array
+        First vector, timeshifted by method
+    y : np.array
+        Second vector, timeshifted by method
+    time: float
+        delay time in [s] between both vectors
+    """
+
+    if x.dtype != np.complex128 or y.dtype != np.complex128:
+        warnings.warn("Combining timedelay compensation: arrays are not complex -> less precise xcorr if unscaled arrays.")
+
+    correlation = ssignal.correlate(y, x, mode="full")
+    lags = ssignal.correlation_lags(x.size, y.size, mode="full")
+    lag = lags[np.argmax(correlation)]
+    # if lag is positive, y is delayed to x and vice versa if lag is negative
+
+    # use crop - cut away not matching data
+    if method == "crop":
+        #apply estimated time in samples
+        y = np.roll(y, -lag)
+
+        #cut signal, only return matching area wihtout lag samples
+        if lag < 0:
+            y = y[abs(lag):]
+            x = x[abs(lag):]
+        elif lag > 0:
+            y = y[:-lag]
+            x = x[:-lag]
+
+    # use zeropadding - dont throw away any data, shift to compensate lag and fill zeros
+    elif method == "zeropad":
+
+        #build up some placeholders
+        x_temp = np.zeros((len(x)+abs(lag)),dtype=x.dtype)
+        y_temp = np.zeros((len(y)+abs(lag)),dtype=y.dtype)
+
+        #fill placeholders as matching
+        if lag > 0:
+            y_temp[0:-lag] = y
+            x_temp[lag:] = x
+        elif lag < 0:
+            y_temp[abs(lag):] = y
+            x_temp[0:-abs(lag)] = x
+        elif lag == 0:
+            x_temp = x
+            y_temp = y
+
+        x = x_temp
+        y = y_temp
+
+    else:
+        raise Exception("timedelay compensation method must be crop or zeropad!")
+
+    return x, y, lag/sr
+
+def comb_phase_compensation(x, y):
+    """
+    Compensate the phase on np.array y in respect to np.array x.
+    Build up a complex correlation factor where the argument represent the phase offset between x and y.
+
+    Sources:
+    [1] Rao et. al., Toward Practical Digital Phase Alignment for Coherent Beam Combining in Multi-Aperture Free Space Coherent Optical Receivers, 2020
+    [2] Geisler et. al., Multi-aperture digital coherent combining for free-space optical communication receivers, 2016
+
+    Parameters
+    ----------
+    x : np.array
+        First vector
+    y : np.array
+        Second vector
+    
+    Returns
+    -------
+    x : np.array
+        First vector
+    y : np.array
+        Second vector, with compensated phase in respect to x
+    """
+
+    C = sum(x*np.conj(y))
+    y = y*np.exp(1j*np.angle(C))
+    
+    return x, y
+
 def frequency_offset_estimation(samples, sample_rate=1.0, order=4):
     """
     Frequency offset estimation and recovery (FOE and FOR).
