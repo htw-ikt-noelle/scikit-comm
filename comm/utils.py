@@ -1310,3 +1310,60 @@ def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9):
     plt.show()
     
     return comb
+    
+def add_edfa_noise(samples, sample_rate, opt_mid_wl=1550e-9, mode="APC", opt_target=0, opt_noise_figure=4.5, seed=None):
+    """
+    Simulation helper function. Add specific EDFA noise to samples.
+
+    """
+    h = 6.62606896e-34 #plancks constant
+
+    sig_pow = np.mean(abs(samples)**2) #calculate signal power
+
+    if mode == "APC" or mode == "power":
+        gain = 1e-3*10**(opt_target*0.1)/sig_pow
+    elif mode == "AGC" or mode == "gain":
+        gain = 10**(opt_target*0.1)
+    else:
+        raise Exception("EDFA mode not implemented right now. Should be APC/power or AGC/gain")
+
+    #amplify the signal
+    samples = samples*np.sqrt(gain)
+
+    #convert wavelength to mid freq
+    opt_mid_freq = (299792458/opt_mid_wl)
+
+    #add the noise
+    noisePow = abs((10**(opt_noise_figure*0.1)*(gain-1))*h*opt_mid_freq*sample_rate) # formula from VPI Photonic Reference Manual for AmpSysOpt (11) !!!BOTH POLARIZATIONS!!!   
+    rng = np.random.default_rng(seed)
+    noise = np.sqrt(noisePow/4)*rng.standard_normal((len(samples),2)) # sqrt(noisePow/4) because of noise power calculation for both pols
+    samples = samples + (noise.view(dtype=np.complex128)).flatten()
+
+    return samples
+
+def normalize_samples(sig, mode='mag'):
+    """
+    Normalize samples of a signal-class object to the mean magnitude of its 
+    ideal constellation.
+
+    Parameters
+    ----------
+    sig : signal-class object
+        Object on which to perform the normalization. Only the samples-attribute
+        is processed.
+
+    Returns
+    -------
+    sig : signal-class object
+        Object with normalized samples.
+
+    """
+    # iterate over sample dimensions
+    for dim in range(sig.n_dims):
+        # calc mean magnitude of constellation
+        mean_const = np.mean(np.abs(sig.constellation[dim]))
+        # calc mean magnitude of samples
+        mean_samples = np.mean(np.abs(sig.samples[dim]))
+        # scale samples
+        sig.samples[dim] = sig.samples[dim] * (mean_const/mean_samples)
+    return sig
