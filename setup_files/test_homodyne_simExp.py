@@ -192,9 +192,7 @@ print('estimated frequency offset: {:.0f} MHz'.format(results_foe['estimated_fo'
 
 
 #%% # normalize samples to mean magnitude of original constellation
-mag_const = np.mean(abs(sig_rx.constellation[0]))
-mag_samples = np.mean(abs(sig_rx.samples[0]))
-sig_rx.samples = sig_rx.samples[0] * mag_const / mag_samples
+sig_rx = comm.utils.normalize_samples(sig_rx)
 
 sig_rx.plot_constellation(hist=True, tit='constellation before EQ')
 

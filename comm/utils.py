@@ -6,6 +6,7 @@ import scipy.interpolate as sinter
 import scipy.special as sspecial
 import matplotlib.pyplot as plt
 from numpy.polynomial import Polynomial
+import scipy.signal as ssignal
 
 from . import signal
 from . import rx
@@ -1341,7 +1342,7 @@ def add_edfa_noise(samples, sample_rate, opt_mid_wl=1550e-9, mode="APC", opt_tar
 
     return samples
 
-def normalize_samples(sig, mode='mag'):
+def normalize_samples(sig):
     """
     Normalize samples of a signal-class object to the mean magnitude of its 
     ideal constellation.
@@ -1366,4 +1367,33 @@ def normalize_samples(sig, mode='mag'):
         mean_samples = np.mean(np.abs(sig.samples[dim]))
         # scale samples
         sig.samples[dim] = sig.samples[dim] * (mean_const/mean_samples)
+    return sig
+
+def resample(sig,target_sps):
+    """
+    Resamples the samples attribute of a signal-class object to the desired SPS.
+
+    Parameters
+    ----------
+    sig : signal-class object
+        DESCRIPTION.
+    target_sps : float
+        DESCRIPTION.
+
+    Returns
+    -------
+    sig : signal-class object
+        DESCRIPTION.
+
+    """
+    # iterate over signal dimensions
+    for dim in range(sig.n_dims):
+        # calc current sps
+        sps = sig.sample_rate[dim]/sig.symbol_rate[dim]
+        # calc length of resampled array
+        new_length = int(sig.samples[dim].size/sps*target_sps)
+        # resample
+        sig.samples[dim] = ssignal.resample(sig.samples[dim], new_length, window='boxcar')
+        # calc and set new sample rate
+        sig.sample_rate[dim] = target_sps*sig.symbol_rate[dim]
     return sig
