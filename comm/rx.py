@@ -1211,7 +1211,9 @@ def comb_phase_compensation(x, y):
     C = sum(x*np.conj(y))
     y = y*np.exp(1j*np.angle(C))
     
-    return x, y
+    print("estimated phase: "+str(np.rad2deg(np.angle(C))))
+
+    return x, y, np.angle(C)
 
 def frequency_offset_estimation(samples, sample_rate=1.0, order=4):
     """
