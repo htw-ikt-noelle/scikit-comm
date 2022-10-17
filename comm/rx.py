@@ -1121,8 +1121,6 @@ def comb_timedelay_compensation(x, y, method="zeropad", xcorr="abs"):
         First vector
     y : np.array
         Second vector
-    sr : int, optional
-        sample rate of the vectors. Default is 1.
     method : string, optional
         method for return arrays. See docstring for help. Default is "zeropad". 
     
@@ -1133,8 +1131,8 @@ def comb_timedelay_compensation(x, y, method="zeropad", xcorr="abs"):
         First vector, timeshifted by method
     y : np.array
         Second vector, timeshifted by method
-    time: float
-        delay time in [s] between both vectors
+    lag: float
+        lag in samples between both vectors
     """
 
     if x.dtype != np.complex128 or y.dtype != np.complex128:
