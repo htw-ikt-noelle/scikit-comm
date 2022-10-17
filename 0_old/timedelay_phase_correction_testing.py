@@ -7,10 +7,10 @@ import warnings
 
 ## options for test
 amount_symbols_wanted = int(1e2) #must be higher than 4 for cropping
-timedelay_in_sampels = 1
+timedelay_in_sampels = 10
 symbol_rate = 1
-upsampling = 1
-phase_offset_list = np.linspace(0,2*np.pi,100)
+upsampling = 2
+phase_offset_list = np.linspace(-2*np.pi,2*np.pi,1000)
 est_phase = np.zeros(len(phase_offset_list))
 
 for i in range(0,len(phase_offset_list)):
@@ -32,8 +32,12 @@ for i in range(0,len(phase_offset_list)):
 
     # roll and cut sampels (cut -> same legnth but some samples different for reality)
     sig2.samples[0] = np.roll(sig2.samples[0],timedelay_in_sampels)
-    sig2.samples[0] = sig2.samples[0][int((amount_symbols_wanted/2)*upsampling):-int((amount_symbols_wanted/2)*upsampling)]
-    sig1.samples[0] = sig1.samples[0][int((amount_symbols_wanted/2)*upsampling):-int((amount_symbols_wanted/2)*upsampling)]
+
+    if timedelay_in_sampels != 0: 
+        sig2.samples[0] = sig2.samples[0][int((amount_symbols_wanted/2)*upsampling):-int((amount_symbols_wanted/2)*upsampling)]
+        sig1.samples[0] = sig1.samples[0][int((amount_symbols_wanted/2)*upsampling):-int((amount_symbols_wanted/2)*upsampling)]
+    else:
+        pass
 
     t1 = np.arange(0, (len(sig1.samples[0])/sig1.sample_rate[0]),1/sig1.sample_rate[0])
     t2 = np.arange(0, (len(sig2.samples[0])/sig1.sample_rate[0]),1/sig1.sample_rate[0])
@@ -56,10 +60,12 @@ for i in range(0,len(phase_offset_list)):
     # plt.ylabel("Amplitude")
     # plt.xlabel("time [s]")
     # plt.legend()
-    # plt.show()
+    # plt.show()    
 
     #### COMPENSATE FOR TIME DELAY
-    sig1.samples[0], sig2.samples[0], _ = comm.rx.comb_timedelay_compensation(sig1.samples[0], sig2.samples[0], sr=sig1.sample_rate[0], method="crop")
+    sig1.samples[0], sig2.samples[0], lag_sr = comm.rx.comb_timedelay_compensation(sig1.samples[0], sig2.samples[0], sr=sig1.sample_rate[0], method="crop", xcorr="abs")
+    print("estimated lag: "+str(lag_sr*upsampling*symbol_rate))
+    
     t = np.arange(0, (len(sig1.samples[0])/sig1.sample_rate[0]),1/sig1.sample_rate[0])
 
     # tit = "(cropped) Signals after time compensation"
@@ -107,7 +113,9 @@ for i in range(0,len(phase_offset_list)):
     # plt.show()
 
 plt.figure()
-plt.plot(np.rad2deg(est_phase), label="estimated")
+plt.plot(np.rad2deg(est_phase), label="estimated offset")
+plt.ylabel("Phase in [°]")
+plt.xlabel("Nummer Messung")
 plt.plot(np.rad2deg(phase_offset_list), label="set phase")
 plt.grid()
 plt.legend()
