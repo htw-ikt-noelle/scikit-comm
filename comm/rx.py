@@ -1098,7 +1098,7 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum',roll_off=None,snr_
     sig.samples = sig.samples[0] / (np.sqrt(np.mean(np.abs(sig.samples[0])**2)))
     return sig
 
-def comb_timedelay_compensation(x, y, sr=1, method="zeropad"):
+def comb_timedelay_compensation(x, y, method="zeropad", xcorr="abs"):
     """
     Compensate the delay on sample basis between x and y. This is done by using
     crosscorrelation to estimate the "lag" between both numpy arrays (which can be complex).
@@ -1138,9 +1138,14 @@ def comb_timedelay_compensation(x, y, sr=1, method="zeropad"):
     """
 
     if x.dtype != np.complex128 or y.dtype != np.complex128:
-        warnings.warn("Combining timedelay compensation: arrays are not complex -> less precise xcorr if unscaled arrays.")
+        warnings.warn("Combining timedelay compensation: arrays are not complex -> less precise xcorr if unscaled arrays -> Not tested")
 
-    correlation = ssignal.correlate(y, x, mode="full")
+    if xcorr == "abs":
+        # use xcorr of abs values
+        correlation = ssignal.correlate(abs(y), abs(x), mode="full")
+    else:
+        # use xcorr of complex values
+        correlation = ssignal.correlate(y, x, mode="full")
     lags = ssignal.correlation_lags(x.size, y.size, mode="full")
     lag = lags[np.argmax(correlation)]
     # if lag is positive, y is delayed to x and vice versa if lag is negative
@@ -1182,7 +1187,7 @@ def comb_timedelay_compensation(x, y, sr=1, method="zeropad"):
     else:
         raise Exception("timedelay compensation method must be crop or zeropad!")
 
-    return x, y, lag/sr
+    return x, y, lag
 
 def comb_phase_compensation(x, y):
     """
