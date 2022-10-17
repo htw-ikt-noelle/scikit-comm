@@ -1140,7 +1140,7 @@ def comb_timedelay_compensation(x, y, method="zeropad", xcorr="abs"):
 
     if xcorr == "abs":
         # use xcorr of abs values
-        correlation = ssignal.correlate(abs(y), abs(x), mode="full")
+        correlation = ssignal.correlate(abs(y)-np.mean(abs(y)), abs(x)-np.mean(abs(x)), mode="full")
     else:
         # use xcorr of complex values
         correlation = ssignal.correlate(y, x, mode="full")
@@ -1213,8 +1213,6 @@ def comb_phase_compensation(x, y):
 
     C = sum(x*np.conj(y))
     y = y*np.exp(1j*np.angle(C))
-    
-    print("estimated phase: "+str(np.rad2deg(np.angle(C))))
 
     return x, y, np.angle(C)
 
