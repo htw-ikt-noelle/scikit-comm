@@ -1143,7 +1143,7 @@ def comb_timedelay_compensation(x, y, method="zeropad", xcorr="abs"):
         correlation = ssignal.correlate(abs(y)-np.mean(abs(y)), abs(x)-np.mean(abs(x)), mode="full")
     else:
         # use xcorr of complex values
-        correlation = ssignal.correlate(y, x, mode="full")
+        correlation = ssignal.correlate(y-np.mean(y), x-np.mean(x), mode="full")
     lags = ssignal.correlation_lags(x.size, y.size, mode="full")
     lag = lags[np.argmax(correlation)]
     # if lag is positive, y is delayed to x and vice versa if lag is negative
@@ -1211,8 +1211,8 @@ def comb_phase_compensation(x, y):
         Second vector, with compensated phase in respect to x
     """
 
-    C = sum(x*np.conj(y))
-    y = y*np.exp(1j*np.angle(C))
+    C = sum(x*np.conj(y)) #covariance 
+    y = y*np.exp(1j*np.angle(C)) #phase correction 
 
     return x, y, np.angle(C)
 
