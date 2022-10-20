@@ -1452,3 +1452,38 @@ def emulate_AWG(samples,n_samples_new):
     samples_tiled = np.concatenate((np.tile(samples, ratio_base), samples[:ratio_rem]), axis=0)
     
     return samples_tiled
+
+def interleave(samples,block_size,block_overlap,mode):   
+    # if block_overlap is given as float, interpret it as a fraction of the
+    # block size 
+    if type(block_overlap) == 'float':
+        block_overlap = np.round(block_size*block_overlap)
+    # if block_overlap is given as int, interpret it as the length of the 
+    # overlap in samples
+    elif type(block_overlap) == 'int':
+        pass
+    else:
+        raise TypeError("Block overlap must either be of type 'int' or 'float'.")
+    
+    if mode == 'crop':
+        # determine how many whole interleaved blocks can be constructed with 
+        # the given parameters, crop away the rest
+        n_blocks = (samples.size - 2*block_overlap) // block_size
+        matrix = np.reshape(np.tile(samples,n_blocks),(n_blocks,-1))
+        for n in range(n_blocks):
+            matrix[n] = np.roll(matrix[n],-(n*block_size))
+        matrix = matrix[:,:(block_size + 2*block_overlap)]
+    elif mode == 'pad':
+        # pad out sample array in order to be able to fit all samples into an
+        # integer number of blocks
+        n_blocks = samples.size // block_size
+        n_pad = (samples.size + 1) % (block_size + 2*block_overlap)
+        samples = np.concatenate((samples.flatten(),np.zeros((n_pad,))),axis=0)
+        # build matrix
+        matrix = np.reshape(np.tile(samples,n_blocks),(n_blocks,-1))
+        for n in range(n_blocks):
+            matrix[n] = np.roll(matrix[n],-(n*block_size))
+        matrix = matrix[:,:(block_size + 2*block_overlap)]
+    else:
+        raise ValueError("Mode must be either 'crop' or 'pad'.")
+    return matrix
