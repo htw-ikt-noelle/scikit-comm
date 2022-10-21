@@ -1,65 +1,19 @@
-import time, copy
-
+import copy
 import numpy as np
-import scipy.signal as ssignal
 import matplotlib.pyplot as plt
-import scipy.interpolate as sinterp
 import sys, os
-
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import comm as comm
 
 #########################################################################
-#                            TX                                         #
+#                            special functions                          #
 #########################################################################
-
-# signal parameters
-n_dims = 2
-LASER_LINEWIDTH = 1*100e3 # [Hz]
-DAC_SR = 16e9
-ADC_MEM = 3e3
-DAC_MEM = 1e3
-EXPERIMENT = False
-UPLOAD_SAMPLES = False
-HOLD_SHOT = False
-USE_PREDIST = False
-SINC_CORRECTION = False
-SNR = [5]*n_dims
-
-# contruct signal
-sig_tx = comm.signal.Signal(n_dims=n_dims)
-sig_tx.symbol_rate = 12.8e9
-
-#TX_UPSAMPLE_FACTOR = DAC_SR / sig_tx.symbol_rate[0]
-TX_UPSAMPLE_FACTOR = 2
-
-# generate bits
-# fix for 4QAM right now
-wanted_symbols = 2**12
-mod_order = 4
-n_bits = int((np.log2(mod_order)*wanted_symbols)-((np.log2(mod_order)*wanted_symbols)%np.log2(mod_order)))
-sig_tx.generate_bits(n_bits=n_bits, seed=1)
-
-# set constellation (modulation format)
-sig_tx.generate_constellation(format='QAM', order=mod_order)
-
-# create symbols
-sig_tx.mapper()
-
-# upsampling and pulseshaping
-ROLL_OFF = 0.1
-sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=ROLL_OFF)
-
-#########################################################################
-#                            CH                                         #
-#########################################################################
-
-#grab tx object
-sig_ch = copy.deepcopy(sig_tx)
 
 def gen_SIMO_samples(sig, max_phase_offset_in_rad=np.pi/3, max_timedelay_in_percent=10, n_apertures=2, repeat=5, cut_to=3, seed=None, subsample_shift=True):
     """
-    generate some realistic SIMO signals 
+    NOTE: This function is just a temporary way to generate signals (close to the experimental setup as possible) on signal object level. 
+
+    generate some "realistic" SIMO signals 
     """
     len_orig = len(sig.samples[0])
     sig.samples[0] = np.tile(sig.samples[0],reps=repeat)
@@ -71,11 +25,6 @@ def gen_SIMO_samples(sig, max_phase_offset_in_rad=np.pi/3, max_timedelay_in_perc
     time_delay_in_subsamples = time_delay*(len_orig/100)-time_delay_in_samples #[samples]
 
     phase_offset = rng.uniform(0,max_phase_offset_in_rad,size=n_apertures)
-
-    ## if we just want odd number 
-    # for i in range(n_apertures):
-    #     if time_delay_in_samples[i]%2 == 0:
-    #         time_delay_in_samples[i] -= 1
             
     time_delay_in_samples[0] = 0 
     time_delay_in_subsamples[0] = 0
@@ -106,6 +55,9 @@ def gen_SIMO_samples(sig, max_phase_offset_in_rad=np.pi/3, max_timedelay_in_perc
     return sig, return_dict, return_samples
 
 def plot_signal_timebase(sig1, tit=""):
+    """
+    NOTE: This function is just a temporary function to plot complex signals comparable in the time domain.
+    """
     t = np.arange(0, (len(sig1.samples[0])/sig1.sample_rate[0]),1/sig1.sample_rate[0])
     plt.figure()
     plt.title(tit+str(", constellation"))
@@ -127,6 +79,56 @@ def plot_signal_timebase(sig1, tit=""):
     plt.legend()
     plt.show()
 
+#########################################################################
+#                            Settings                                   #
+#########################################################################
+
+n_dims = 2
+amount_of_symbols = 2**12
+mod_format = "QAM"
+mod_order = 4
+ROLL_OFF = 0.1 #rrc
+
+comb_method = "MRC"
+adaptive_filter = False
+
+LASER_LINEWIDTH = 2*100e3
+SNR = [9]*n_dims
+
+#########################################################################
+#                            TX                                         #
+#########################################################################
+
+# contruct signal
+sig_tx = comm.signal.Signal(n_dims=n_dims)
+sig_tx.symbol_rate = 12.8e9
+
+#fix TX upsample for now to 2, to avoid signal degradation in resample with interpolation
+#TX_UPSAMPLE_FACTOR = DAC_SR / sig_tx.symbol_rate[0]
+TX_UPSAMPLE_FACTOR = 2
+
+# generate bits
+# fix for 4QAM right now
+wanted_symbols = amount_of_symbols
+n_bits = int((np.log2(mod_order)*wanted_symbols)-((np.log2(mod_order)*wanted_symbols)%np.log2(mod_order)))
+sig_tx.generate_bits(n_bits=n_bits, seed=1)
+
+# set constellation (modulation format)
+sig_tx.generate_constellation(format=mod_format, order=mod_order)
+
+# create symbols
+sig_tx.mapper()
+
+# upsampling and pulseshaping
+sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=ROLL_OFF)
+
+#########################################################################
+#                            CH                                         #
+#########################################################################
+
+#grab tx object
+sig_ch = copy.deepcopy(sig_tx)
+
 sig_ch, return_dict, _ = gen_SIMO_samples(sig_ch, max_phase_offset_in_rad=np.pi, max_timedelay_in_percent=10, n_apertures=n_dims, repeat=5, cut_to=3)
 
 # # add amplitude noise
@@ -136,8 +138,8 @@ for dim in range(sig_ch.n_dims):
 ## phase noise emulation
 # TODO: call function with unique phase noise seeds per dimension, if different
 # LOs are being used 
-#for dim in range(sig_ch.n_dims):
-#    sig_ch.samples[dim] = comm.channel.add_phase_noise(sig_ch.samples[dim] ,sig_ch.sample_rate[dim] , LASER_LINEWIDTH, seed=1)['samples']
+for dim in range(sig_ch.n_dims):
+   sig_ch.samples[dim] = comm.channel.add_phase_noise(sig_ch.samples[dim] ,sig_ch.sample_rate[dim] , LASER_LINEWIDTH, seed=1)['samples']
 
 #########################################################################
 #                            RX                                         #
@@ -146,80 +148,71 @@ for dim in range(sig_ch.n_dims):
 # contruct rx signal structure
 sig_rx = copy.deepcopy(sig_ch)
 
-## sampling error and ADC mem
-#sig_rx = comm.utils.add_sampling_error(sig_rx, ratio=1.0)
-#sig_rx.samples[0] = sig_rx.samples[0][0:int(ADC_MEM)]
-#for dim in range(0,sig_rx.n_dims):
-#    sig_rx.samples[dim] = sig_rx.samples[dim][0:int(ADC_MEM)]
-
-#sig_rx.plot_spectrum(tit='spectrum from scope')
-
-#%% # From here: "standard" coherent complex baseband signal processing ############
-#%% # resample to 2 sps
+# From here: "standard" coherent complex baseband signal processing ############
+# resample to 2 sps
 sig_rx = comm.utils.resample(sig_rx,target_sps=2)
-
-#%% # normalize samples to mean magnitude of original constellation
-#sig_rx = comm.utils.normalize_samples(sig_rx)
 
 #### combining
 # =============================================================================
 # combining block goes here:
 
 # 0. SNR estimation & shifting to samples[0] = Highest SNR, samples[1] = second highest SNR ... also needed for MRC comb!
+# 0.1 estimate snr of diff signals with spectrum method 
+# TODO: Try to wweak spectrums method to be more precise
+sig_range = np.array([-sig_rx.symbol_rate[0]/2-(sig_rx.symbol_rate[0]/2*ROLL_OFF),sig_rx.symbol_rate[0]/2+(sig_rx.symbol_rate[0]/2*ROLL_OFF)])
+noise_range = np.array([-sig_rx.symbol_rate[0]/2-(sig_rx.symbol_rate[0]/2*ROLL_OFF)-1e9,-sig_rx.symbol_rate[0]/2-(sig_rx.symbol_rate[0]/2*ROLL_OFF),sig_rx.symbol_rate[0]/2+(sig_rx.symbol_rate[0]/2*ROLL_OFF),sig_rx.symbol_rate[0]/2+1e9+(sig_rx.symbol_rate[0]/2*ROLL_OFF)])
+
+snr_lin_list = np.zeros(n_dims)
+for i in range(0,sig_rx.n_dims):
+    x_in = np.fft.fftshift(np.fft.fftfreq(len(sig_rx.samples[i]),1/sig_rx.sample_rate[0]))
+    y_in = np.abs(np.fft.fftshift(np.fft.fft(sig_rx.samples[i])))**2 
+    snr_lin_list[i] = 10**(comm.utils.estimate_snr_spectrum(x_in,y_in,sig_range=sig_range, noise_range= noise_range, 
+                                                      order=1,noise_bw=sig_rx.symbol_rate[0],plotting=False)/10)
+
+# 0.2 shift apertures, first one should be the best in terms of SNR
+order_list = np.zeros(n_dims)
+snr_lin_list_temp = copy.deepcopy(snr_lin_list)
+for i in range(0,len(snr_lin_list)):
+    order_list[snr_lin_list_temp.argmax()] = i
+    snr_lin_list_temp[snr_lin_list_temp.argmax()] = -100
+
+sig_rx.samples = [sig_rx.samples[int(i)] for i in order_list]
 
 # 1. Timedelay compensation (subsample)
 for i in range(0,sig_rx.n_dims):
     results = comm.rx.sampling_phase_adjustment(sig_rx.samples[i], sample_rate=sig_rx.sample_rate[0], symbol_rate=sig_rx.symbol_rate[0], shift_dir='both')
     sig_rx.samples[i] = results['samples_out']
-    #print(results['est_shift'])
-
-#comm.visualizer.plot_eye(abs(sig_rx.samples[0])+1j*abs(sig_rx.samples[1]), sample_rate = sig_rx.sample_rate[0], bit_rate = sig_rx.symbol_rate[0], offset = 0, fNum = 2, tit = 'eye diagramm')
 
 # 1.2 Timedelay compensation (sample)
 for i in range(1,sig_rx.n_dims):
     sig_rx.samples[0], sig_rx.samples[i], lag = comm.rx.comb_timedelay_compensation(sig_rx.samples[0], sig_rx.samples[i], method="crop", xcorr="abs")
-    #print("dim {}: lag: {}".format(i,lag))
-    #print(lags)
-
-#comm.visualizer.plot_eye(sig_rx.samples[0], sample_rate = sig_rx.sample_rate[0], bit_rate = sig_rx.symbol_rate[0], offset = 0, fNum = 2, tit = 'eye sig 0 diagramm')
-#comm.visualizer.plot_eye(sig_rx.samples[1], sample_rate = sig_rx.sample_rate[0], bit_rate = sig_rx.symbol_rate[0], offset = 0, fNum = 3, tit = 'eye sig 1 diagramm')
 
 # 2. Phase comp. and combining
-samples_rolling_sum = sig_rx.samples[0]
-for i in range(1,sig_rx.n_dims):
+samples_rolling_sum = np.zeros(len(sig_rx.samples[0]), dtype=complex)
+for i in range(0,sig_rx.n_dims):
     #phase compensation
     _, samples_second_sig_phase_align, est_phase = comm.rx.comb_phase_compensation(samples_rolling_sum, sig_rx.samples[i])
     sig_rx.samples[i] = samples_second_sig_phase_align
-    #EGC combining
-    samples_rolling_sum += sig_rx.samples[i]
-
+    if comb_method == "EGC":
+        #EGC combining
+        samples_rolling_sum += sig_rx.samples[i]
+    elif comb_method == "MRC":
+        samples_rolling_sum += sig_rx.samples[i]*snr_lin_list[i]
+    else: 
+        raise Exception("No/wrong comb_method specified.")
+        
+# wrinting back combined signal
 sig_rx.samples[0] = samples_rolling_sum
-#comm.visualizer.plot_eye(sig_rx.samples[0], sample_rate = sig_rx.sample_rate[0], bit_rate = sig_rx.symbol_rate[0], offset = 0, fNum = 4, tit = 'eye diagramm')
-
-
-#plot_signal_timebase(sig_rx, tit="")
-
-#print("Compaire time and phase est.:")
-#print("subsample lag (ist/soll): {}, {}".format(results['est_shift']*sig_rx.symbol_rate[0],return_dict["time_delay_in_subsamples"][1]))
-#print("sample lag (ist/soll): {}, {}".format(lag,return_dict["time_delay_in_samples"][1]))
-#print("phase shift (ist/soll): {}, {}".format(np.rad2deg(est_phase),return_dict["phase_offset"][1]))
-
-# 2.1 for continiously
-#for i in range(sig_rx.n_dims):
-#    sig_rx.samples[i] = samples_rolling_sum
-
 
 # =============================================================================
 
-#%% # normalize samples to mean magnitude of original constellation
+# normalize samples to mean magnitude of original constellation
 mag_const = np.mean(abs(sig_rx.constellation[0]))
 mag_samples = np.mean(abs(sig_rx.samples[0]))
 sig_rx.samples[0] = sig_rx.samples[0] * mag_const / mag_samples
 
-sig_rx.plot_constellation(hist=True, tit='constellation before EQ')
 
-adaptive_filter = False
-#%% # either blind adaptive filter....
+# either blind adaptive filter....
 if adaptive_filter == True:    
     results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=51, mu_cma=1e-4, 
                                                mu_rde=1e-5, mu_dde=0.5, decimate=True, 
@@ -259,7 +252,7 @@ if adaptive_filter == True:
     cut = 5000
     sig_rx.samples = sig_rx.samples[0][int(cut)*sps:]
 
-#%% # ... or matched filtering
+# ... or matched filtering
 else:
     # Rx matched filter
     sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
@@ -274,40 +267,13 @@ else:
     else:
         sig_rx.samples = sig_rx.samples[0]
 
-    #comm.visualizer.plot_eye(abs(sig_rx.samples[0])+1j*abs(sig_rx.samples[1]), sample_rate = sig_rx.sample_rate[0], bit_rate = sig_rx.symbol_rate[0], offset = 0, fNum = 2, tit = 'eye diagramm')
-    
-    # sampling phase / clock adjustment
-    BLOCK_SIZE = -1 # size of one block in SYMBOLS... -1 for only one block
-    # sometimes this fails, try to resolve this
-    #sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
-    # results = comm.rx.sampling_clock_adjustment(sig_rx.samples[0], sample_rate=sig_rx.sample_rate[0], symbol_rate=sig_rx.symbol_rate[0], block_size=BLOCK_SIZE)
-    # print("Clock adjustment est shift: {}".format(results['est_shift']*sig_rx.symbol_rate[0]))
-    # sig_rx.samples[0] = results["samples_out"]
-
-    # je kleiner clock adjustment, desto besser das Ergebnis. Weglassen? Scheinbar nicht notwendig.
-    # !!! WENN SAMPLE LAG UNGERADE; DANN 0.5 BER, DANN WIRD FALSCH gedownsampled. WENN SAMPLE LAG GERADE; DANN PASST ES!
-
-
-#sig_rx.plot_constellation(0, hist=True, tit='constellation after sample_clock_adj')
-#%% # sampling (if necessary)
-
-# results = comm.rx.sampling_phase_adjustment(sig_rx.samples[0], sample_rate=sig_rx.sample_rate[0], symbol_rate=sig_rx.symbol_rate[0], shift_dir='both')
-# sig_rx.samples[0] = results['samples_out']
-# print("Korrektion von Sample-Start: {}", results['est_shift']*sig_rx.symbol_rate[0])
-
-# if abs(results['est_shift']*sig_rx.symbol_rate[0]) > 0.01:
-#     print("Achtung!")
-#     sig_rx.samples[0] = np.roll(sig_rx.samples[0],1)
-
-
-# TO one sample per symbol
+# To one sample per symbol
 START_SAMPLE = 0
 sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
 sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
 sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
 
-
-#%% # CPE
+# CPE
 viterbi = True
 # ...either VV
 if viterbi:
@@ -332,24 +298,21 @@ plt.show()
 
 sig_rx.plot_constellation(hist=True, tit='constellation after CPE')
 
-#%% # delay and phase ambiguity estimation and compensation
+# delay and phase ambiguity estimation and compensation
 sig_rx = comm.rx.symbol_sequence_sync(sig_rx, dimension=-1)
     
-#%% # calc EVM
+# calc EVM
 evm = comm.utils.calc_evm(sig_rx, norm='max')
 print("EVM: {:2.2%}".format(evm[0]))
 
-#%% # estimate SNR
+# estimate SNR
 snr = comm.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=False)
-if EXPERIMENT:
-    print("est. SNR: {:.2f} dB".format(snr[0]))
-else:
-    print("real SNR: {:.2f} dB, est. SNR: {:.2f} dB".format(SNR[0], snr[0]))
+print("set SNR: {:.2f} dB @ {} apertures, est. SNR: {:.2f} dB, comb with {}".format(SNR[0], n_dims, snr[0], comb_method))
 
-#%% # decision and demapper
+# decision and demapper
 sig_rx.decision()
 sig_rx.demapper()
 
-#%% # BER counting
+# BER counting
 ber_res = comm.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
 print('BER = {}'.format(ber_res['ber']))
