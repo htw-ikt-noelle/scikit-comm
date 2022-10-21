@@ -1456,11 +1456,11 @@ def emulate_AWG(samples,n_samples_new):
 def interleave(samples,block_size,block_overlap,mode):   
     # if block_overlap is given as float, interpret it as a fraction of the
     # block size 
-    if type(block_overlap) == 'float':
-        block_overlap = np.round(block_size*block_overlap)
+    if type(block_overlap) == float:
+        block_overlap = int(np.round(block_size*block_overlap))
     # if block_overlap is given as int, interpret it as the length of the 
     # overlap in samples
-    elif type(block_overlap) == 'int':
+    elif type(block_overlap) == int:
         pass
     else:
         raise TypeError("Block overlap must either be of type 'int' or 'float'.")

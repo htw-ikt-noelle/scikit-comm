@@ -60,7 +60,7 @@ if USE_PREDIST:
 # signal dimensions are identical
 maxVal = np.max(np.abs(np.concatenate((np.real(sig_tx.samples[0]), np.imag(sig_tx.samples[0])))))
 samples = np.asarray(sig_tx.samples[0]) / maxVal
-samples = np.concatenate((np.real(samples), np.imag(samples))).tolist()
+samples = np.concatenate((np.real(samples), np.imag(samples)))
 
 
 #%% Link 
@@ -106,7 +106,7 @@ if EXPERIMENT:
 #%% # Simulation 
 else: # Simulation
     # build ideal complex signal from Tx samples (no ampl. and phase noise)
-    samples = samples[0] + 1j*samples[1] 
+    samples = samples[:int(samples.size/2)] + 1j*samples[int(samples.size/2):] 
     
     sps = sig_tx.sample_rate[0] / sig_tx.symbol_rate[0]
     
@@ -283,7 +283,7 @@ snr = comm.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=F
 if EXPERIMENT:
     print("est. SNR: {:.2f} dB".format(snr[0]))
 else:
-    print("real SNR: {:.2f} dB, est. SNR: {:.2f} dB".format(SNR, snr[0]))
+    print("real SNR: {:.2f} dB, est. SNR: {:.2f} dB".format(SNR[0], snr[0]))
 
 #%% # decision and demapper
 sig_rx.decision()
