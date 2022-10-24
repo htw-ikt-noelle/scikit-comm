@@ -83,7 +83,7 @@ def plot_signal_timebase(sig1, tit=""):
 #                            Settings                                   #
 #########################################################################
 
-n_dims = 2
+n_dims = 8
 amount_of_symbols = 2**12
 mod_format = "QAM"
 mod_order = 4
@@ -93,7 +93,7 @@ comb_method = "MRC"
 adaptive_filter = False
 
 LASER_LINEWIDTH = 2*100e3
-SNR = [9]*n_dims
+SNR = [3]*n_dims
 
 #########################################################################
 #                            TX                                         #
@@ -129,7 +129,7 @@ sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=ROL
 #grab tx object
 sig_ch = copy.deepcopy(sig_tx)
 
-sig_ch, return_dict, _ = gen_SIMO_samples(sig_ch, max_phase_offset_in_rad=np.pi, max_timedelay_in_percent=10, n_apertures=n_dims, repeat=5, cut_to=3)
+sig_ch, return_dict, _ = gen_SIMO_samples(sig_ch, max_phase_offset_in_rad=np.pi, max_timedelay_in_percent=20, n_apertures=n_dims, repeat=5, cut_to=3)
 
 # # add amplitude noise
 for dim in range(sig_ch.n_dims):
@@ -184,8 +184,7 @@ for i in range(0,sig_rx.n_dims):
     sig_rx.samples[i] = results['samples_out']
 
 # 1.2 Timedelay compensation (sample)
-for i in range(1,sig_rx.n_dims):
-    sig_rx.samples[0], sig_rx.samples[i], lag = comm.rx.comb_timedelay_compensation(sig_rx.samples[0], sig_rx.samples[i], method="crop", xcorr="abs")
+sig_rx, lag_list = comm.rx.comb_timedelay_compensation(sig_rx, method="crop", xcorr="abs")
 
 # 2. Phase comp. and combining
 samples_rolling_sum = np.zeros(len(sig_rx.samples[0]), dtype=complex)

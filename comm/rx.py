@@ -1098,11 +1098,11 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum',roll_off=None,snr_
     sig.samples = sig.samples[0] / (np.sqrt(np.mean(np.abs(sig.samples[0])**2)))
     return sig
 
-def comb_timedelay_compensation(x, y, method="zeropad", xcorr="abs"):
+def comb_timedelay_compensation(sig, method="crop", xcorr="abs"):
     """
-    Compensate the delay on sample basis between x and y. This is done by using
-    crosscorrelation to estimate the "lag" between both numpy arrays (which can be complex).
-    Specifing samplerate sr correctly results in calculated delay time between both.  
+    Compensate the delay on sample basis between sig.samples. This is done by using
+    crosscorrelation to estimate the "lag" between numpy arrays (which can be complex). As reference signal 
+    sig.samples[0] is used (which should be the best in respect to the SNR). sig.samples[0] is not shifted, but cropped if method is used.
     There are two modes of timedelay compensation results:
 
         - "CROP" means, only overlapping values will be returned, values which are not present in 
@@ -1110,82 +1110,72 @@ def comb_timedelay_compensation(x, y, method="zeropad", xcorr="abs"):
 
         - "ZEROPAD" works with zeropadding and add zeros to the lag samples of the different vector.
     
-    If the returned time value is positive, y is delayed to x and vice versa if lag is negative.
+    If the returned lag per pair is positive, samples[n] is delayed to samples[0] and vice versa if lag is negative.
     
     Please note: This function is designed to work with arrays of complex values. (Unscaled) real valued arrays 
     leading to a less precise correlation and therefore possible errors.
     
     Parameters
     ----------
-    x : np.array
-        First vector
-    y : np.array
-        Second vector
+    sig : signal object 
+        signal object from comm library
     method : string, optional
         method for return arrays. See docstring for help. Default is "zeropad". 
     
-
     Returns
     -------
-    x : np.array
-        First vector, timeshifted by method
-    y : np.array
-        Second vector, timeshifted by method
-    lag: float
-        lag in samples between both vectors
+    sig : signal object 
+        signal object from comm library
+    lag_list: np.array
+        lag in samples between n_dims vectors, first lag from first sample vec to first sample vec is 0.
     """
 
-    if x.dtype != np.complex128 or y.dtype != np.complex128:
+    if sig.samples[0].dtype != np.complex128 or sig.samples[0].dtype != np.complex128:
         warnings.warn("Combining timedelay compensation: arrays are not complex -> less precise xcorr if unscaled arrays -> Not tested")
 
-    if xcorr == "abs":
-        # use xcorr of abs values
-        correlation = ssignal.correlate(abs(y)-np.mean(abs(y)), abs(x)-np.mean(abs(x)), mode="full")
-    else:
-        # use xcorr of complex values
-        correlation = ssignal.correlate(y-np.mean(y), x-np.mean(x), mode="full")
-    lags = ssignal.correlation_lags(x.size, y.size, mode="full")
-    lag = lags[np.argmax(correlation)]
-    # if lag is positive, y is delayed to x and vice versa if lag is negative
+    if sig.n_dims == 1:
+        warnings.warn("Just one sample vector in signal object! No correlation based sample time shift done.")
+        return sig, [0]
+
+    # design a placeholder for the lag list
+    lag_list = np.zeros(sig.n_dims, dtype=int)
+
+    # lag estimation
+    for dim in range(1,sig.n_dims):
+        if xcorr == "abs":
+            # use xcorr of abs values
+            correlation = ssignal.correlate(abs(sig.samples[dim])-np.mean(abs(sig.samples[dim])), abs(sig.samples[0])-np.mean(abs(sig.samples[0])), mode="full")
+        else:
+            # use xcorr of complex values
+            correlation = ssignal.correlate(sig.samples[dim]-np.mean(sig.samples[dim]), sig.samples[0]-np.mean(sig.samples[0]), mode="full")
+
+        lags = ssignal.correlation_lags(sig.samples[0].size, sig.samples[dim].size, mode="full")
+        lag_list[dim] = lags[np.argmax(correlation)]
+        # if lag is positive, y is delayed to x and vice versa if lag is negative
+
+    # calcuate the maximum lag (to estimate how much zeropadding we need)
+    max_lag = int(max(abs(lag_list)))
+    zeros_for_timeshift = np.zeros(max_lag, dtype=complex)
+
+    # add zeropadding to vector to roll vector without any trouble of cyclic stuff
+    # roll vector to time align vector
+    for dim in range(sig.n_dims):
+        sig.samples[dim] = np.concatenate((sig.samples[dim], zeros_for_timeshift))
+        sig.samples[dim] = np.roll(sig.samples[dim], -lag_list[dim])
 
     # use crop - cut away not matching data
     if method == "crop":
-        #apply estimated time in samples
-        y = np.roll(y, -lag)
+        for dim in range(sig.n_dims):
+            sig.samples[dim] = sig.samples[dim][(max_lag):-(2*max_lag)]
 
-        #cut signal, only return matching area wihtout lag samples
-        if lag < 0:
-            y = y[abs(lag):]
-            x = x[abs(lag):]
-        elif lag > 0:
-            y = y[:-lag]
-            x = x[:-lag]
-
-    # use zeropadding - dont throw away any data, shift to compensate lag and fill zeros
+    # use zeropadding - dont throw away any data
     elif method == "zeropad":
-
-        #build up some placeholders
-        x_temp = np.zeros((len(x)+abs(lag)),dtype=x.dtype)
-        y_temp = np.zeros((len(y)+abs(lag)),dtype=y.dtype)
-
-        #fill placeholders as matching
-        if lag > 0:
-            y_temp[0:-lag] = y
-            x_temp[lag:] = x
-        elif lag < 0:
-            y_temp[abs(lag):] = y
-            x_temp[0:-abs(lag)] = x
-        elif lag == 0:
-            x_temp = x
-            y_temp = y
-
-        x = x_temp
-        y = y_temp
+        pass
 
     else:
         raise Exception("timedelay compensation method must be crop or zeropad!")
 
-    return x, y, lag
+    return sig, lag_list
 
 def comb_phase_compensation(x, y):
     """
