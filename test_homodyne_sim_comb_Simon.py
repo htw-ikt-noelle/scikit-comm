@@ -84,13 +84,13 @@ def plot_signal_timebase(sig1, tit=""):
 #%% MC loop
 
 #### parameter setup
-MC = 10
-SNR_vec = np.arange(0,11)
+MC = 100
+SNR_vec = np.arange(5,11)
 distribution = 'rayleigh'
 
 #### signal parameters
 n_dims = 2
-amount_of_symbols = 2**12
+amount_of_symbols = 2**14
 mod_format = "QAM"
 mod_order = 4
 ROLL_OFF = 0.1 #rrc
@@ -163,8 +163,8 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
         #grab tx object
         sig_ch = copy.deepcopy(sig_tx)
         
-        sig_ch, return_dict, _ = gen_SIMO_samples(sig_ch, max_phase_offset_in_rad=np.pi, max_timedelay_in_percent=10, n_apertures=n_dims, repeat=5, cut_to=3)
-        
+        sig_ch, return_dict, _ = gen_SIMO_samples(sig_ch, max_phase_offset_in_rad=np.pi/2, max_timedelay_in_percent=5, n_apertures=n_dims, repeat=7, cut_to=5)
+
         # # add amplitude noise
         # for dim in range(sig_ch.n_dims):
         #    sig_ch.samples[dim] = comm.channel.set_snr(sig_ch.samples[dim], snr_dB=SNR[dim], sps=sig_ch.sample_rate[dim]/sig_ch.symbol_rate[dim], seed=None)
@@ -229,7 +229,8 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
             sig_rx.samples[i] = results['samples_out']
         
         # 1.2 Timedelay compensation (sample)
-        sig_rx, lag_list = comm.rx.comb_timedelay_compensation(sig_rx, method="crop", xcorr="abs")
+        sig_rx, lag_list = comm.rx.comb_timedelay_compensation(sig_rx,word_length=sig_tx.samples[0].size, method="crop", xcorr="abs")
+        print('set sample delay {} vs. estimated sample delay {}'.format(return_dict['time_delay_in_samples'][1],lag_list[1]))
         
         # cut sample dimensions to same size, since there seems to be a discrepancy when
         # going beyond n_dims = 2
@@ -318,7 +319,7 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
             else:
                 sig_rx.samples = sig_rx.samples[0]
         
-        # To one sample per symbol
+        # Resample to one sample per symbol
         START_SAMPLE = 0
         sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
         sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
@@ -365,7 +366,7 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
         for dim in range(n_dims):
             snr[dim] = 10*np.log10(comm.utils.estimate_SNR_m2m4(sig_rx.samples[dim], sig_rx.constellation[dim]))
         if plotting:
-            print("set SNR: {:.2f} dB @ {} apertures, est. SNR: {:.2f} dB, comb with {}".format(SNR[0], n_dims, snr[0], comb_method))
+            print("set SNR: {:.2f} dB @ {} apertures, est. SNR: {:.2f} dB, comb with {}".format(SNR_val, n_dims, snr[0], comb_method))
         
         # decision and demapper
         sig_rx.decision()

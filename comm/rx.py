@@ -1098,7 +1098,7 @@ def combining(sig_div,comb_method='MRC',est_method='spectrum',roll_off=None,snr_
     sig.samples = sig.samples[0] / (np.sqrt(np.mean(np.abs(sig.samples[0])**2)))
     return sig
 
-def comb_timedelay_compensation(sig, method="crop", xcorr="abs"):
+def comb_timedelay_compensation(sig, word_length=None, method="crop", xcorr="abs"):
     """
     Compensate the delay on sample basis between sig.samples. This is done by using
     crosscorrelation to estimate the "lag" between numpy arrays (which can be complex). As reference signal 
@@ -1151,6 +1151,12 @@ def comb_timedelay_compensation(sig, method="crop", xcorr="abs"):
 
         lags = ssignal.correlation_lags(sig.samples[0].size, sig.samples[dim].size, mode="full")
         lag_list[dim] = lags[np.argmax(correlation)]
+        print('pre-quantize lag',lag_list[1])
+        # quantize estimated lags to values below word length/block size, if given
+        if word_length:
+            lag_list = np.array([lag_list[i] % word_length for i in range(len(lag_list))])
+            print('post-quantize lag',lag_list[1])
+            
         # if lag is positive, y is delayed to x and vice versa if lag is negative
 
     # calcuate the maximum lag (to estimate how much zeropadding we need)
