@@ -10,6 +10,7 @@ from scipy.special import erfc
 #                            special functions                          #
 #########################################################################
 
+#%% helper functions
 def gen_SIMO_samples(sig, max_phase_offset_in_rad=np.pi/3, max_timedelay_in_percent=10, n_apertures=2, repeat=5, cut_to=3, seed=None, subsample_shift=True):
     """
     NOTE: This function is just a temporary way to generate signals (close to the experimental setup as possible) on signal object level. 
@@ -32,7 +33,7 @@ def gen_SIMO_samples(sig, max_phase_offset_in_rad=np.pi/3, max_timedelay_in_perc
     phase_offset[0] = 0
     
     if subsample_shift != True:
-        time_delay_in_subsamples = np.zeros((n_apertures))
+        time_delay_in_subsamples[:] = 0
 
     samples_to_proceed = np.zeros((n_apertures, int(len_vectors+max(time_delay_in_samples))), dtype=complex)
     for n in range(n_apertures):
@@ -80,9 +81,10 @@ def plot_signal_timebase(sig1, tit=""):
     plt.legend()
     plt.show()
 
+#%% MC loop
 
-#### MC
-MC = 2
+#### parameter setup
+MC = 5
 SNR_vec = np.arange(0,11)
 
 BER_vec = np.full_like(SNR_vec,0.,dtype='float')
@@ -95,8 +97,8 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
         #                            Settings                                   #
         #########################################################################
         
-        n_dims = 4
-        amount_of_symbols = 2**16
+        n_dims = 2
+        amount_of_symbols = 2**14
         mod_format = "QAM"
         mod_order = 4
         ROLL_OFF = 0.1 #rrc
@@ -105,7 +107,7 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
         comb_method = "MRC"
         adaptive_filter = False
         
-        LASER_LINEWIDTH = 1*100e3
+        LASER_LINEWIDTH = 0*100e3
         SNR = [SNR_val]*n_dims # [9]*n_dims
         
         #########################################################################
@@ -328,7 +330,10 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
             print("EVM: {:2.2%}".format(evm[0]))
         
         # estimate SNR
-        snr = comm.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=False)
+        # snr = comm.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=False)
+        snr = np.zeros((n_dims,))
+        for dim in range(n_dims):
+            snr[dim] = 10*np.log10(comm.utils.estimate_SNR_m2m4(sig_rx.samples[dim], sig_rx.constellation[dim]))
         if plotting:
             print("set SNR: {:.2f} dB @ {} apertures, est. SNR: {:.2f} dB, comb with {}".format(SNR[0], n_dims, snr[0], comb_method))
         
