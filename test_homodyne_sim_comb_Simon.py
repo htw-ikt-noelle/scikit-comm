@@ -84,31 +84,50 @@ def plot_signal_timebase(sig1, tit=""):
 #%% MC loop
 
 #### parameter setup
-MC = 5
+MC = 10
 SNR_vec = np.arange(0,11)
+distribution = 'rayleigh'
 
+#### signal parameters
+n_dims = 2
+amount_of_symbols = 2**12
+mod_format = "QAM"
+mod_order = 4
+ROLL_OFF = 0.1 #rrc
+plotting = False
+
+comb_method = "MRC"
+adaptive_filter = False
+LASER_LINEWIDTH = 0*100e3
+
+#### init output array
 BER_vec = np.full_like(SNR_vec,0.,dtype='float')
 SNR_comb_vec = np.full_like(SNR_vec,0.,dtype='float')
+mean_set_SNR_vec = np.full_like(SNR_vec,0.,dtype='float')
+
+#%%% loop over SNR val
 for SNR_idx, SNR_val in enumerate(SNR_vec):
+    
+    # init output arrays
     BER_tmp = np.zeros((MC,),dtype='float')
     SNR_comb_tmp = np.zeros((MC,),dtype='float')
+    set_SNR_vec = np.zeros((MC,),dtype='float')
+    
+    # gen amplitude coefficients
+    mean_snr_lin = 10**(SNR_val/10)
+    rng = np.random.default_rng(seed=None)
+    if distribution == 'rayleigh':
+        rayleigh_amplitude = rng.rayleigh(scale=np.sqrt(mean_snr_lin/2),size=(MC,n_dims))
+    else:
+        raise ValueError('Only rayleigh distribution is implemented atm.')
+        
+#%%% loop over MC runs
     for mc_idx in range(MC):
         #########################################################################
         #                            Settings                                   #
         #########################################################################
         
-        n_dims = 2
-        amount_of_symbols = 2**14
-        mod_format = "QAM"
-        mod_order = 4
-        ROLL_OFF = 0.1 #rrc
-        plotting = False
-        
-        comb_method = "MRC"
-        adaptive_filter = False
-        
-        LASER_LINEWIDTH = 0*100e3
-        SNR = [SNR_val]*n_dims # [9]*n_dims
+
         
         #########################################################################
         #                            TX                                         #
@@ -147,8 +166,19 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
         sig_ch, return_dict, _ = gen_SIMO_samples(sig_ch, max_phase_offset_in_rad=np.pi, max_timedelay_in_percent=10, n_apertures=n_dims, repeat=5, cut_to=3)
         
         # # add amplitude noise
-        for dim in range(sig_ch.n_dims):
-           sig_ch.samples[dim] = comm.channel.set_snr(sig_ch.samples[dim], snr_dB=SNR[dim], sps=sig_ch.sample_rate[dim]/sig_ch.symbol_rate[dim], seed=None)
+        # for dim in range(sig_ch.n_dims):
+        #    sig_ch.samples[dim] = comm.channel.set_snr(sig_ch.samples[dim], snr_dB=SNR[dim], sps=sig_ch.sample_rate[dim]/sig_ch.symbol_rate[dim], seed=None)
+        
+        # AWGN
+        sps = np.array(sig_ch.sample_rate)/np.array(sig_ch.symbol_rate)
+        # normalize each dimension to have a mean power of 1
+        for j in range(sig_ch.n_dims):
+            sig_ch.samples[j] = sig_ch.samples[j]/np.sqrt(np.mean(np.abs(sig_ch.samples[j])**2))
+        # scale samples with rayleigh_amplitude, add AWGN with mean=0,var=1, and power distributed equally among real and imaginary part
+        for j in range(sig_ch.n_dims):
+            #sig.samples[j] = sig.samples[j] * rayleigh_amplitude[i,j] + np.sqrt(0.5)*(rng.standard_normal(size=(sig.samples[j].size,)) + 1j*rng.standard_normal(size=(sig.samples[j].size,)))
+            n = (rng.standard_normal(size=(sig_ch.samples[j].size,)) + 1j*rng.standard_normal(size=(sig_ch.samples[j].size,)))
+            sig_ch.samples[j] = sig_ch.samples[j] * rayleigh_amplitude[mc_idx,j]/np.sqrt(sps[j]) + np.sqrt(0.5)*n
         
         ## phase noise emulation
         # TODO: call function with unique phase noise seeds per dimension, if different
@@ -345,34 +375,42 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
         ber_res = comm.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
         if plotting:
             print('BER = {}'.format(ber_res['ber']))
+            
+#%%% write to output arrays
         
         BER_tmp[mc_idx] = ber_res['ber']
         SNR_comb_tmp[mc_idx] = snr[0]
+        set_SNR_vec[mc_idx] = np.mean(rayleigh_amplitude[mc_idx,:]**2)
         
     BER_vec[SNR_idx] = np.mean(BER_tmp)
     SNR_comb_vec[SNR_idx] = 10*np.log10(np.mean(10**(SNR_comb_tmp/10)))
+    mean_set_SNR_vec[SNR_idx] = 10*np.log10(np.mean(set_SNR_vec))
 
-EbN0 = 10*np.log10((10**(SNR_vec/10))/np.log2(mod_order))
-    
+#%% plotting
+
 plt.figure(1)
-plt.semilogy(EbN0,BER_vec,color='r')
-plt.semilogy(EbN0,0.5*erfc(np.sqrt(10**(EbN0/10))),color='salmon')
-plt.legend(('Eb/N0 sim w/ combining','Eb/N0 theory w/ 1 aperture'))
-plt.xlabel('Eb/N0 [dB]')
-plt.xticks(SNR_vec[::2])
-plt.ylabel('BER')
-plt.title('BER over Eb/N0 with MRC @ {} apertures'.format(n_dims))
-plt.grid()
-plt.ylim([1e-12,1])
-plt.show()
+plt.plot(SNR_vec,mean_set_SNR_vec)
+# EbN0 = 10*np.log10((10**(SNR_vec/10))/np.log2(mod_order))
+    
+# plt.figure(1)
+# plt.semilogy(SNR_vec,BER_vec,color='r')
+# plt.semilogy(10*np.log10((10**(SNR_vec/10))*np.log2(mod_order)),0.5*erfc(np.sqrt(10**(SNR_vec/10))),color='salmon')
+# plt.legend(('Eb/N0 sim w/ combining','Eb/N0 theory w/ 1 aperture'))
+# plt.xlabel('Eb/N0 [dB]')
+# plt.xticks(SNR_vec[::2])
+# plt.ylabel('BER')
+# plt.title('BER over Eb/N0 with MRC @ {} apertures'.format(n_dims))
+# plt.grid()
+# plt.ylim([1e-12,1])
+# plt.show()
 
-plt.figure(2)
-plt.plot(SNR_vec,SNR_comb_vec,color='r')
-plt.plot(SNR_vec,SNR_vec,color='salmon')
-plt.legend(('Eb/N0 per aperture vs. Eb/N0 post-combining','Eb/N0 single aperture'))
-plt.xlabel('Eb/N0 per aperture [dB]')
-plt.xticks(SNR_vec[::2])
-plt.ylabel('Eb/N0 post-combining [dB]')
-plt.title('Eb/N0 per aperture vs. Eb/N0 with MRC @ {} apertures'.format(n_dims))
-plt.grid()
-plt.show()
+# plt.figure(2)
+# plt.plot(SNR_vec,SNR_comb_vec,color='r')
+# plt.plot(SNR_vec,SNR_vec,color='salmon')
+# plt.legend(('Eb/N0 per aperture vs. Eb/N0 post-combining','Eb/N0 single aperture'))
+# plt.xlabel('Eb/N0 per aperture [dB]')
+# plt.xticks(SNR_vec[::2])
+# plt.ylabel('Eb/N0 post-combining [dB]')
+# plt.title('Eb/N0 per aperture vs. Eb/N0 with MRC @ {} apertures'.format(n_dims))
+# plt.grid()
+# plt.show()
