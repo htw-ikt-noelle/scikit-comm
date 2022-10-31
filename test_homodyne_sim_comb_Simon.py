@@ -84,8 +84,8 @@ def plot_signal_timebase(sig1, tit=""):
 #%% MC loop
 
 #### parameter setup
-MC = 100
-SNR_vec = np.arange(5,11)
+MC = 10
+SNR_vec = np.arange(0,11)
 distribution = 'rayleigh'
 
 #### signal parameters
@@ -230,7 +230,7 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
         
         # 1.2 Timedelay compensation (sample)
         sig_rx, lag_list = comm.rx.comb_timedelay_compensation(sig_rx,word_length=sig_tx.samples[0].size, method="crop", xcorr="abs")
-        print('set sample delay {} vs. estimated sample delay {}'.format(return_dict['time_delay_in_samples'][1],lag_list[1]))
+        # print('set sample delay {} vs. estimated sample delay {}'.format(return_dict['time_delay_in_samples'][1],lag_list[1]))
         
         # cut sample dimensions to same size, since there seems to be a discrepancy when
         # going beyond n_dims = 2
@@ -361,10 +361,10 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
             print("EVM: {:2.2%}".format(evm[0]))
         
         # estimate SNR
-        # snr = comm.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=False)
-        snr = np.zeros((n_dims,))
-        for dim in range(n_dims):
-            snr[dim] = 10*np.log10(comm.utils.estimate_SNR_m2m4(sig_rx.samples[dim], sig_rx.constellation[dim]))
+        snr = comm.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=False)
+        # snr = np.zeros((n_dims,))
+        # for dim in range(n_dims):
+        #     snr[dim] = 10*np.log10(comm.utils.estimate_SNR_m2m4(sig_rx.samples[dim], sig_rx.constellation[dim]))
         if plotting:
             print("set SNR: {:.2f} dB @ {} apertures, est. SNR: {:.2f} dB, comb with {}".format(SNR_val, n_dims, snr[0], comb_method))
         
@@ -389,29 +389,30 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
 
 #%% plotting
 
-plt.figure(1)
-plt.plot(SNR_vec,mean_set_SNR_vec)
 # EbN0 = 10*np.log10((10**(SNR_vec/10))/np.log2(mod_order))
     
-# plt.figure(1)
-# plt.semilogy(SNR_vec,BER_vec,color='r')
-# plt.semilogy(10*np.log10((10**(SNR_vec/10))*np.log2(mod_order)),0.5*erfc(np.sqrt(10**(SNR_vec/10))),color='salmon')
-# plt.legend(('Eb/N0 sim w/ combining','Eb/N0 theory w/ 1 aperture'))
-# plt.xlabel('Eb/N0 [dB]')
-# plt.xticks(SNR_vec[::2])
-# plt.ylabel('BER')
-# plt.title('BER over Eb/N0 with MRC @ {} apertures'.format(n_dims))
-# plt.grid()
-# plt.ylim([1e-12,1])
-# plt.show()
+plt.figure(1)
+plt.semilogy(SNR_vec,BER_vec,color='r')
+plt.semilogy(SNR_vec,0.5*erfc(np.sqrt((10**(SNR_vec)/10)*np.log2(mod_order))),color='salmon')
+plt.legend(('Eb/N0 sim w/ combining','Eb/N0 theory w/ 1 aperture'))
+plt.xlabel('Eb/N0 [dB]')
+plt.xticks(SNR_vec[::2])
+plt.ylabel('BER')
+plt.title('BER over Eb/N0 with MRC @ {} apertures'.format(n_dims))
+plt.grid()
+plt.ylim([1e-12,1])
+plt.show()
 
-# plt.figure(2)
-# plt.plot(SNR_vec,SNR_comb_vec,color='r')
-# plt.plot(SNR_vec,SNR_vec,color='salmon')
-# plt.legend(('Eb/N0 per aperture vs. Eb/N0 post-combining','Eb/N0 single aperture'))
-# plt.xlabel('Eb/N0 per aperture [dB]')
-# plt.xticks(SNR_vec[::2])
-# plt.ylabel('Eb/N0 post-combining [dB]')
-# plt.title('Eb/N0 per aperture vs. Eb/N0 with MRC @ {} apertures'.format(n_dims))
-# plt.grid()
-# plt.show()
+plt.figure(2)
+plt.plot(SNR_vec,SNR_comb_vec,color='r')
+plt.plot(SNR_vec,SNR_vec,color='salmon')
+plt.legend(('Eb/N0 per aperture vs. Eb/N0 post-combining','Eb/N0 single aperture'))
+plt.xlabel('Eb/N0 per aperture [dB]')
+plt.xticks(SNR_vec[::2])
+plt.ylabel('Eb/N0 post-combining [dB]')
+plt.title('Eb/N0 per aperture vs. Eb/N0 with MRC @ {} apertures'.format(n_dims))
+plt.grid()
+plt.show()
+
+# plt.figure(3)
+# plt.plot(SNR_vec,mean_set_SNR_vec)
