@@ -97,3 +97,35 @@ def add_phase_noise(samples, s_rate=1.0, linewidth=1.0, seed=None):
     results['varPN'] = varPN
     
     return results
+
+def add_frequency_offset(samples, sample_rate=1.0, f_d = 100e6):
+    """
+    Add frequency offset to complex signal in 1D ndarray 'samples'.
+    
+    Parameters
+    ----------
+    samples : numpy array, complex
+        complex signal.
+    sample_rate : float, optional
+        sample rate of the incoming singal. The default is 1.0.
+    f_d : float, optional
+        frequency deviation / frequency offset in Hz. The default is 100 MHz.
+    seed : int, optional
+        seed of the random number generator. The default is None.
+
+    Returns
+    -------
+    results : dict containing following keys
+        samples : numpy array, complex
+            complex singal including frequency offset.
+    """  
+    
+    #Creating time axis
+    t = np.arange(0, np.size(samples)) / sample_rate
+    
+    #Adding frequency offset   
+    samples = samples *  np.exp(1j*2*np.pi*f_d*t)
+            
+    results = dict()
+    results['samples'] = samples
+    return results

@@ -633,9 +633,6 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     results['est_phase_noise'] = np.asarray(est_phase_noise_int)
     return results
 
-
-
-
 def symbol_sequence_sync(sig, dimension=-1):
     """
     Estimate and compensate delay and phase shift between reference symbol / bit sequence and physical samples.
@@ -1014,9 +1011,9 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     results['eps'] = eps_tmp
     return results
 
-def frequency_offset_estimation(samples, sample_rate=1.0,f_d=50e3):
+def frequency_offset_estimation(samples, sample_rate=1.0, order=4):
     """
-    Frequency offset estimation and recovery.
+    Frequency offset estimation and recovery (FOE and FOR).
     
     This function estimates the carrier frequency offset by using the spectral
     method described in [1]. 
@@ -1039,8 +1036,9 @@ def frequency_offset_estimation(samples, sample_rate=1.0,f_d=50e3):
         input signal.   
     sample_rate : float
         sample rate of input signal in Hz. The default is 1.0.
-    f_d : float
-        value of frequency deviation / frequency offset. The default is 50 kHz
+    order: int
+        order of the modulation format. The default is order = 4 (QPSK)
+    
 
     Returns
     -------
@@ -1050,47 +1048,40 @@ def frequency_offset_estimation(samples, sample_rate=1.0,f_d=50e3):
      
     """  
 
-    #Adding frequency offset
-    t = np.arange(0, np.size(samples)) / sample_rate #Time axis
-    f = np.fft.fftshift(np.fft.fftfreq(t.shape[-1], d=1/sample_rate)) #Frequency axis
+    #Creating time and frequency axis
+    t = np.arange(0, np.size(samples)) / sample_rate 
+    f = np.fft.fftshift(np.fft.fftfreq(t.shape[-1], d=1/sample_rate)) 
   
-    #FFT of samples^4 = power spectrum
-    samples_foe = samples**4
+    #samples to the power of order and FFT => power spectrum
+    samples_foe = samples**(order)
     power_spectrum = np.fft.fftshift((np.abs(np.fft.fft(samples_foe))))
     
-    #Index of peak of power spectrum
-    max_freq_index = np.argmax(power_spectrum) #index of maximum
+    #Finding Index of peak of power spectrum
+    max_freq_index = np.argmax(power_spectrum) 
 
-    #Shift frequency to baseband for better polyfit 
+    #Shift frequency to baseband for numerical better polyfit 
     shift_freq = f[max_freq_index]
     f = f-shift_freq
 
-    #Polyfit 2nd order (of maximum +-1 sample)
+    #Polyfit 2nd order (range of polyfit: maximum +-1 sample)
     y_res = power_spectrum[max_freq_index-1:max_freq_index+2]
     x_res = f[max_freq_index-1:max_freq_index+2]
     poly_coeffs = np.polyfit(x_res, y_res, 2)
 
-    #x-value (index) of maximum of polyfit = x0 = -b/(2*a)
+    #Index of maximum of polyfit = x0 = -b/(2*a)
     max_value_of_poly = -poly_coeffs[1]/(2*poly_coeffs[0])
 
     #back shift to original value of peak of power spectrum
     f = f+shift_freq
     
     #Estimated Frequency offset
-    estimated_freq = (max_value_of_poly+shift_freq)/4
-
-    #Print estimated value of Frequency offset
-    print('Estimated frequency: {} MHz'.format((estimated_freq)/1e6))
-    
-    #Print deviation of actual value of Frequency offset to estimated offset in [kHz]
-    deviation = abs(((estimated_freq-f_d)/f_d)*100)
-    print("Abweichung Soll/Ist: {} %".format(deviation))
+    estimated_freq = (max_value_of_poly+shift_freq)/order
 
     #Frequency Offset Recovery / compensation 
     foe_corrected = samples *  np.exp(-1j*2*np.pi*(estimated_freq)*t)
     samples = foe_corrected
 
-    # generate output dict containing recoverd symbols and estimated phase noise
+    # generate output dict containing recoverd symbols and estimated frequency offset
     results = dict()
     results['foe_corrected'] = foe_corrected
     results['est_freq_offset'] = estimated_freq
