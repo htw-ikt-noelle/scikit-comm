@@ -110,8 +110,6 @@ def add_frequency_offset(samples, sample_rate=1.0, f_d = 100e6):
         sample rate of the incoming singal. The default is 1.0.
     f_d : float, optional
         frequency deviation / frequency offset in Hz. The default is 100 MHz.
-    seed : int, optional
-        seed of the random number generator. The default is None.
 
     Returns
     -------
