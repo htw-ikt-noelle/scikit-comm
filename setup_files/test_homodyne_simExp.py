@@ -169,14 +169,26 @@ sig_rx.plot_spectrum(tit='spectrum from scope')
 
 #%% # From here: "standard" coherent complex baseband signal processing ############
 #%% # resample to 2 sps
+f_off = -900e6
+sig_range=np.asarray([-7.04e9, 7.04e9])
+noise_range=np.asarray([-7.5e9, -7.04e9, 7.04e9, 7.5e9])
 spec = np.abs(np.fft.fftshift(np.fft.fft(samples)))**2
 freq = np.fft.fftshift(np.fft.fftfreq(samples.size, 1/sig_rx.sample_rate[0]))
-snr = comm.utils.estimate_snr_spectrum(freq, spec,
-                                 sig_range=np.asarray([-7.04e9, 7.04e9]), 
-                                 noise_range=np.asarray([-7.5e9, -7.04e9, 7.04e9, 7.5e9]),
+snr = comm.utils.estimate_snr_spectrum(freq, spec, sig_range=sig_range+f_off, 
+                                 noise_range=noise_range+f_off,
                                  order=1, noise_bw=sig_rx.symbol_rate[0], scaling='lin', plotting=True)
 
 print('est. SNR: {:.1f} dB'.format(snr))
+
+
+#%% frequency offset estimation / correction
+results_foe = comm.rx.frequency_offset_estimation(sig_rx.samples[0], 
+                                                  sample_rate=sig_rx.sample_rate[0],
+                                                  f_d=0.0)
+
+sig_rx.samples[0] = results_foe['foe_corrected']
+
+print('estimated frequency offset: {:.0f} MHz'.format(results_foe['est_freq_offset']/1e6))
 
 
 sps_new = 2
@@ -185,6 +197,8 @@ new_length = int(sig_rx.samples[0].size/sps*sps_new)
 # TODO CHECK RESA;PLE IF UPSAMPLING AFTER SCOPE!!!!
 sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
 sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
+
+sig_rx.plot_spectrum(tit='spectrum after resampling')
 
 
 
@@ -263,7 +277,7 @@ sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
 viterbi = True
 # ...either VV
 if viterbi:
-    cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=201, 
+    cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, 
                                                       filter_shape='wiener', mth_power=4, 
                                                       rho=.001)
     sig_rx.samples = cpe_results['rec_symbols']
