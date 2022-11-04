@@ -90,7 +90,7 @@ distribution = 'rayleigh'
 
 #### signal parameters
 n_dims = 2
-amount_of_symbols = 2**14
+amount_of_symbols = 2**16
 mod_format = "QAM"
 mod_order = 4
 ROLL_OFF = 0.1 #rrc
@@ -163,28 +163,28 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
         #grab tx object
         sig_ch = copy.deepcopy(sig_tx)
         
-        sig_ch, return_dict, _ = gen_SIMO_samples(sig_ch, max_phase_offset_in_rad=np.pi/2, max_timedelay_in_percent=5, n_apertures=n_dims, repeat=7, cut_to=5)
-
-        # # add amplitude noise
-        # for dim in range(sig_ch.n_dims):
-        #    sig_ch.samples[dim] = comm.channel.set_snr(sig_ch.samples[dim], snr_dB=SNR[dim], sps=sig_ch.sample_rate[dim]/sig_ch.symbol_rate[dim], seed=None)
-        
-        # AWGN
-        sps = np.array(sig_ch.sample_rate)/np.array(sig_ch.symbol_rate)
-        # normalize each dimension to have a mean power of 1
-        for j in range(sig_ch.n_dims):
-            sig_ch.samples[j] = sig_ch.samples[j]/np.sqrt(np.mean(np.abs(sig_ch.samples[j])**2))
-        # scale samples with rayleigh_amplitude, add AWGN with mean=0,var=1, and power distributed equally among real and imaginary part
-        for j in range(sig_ch.n_dims):
-            #sig.samples[j] = sig.samples[j] * rayleigh_amplitude[i,j] + np.sqrt(0.5)*(rng.standard_normal(size=(sig.samples[j].size,)) + 1j*rng.standard_normal(size=(sig.samples[j].size,)))
-            n = (rng.standard_normal(size=(sig_ch.samples[j].size,)) + 1j*rng.standard_normal(size=(sig_ch.samples[j].size,)))
-            sig_ch.samples[j] = sig_ch.samples[j] * rayleigh_amplitude[mc_idx,j]/np.sqrt(sps[j]) + np.sqrt(0.5)*n
-        
-        ## phase noise emulation
-        # TODO: call function with unique phase noise seeds per dimension, if different
-        # LOs are being used 
+        #### Tx phase noise emulation with same seed for all apertures, since
+        # only one LO is being used at Transmitter for the downlink
         for dim in range(sig_ch.n_dims):
            sig_ch.samples[dim] = comm.channel.add_phase_noise(sig_ch.samples[dim] ,sig_ch.sample_rate[dim] , LASER_LINEWIDTH, seed=1)['samples']
+           
+        sig_ch, return_dict, _ = gen_SIMO_samples(sig_ch, max_phase_offset_in_rad=np.pi/2, max_timedelay_in_percent=5, n_apertures=n_dims, repeat=7, cut_to=5)
+
+        # add amplitude noise
+        for dim in range(sig_ch.n_dims):
+            sig_ch.samples[dim] = comm.channel.set_snr(sig_ch.samples[dim], snr_dB=SNR_vec[dim], sps=sig_ch.sample_rate[dim]/sig_ch.symbol_rate[dim], seed=None)
+        
+        # # AWGN
+        # sps = np.array(sig_ch.sample_rate)/np.array(sig_ch.symbol_rate)
+        # # normalize each dimension to have a mean power of 1
+        # for j in range(sig_ch.n_dims):
+        #     sig_ch.samples[j] = sig_ch.samples[j]/np.sqrt(np.mean(np.abs(sig_ch.samples[j])**2))
+        # # scale samples with rayleigh_amplitude, add AWGN with mean=0,var=1, and power distributed equally among real and imaginary part
+        # for j in range(sig_ch.n_dims):
+        #     #sig.samples[j] = sig.samples[j] * rayleigh_amplitude[i,j] + np.sqrt(0.5)*(rng.standard_normal(size=(sig.samples[j].size,)) + 1j*rng.standard_normal(size=(sig.samples[j].size,)))
+        #     n = (rng.standard_normal(size=(sig_ch.samples[j].size,)) + 1j*rng.standard_normal(size=(sig_ch.samples[j].size,)))
+        #     sig_ch.samples[j] = sig_ch.samples[j] * rayleigh_amplitude[mc_idx,j]/np.sqrt(sps[j]) + np.sqrt(0.5)*n
+
         
         #########################################################################
         #                            RX                                         #
@@ -254,6 +254,14 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
                 
         # wrinting back combined signal
         sig_rx.samples[0] = samples_rolling_sum
+        
+        #### estimate SNR post-combining here:     
+        sig_range = np.array([-sig_rx.symbol_rate[0]/2-(sig_rx.symbol_rate[0]/2*ROLL_OFF),sig_rx.symbol_rate[0]/2+(sig_rx.symbol_rate[0]/2*ROLL_OFF)])
+        noise_range = np.array([-sig_rx.symbol_rate[0]/2-(sig_rx.symbol_rate[0]/2*ROLL_OFF)-1e9,-sig_rx.symbol_rate[0]/2-(sig_rx.symbol_rate[0]/2*ROLL_OFF),sig_rx.symbol_rate[0]/2+(sig_rx.symbol_rate[0]/2*ROLL_OFF),sig_rx.symbol_rate[0]/2+1e9+(sig_rx.symbol_rate[0]/2*ROLL_OFF)])
+        x_comb = np.fft.fftshift(np.fft.fftfreq(len(sig_rx.samples[0]),1/sig_rx.sample_rate[0]))
+        y_comb = np.abs(np.fft.fftshift(np.fft.fft(sig_rx.samples[0])))**2 
+        snr_comb = 10**(comm.utils.estimate_snr_spectrum(x_in,y_in,sig_range=sig_range, noise_range= noise_range, 
+                                                              order=1,noise_bw=sig_rx.symbol_rate[0],plotting=False)/10)
         
         # =============================================================================
         
@@ -380,7 +388,7 @@ for SNR_idx, SNR_val in enumerate(SNR_vec):
 #%%% write to output arrays
         
         BER_tmp[mc_idx] = ber_res['ber']
-        SNR_comb_tmp[mc_idx] = snr[0]
+        SNR_comb_tmp[mc_idx] = snr_comb
         set_SNR_vec[mc_idx] = np.mean(rayleigh_amplitude[mc_idx,:]**2)
         
     BER_vec[SNR_idx] = np.mean(BER_tmp)
@@ -414,5 +422,5 @@ plt.title('Eb/N0 per aperture vs. Eb/N0 with MRC @ {} apertures'.format(n_dims))
 plt.grid()
 plt.show()
 
-# plt.figure(3)
-# plt.plot(SNR_vec,mean_set_SNR_vec)
+plt.figure(3)
+plt.plot(mean_set_SNR_vec,10*np.log10(SNR_comb_vec))
