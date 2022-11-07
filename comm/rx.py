@@ -1013,89 +1013,65 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     results['eps'] = eps_tmp
     return results
 
-def combining(sig_div,comb_method='MRC',est_method='spectrum',roll_off=None,snr_true=None):
+def combining(sig, snr, comb_method='MRC'):
     """
-    Performs Diversity Combining of the rows of an incoming signal object,
-    where each row represents the signal captured by an antenna of a SIMO 
-    system. The SNR is calculated per row and the individual rows are then
-    scaled according to the chosen combination method and added together.
-    
-    Different SNR estimation methods can be selected by altering the est_method
-    parameter. 
+    Performs Diversity Combining of the rows of a passed n-dimensional signal-
+    class object, where each row represents the signal captured by an antenna 
+    of a SIMO system, according to the passed SNR values per dimension.
 
     Parameters
     ----------
-    sig_div : signal object
+    sig : signal-class object
         n-dimensional signal object with list of sample arrays in the 'samples'
         attribute.
+    snr : 1d numpy array
+        array of snr values (in dB) matching the number of signal dimensions of  
+        the sig object. 
     comb_method : str, optional
-        Combining method. MRC and EGC are available. The default is 'MRC'.
-    est_method : str, optional
-        SNR estimation method. The default is 'spectrum'.
-    snr_true : ndarray
-        If the true SNR values (in dB) are known and should be used instead of 
-        the estimates, they can be passed as an array here.
+        Combining method. MRC, EGC, and SDC are available. The default is 'MRC'.
 
     Returns
     -------
-    sig_combined : signal object
-        SIgnal after combining. The sample attribute now has the combined sample
-        array in every dimension.
+    sig_comb : signal object
+        one-dimensional signal object after combining. The sample attribute now 
+        has the combined sample array in the 'samples' attribute of its only 
+        dimension.
 
     """
-    # deep copy of signal
-    sig = copy.deepcopy(sig_div)
     # error checks
     if len(sig.samples) < 2:
-        print('Signal object only has one dimension. No combining was performed.')
+        print("Signal object only has one dimension. No combining was performed.")
         return sig
+    snr = np.array(snr)
+    if sig.n_dims != snr.size:
+        raise ValueError("Number of signal dimensions must match length of SNR value array.")
     
-    # init vector of SNR estimates
-    snr_vec = np.zeros((len(sig.samples),),dtype='float')
-    
-    # replace estimated SNRs with true SNRs, eliminating possible estimation
-    # error, if desired
-    if snr_true:
-        snr_vec = np.asarray(snr_true)
-    else:
-        # SNR estimation    
-        if est_method == 'spectrum':
-            for dim in range(sig.n_dims):
-                if sig.sample_rate[dim]/sig.symbol_rate[dim] <= 1:
-                    raise ValueError('Spectral SNR estimator mandates the signal to be upsampled above 1 SPS, which is not the case in dimension {}. Process was terminated.'.format(dim))
-                # roll_off must be given
-                # roll_off = np.array([0.1]*sig.n_dims)
-                # return logarithmic SNR in dB
-                snr_vec = comm.utils.est_snr_spec_wrapper(sig, roll_off)
-        elif est_method == 'm2m4':
-            for dim in range(sig.n_dims):
-                if sig.sample_rate[dim]/sig.symbol_rate[dim] > 1:
-                    raise ValueError('M2M4 estimator mandates the signal to be sampled at 1 SPS, which is not the case in dimension {}. Process was terminated.'.format(dim))
-                # return linear SNR
-                snr_vec[dim] = comm.utils.estimate_SNR_m2m4(sig.samples[dim], sig.constellation[dim])
-                # convert to logarithmic
-                snr_vec = 10*np.log10(snr_vec)
+    # create new object with one dimension
+    sig_comb = comm.signal.Signal(n_dims=1)
+    for key in vars(sig):
+        if key == '_n_dims':
+            pass
         else:
-            raise ValueError("No other SNR estimation methods besides 'spectrum' and 'm2m4' are implemented yet.")
-        
+            sig_comb.key = vars(sig)[key][0]
+    
     # scaling           
     if comb_method == 'MRC':
         for i in range(len(sig.samples)):
-            sig.samples[i] = sig.samples[i] * (10**(snr_vec[i]/20)) 
+            sig.samples[i] = sig.samples[i] * (10**(snr[i]/20)) 
     elif comb_method == 'EGC':
         pass
     elif comb_method == 'SDC':
-        mask = np.where(snr_vec == np.max(snr_vec),1,0)
+        mask = np.where(snr == np.max(snr),1,0)
         for i in range(len(sig.samples)):
             sig.samples[i] = sig.samples[i] * mask[i]
     else:
-        raise ValueError("Combining method not implemented.")
+        raise ValueError("Combining method not implemented. Available options are MRC, EGC, and SDC.")
+        
     # combination
-    # TODO: samples attribute is currently being overwritten - is this practical
-    # for our simulation? Should we add a new attribute?
-    sig.samples = np.sum(sig.samples,axis=0)
+    sig_comb.samples = np.sum(sig.samples,axis=0)
     # normalize samples to mean power of 1
-    sig.samples = sig.samples[0] / (np.sqrt(np.mean(np.abs(sig.samples[0])**2)))
+    sig_comb.samples = sig_comb.samples[0] / (np.sqrt(np.mean(np.abs(sig_comb.samples[0])**2)))
+    
     return sig
 
 def comb_timedelay_compensation(sig, word_length=None, method="crop", xcorr="abs"):
