@@ -1,4 +1,4 @@
-import time, copy, sys
+import time, copy
 
 import numpy as np
 import scipy.signal as ssignal
@@ -11,12 +11,13 @@ import comm as comm
 #%% # signal parameters
 LASER_LINEWIDTH = 1*100e3 # [Hz]
 DAC_SR = 16e9
-EXPERIMENT = True
+EXPERIMENT = False
 UPLOAD_SAMPLES = False
 HOLD_SHOT = False
 USE_PREDIST = False
 SINC_CORRECTION = True
 SNR = 20
+F_OFFSET = 100e6 # frequency offset
 
 #%% # contruct signal
 sig_tx = comm.signal.Signal(n_dims=1)
@@ -126,6 +127,11 @@ else: # Simulation
     
     #%% ## add amplitude noise
     samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=sig_tx.sample_rate[0]/sig_tx.symbol_rate[0], seed=None)
+    
+    ##%% ## add frequency offset
+    samples = comm.channel.add_frequency_offset(samples,
+                                                sample_rate=sig_tx.sample_rate[0], 
+                                                f_offset=F_OFFSET)
 
     ##%% ## phase noise emulation
     samples = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)['samples']
@@ -145,21 +151,6 @@ else: # Simulation
 
 #%% Rx 
 
-# estimate OSNR
-id_out = comm.instrument_control.get_spectrum_IDOSA(new_sweep=True, wl_equidist = False)
-
-
-osnr_id = comm.utils.estimate_snr_spectrum(id_out['WL_vector_m'], id_out['Trace_data'], 
-                                 sig_range=np.asarray([1549.85,1550.35])*1e-9, 
-                                 noise_range=np.asarray([1549.75, 1549.8, 1550.45, 1550.55])*1e-9,
-                                 order=1, noise_bw=0.1e-9, scaling='log', plotting=True)
-
-print('est. OSNR (ID): {:.1f} dB'.format(osnr_id))
-
-
-
-# sys.exit()
-
 #%% # contruct rx signal structure
 sig_rx = copy.deepcopy(sig_tx)
 sig_rx.samples = samples
@@ -169,37 +160,35 @@ sig_rx.plot_spectrum(tit='spectrum from scope')
 
 #%% # From here: "standard" coherent complex baseband signal processing ############
 #%% # resample to 2 sps
-f_off = -900e6
-sig_range=np.asarray([-7.04e9, 7.04e9])
-noise_range=np.asarray([-7.5e9, -7.04e9, 7.04e9, 7.5e9])
-spec = np.abs(np.fft.fftshift(np.fft.fft(samples)))**2
-freq = np.fft.fftshift(np.fft.fftfreq(samples.size, 1/sig_rx.sample_rate[0]))
-snr = comm.utils.estimate_snr_spectrum(freq, spec, sig_range=sig_range+f_off, 
-                                 noise_range=noise_range+f_off,
-                                 order=1, noise_bw=sig_rx.symbol_rate[0], scaling='lin', plotting=True)
-
-print('est. SNR: {:.1f} dB'.format(snr))
-
-
-#%% frequency offset estimation / correction
-results_foe = comm.rx.frequency_offset_estimation(sig_rx.samples[0], 
-                                                  sample_rate=sig_rx.sample_rate[0],
-                                                  f_d=0.0)
-
-sig_rx.samples[0] = results_foe['foe_corrected']
-
-print('estimated frequency offset: {:.0f} MHz'.format(results_foe['est_freq_offset']/1e6))
-
-
 sps_new = 2
 sps = sig_rx.sample_rate[0]/sig_rx.symbol_rate[0]
 new_length = int(sig_rx.samples[0].size/sps*sps_new)
-# TODO CHECK RESA;PLE IF UPSAMPLING AFTER SCOPE!!!!
 sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
 sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
 
 sig_rx.plot_spectrum(tit='spectrum after resampling')
 
+#%% # estimate SNR
+sig_range = np.asarray([-1, 1])*sig_rx.symbol_rate[0]/2*(1+ROLL_OFF) + F_OFFSET
+noise_range = np.asarray([-1.1, -1.05, 1.05, 1.1]) * sig_rx.symbol_rate[0]/2 * (1+ROLL_OFF) + F_OFFSET
+                
+spec = np.abs(np.fft.fftshift(np.fft.fft(sig_rx.samples[0])))**2
+freq = np.fft.fftshift(np.fft.fftfreq(sig_rx.samples[0].size, 1/sig_rx.sample_rate[0]))
+snr = comm.utils.estimate_snr_spectrum(freq, spec, sig_range=sig_range, 
+                                       noise_range=noise_range, order=1, 
+                                       noise_bw=sig_rx.symbol_rate[0], 
+                                       scaling='lin', plotting=True)
+
+print('est. SNR (from spectrum): {:.1f} dB'.format(snr))
+
+
+#%% # frequency offset estimation / correction
+results_foe = comm.rx.frequency_offset_estimation(sig_rx.samples[0], 
+                                                  sample_rate=sig_rx.sample_rate[0],
+                                                  order=4)
+
+sig_rx.samples[0] = results_foe['samples_corrected']
+print('estimated frequency offset: {:.0f} MHz'.format(results_foe['estimated_fo']/1e6))
 
 
 #%% # normalize samples to mean magnitude of original constellation
@@ -212,7 +201,7 @@ sig_rx.plot_constellation(hist=True, tit='constellation before EQ')
 adaptive_filter = True
 #%% # either blind adaptive filter....
 if adaptive_filter == True:    
-    results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=101, mu_cma=1e-4, 
+    results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=51, mu_cma=1e-4, 
                                                mu_rde=1e-5, mu_dde=0.5, decimate=True, 
                                                return_info=True, stop_adapting=-1, 
                                                start_rde=5000*0, start_dde=5000*0)
@@ -247,7 +236,7 @@ if adaptive_filter == True:
         
     # cut away init symbols
     sps = int(sig_rx.sample_rate[0]/sig_rx.symbol_rate[0])
-    cut = 8000
+    cut = 10000
     sig_rx.samples = sig_rx.samples[0][int(cut)*sps:]
 
 #%% # ... or matched filtering
@@ -310,7 +299,7 @@ snr = comm.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=F
 if EXPERIMENT:
     print("est. SNR: {:.2f} dB".format(snr[0]))
 else:
-    print("real SNR: {:.2f} dB, est. SNR: {:.2f} dB".format(SNR, snr[0]))
+    print("real SNR: {:.2f} dB, est. SNR (from EVM): {:.2f} dB".format(SNR, snr[0]))
 
 #%% # decision and demapper
 sig_rx.decision()
