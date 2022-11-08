@@ -121,14 +121,42 @@ def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None],
         plt.show()
         
 	
-def plot_eye(samples, sample_rate = 2, bit_rate = 1, offset = 0, fNum = 1, tit = 'eye diagramm'):
-    """ plots the eye diagramm of a given signals
+def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=1, 
+             boundaries=[None, None], tit='eye diagramm'):
+    """
+    Plot eye diagram of sampled signal.
+
+    Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        sampled signal.
+    sample_rate : float, optional
+        Sample rate of the signal. Please note that the sample_rate
+        must be an integer mulitple of the bit_rate.The default is 2.
+    bit_rate : float, optional
+        Bit rate (or symbol rate) of hte signal. The default is 1.    
+    fNum : int, optional
+        Figure number to plot into. The default is 1.
+    boundaries : list of int or None, optional
+        The boundaries are given as list with two elements (start and end index).
+        The eye diagram is only plotted within these given boundaries. A value of None
+        specifies the first and last signal sample, respectively. 
+        The default is [None, None] and therefore the eye diagram contains
+        the whole signal.
+    tit : string, optional
+        Title of the plot. The default is 'eye diagramm'.
+
     
-    parameters:
-        
+    Returns
+    -------
+    None.
+
     """
          
     sps = sample_rate/bit_rate
+    
+    # cut signal and time axis if necessary    
+    samples = samples[boundaries[0]:boundaries[1]]
             
     if np.mod(sps, 1):
         raise ValueError('sample_rate must be an integer multiple of bit_rate...')
@@ -138,8 +166,7 @@ def plot_eye(samples, sample_rate = 2, bit_rate = 1, offset = 0, fNum = 1, tit =
     t = np.linspace(0, (2 * sps -1) * (1/sample_rate), int(2 * sps))
     samples = np.reshape(samples, (int(2 * sps), -1), order = 'F')
     
-    plt.figure(fNum, facecolor='white', edgecolor='white')
-    
+    plt.figure(fNum, facecolor='white', edgecolor='white')    
         
     if np.any(np.iscomplex(samples)):
         plt.subplot(121)
