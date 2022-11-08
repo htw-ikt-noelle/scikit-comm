@@ -633,9 +633,6 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     results['est_phase_noise'] = np.asarray(est_phase_noise_int)
     return results
 
-
-
-
 def symbol_sequence_sync(sig, dimension=-1):
     """
     Estimate and compensate delay and phase shift between reference symbol / bit sequence and physical samples.
@@ -1012,4 +1009,81 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     results['sig'] = sig
     results['h'] = h_tmp
     results['eps'] = eps_tmp
+    return results
+
+def frequency_offset_estimation(samples, sample_rate=1.0, order=4):
+    """
+    Frequency offset estimation and recovery (FOE and FOR).
+    
+    This function estimates the carrier frequency offset by using the spectral
+    method described in [1]. 
+    
+    The incoming samples are taken to the power of 4 and their FFT is formed. 
+    Its maxima is equal to the frequency offset. For a more accurate estimate, 
+    a 2nd order polynomial fit is performed in the baseband before the maxima 
+    is determined. The correction is done by mixing down by multiplying with 
+    the estimated value. 
+       
+    [1] Savory, S. (2010, September/Oktober). Digital Coherent Optical Receivers: 
+        Algorithms and Subsystems. Abgerufen von https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=5464309 
+    
+    [2] Dr. Lichtmann, M.. (o.J.). PySDR: A Guide to SDR and SDP using Python. 
+    Abgerufen von https://pysdr.org/content/frequency_domain.html
+
+    Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        input signal.   
+    sample_rate : float
+        sample rate of input signal in Hz. The default is 1.0.
+    order: int
+        order of the modulation format. The default is order = 4 (QPSK)
+    
+
+    Returns
+    -------
+    results:  dict containing following keys
+        samples_corrected: 1D numpy array, real or complex
+                            output signal.  
+        estimated_fo: 1D numpy array, real or complex. 
+                    Estimated frequency offset 
+     
+    """  
+
+    #Creating time and frequency axis
+    t = np.arange(0, np.size(samples)) / sample_rate 
+    f = np.fft.fftshift(np.fft.fftfreq(t.shape[-1], d=1/sample_rate)) 
+  
+    #samples to the power of order and FFT
+    samples_foe = samples**(order)
+    raised_spectrum = np.fft.fftshift((np.abs(np.fft.fft(samples_foe))))
+    
+    #Finding Index of peak of power spectrum
+    max_freq_index = np.argmax(raised_spectrum) 
+
+    #Shift frequency to baseband for numerical better polyfit 
+    shift_freq = f[max_freq_index]
+    f = f-shift_freq
+
+    #Polyfit 2nd order (range of polyfit: maximum +-1 sample)
+    y_res = raised_spectrum[max_freq_index-1:max_freq_index+2]
+    x_res = f[max_freq_index-1:max_freq_index+2]
+    poly_coeffs = np.polyfit(x_res, y_res, 2)
+
+    #Index of maximum of polyfit = x0 = -b/(2*a)
+    max_value_of_poly = -poly_coeffs[1]/(2*poly_coeffs[0])
+
+    #back shift to original value of peak of power spectrum
+    f = f+shift_freq
+    
+    #Estimated Frequency offset
+    estimated_freq = (max_value_of_poly+shift_freq)/order
+
+    #Frequency Offset Recovery / compensation 
+    samples_corrected = samples *  np.exp(-1j*2*np.pi*(estimated_freq)*t)    
+
+    # generate output dict containing recoverd symbols and estimated frequency offset
+    results = dict()
+    results['samples_corrected'] = samples_corrected
+    results['estimated_fo'] = estimated_freq
     return results
