@@ -1013,18 +1013,20 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     results['eps'] = eps_tmp
     return results
 
-def combining(sig, snr, comb_method='MRC'):
+def combining(sig, comb_method='MRC', snr=None):
     """
     Performs Diversity Combining of the rows of a passed n-dimensional signal-
     class object, where each row represents the signal captured by an antenna 
-    of a SIMO system, according to the passed SNR values per dimension.
+    of a SIMO system, according to the passed SNR values per dimension 
+    if comb_method == MRC. If comb_method == EGC, because of equal gain, there 
+    is no need for know SNR of the signals.
 
     Parameters
     ----------
     sig : signal-class object
         n-dimensional signal object with list of sample arrays in the 'samples'
         attribute.
-    snr : 1d numpy array
+    snr : 1d numpy array, optional for comb_method == EGC
         array of snr values (in dB) matching the number of signal dimensions of  
         the sig object. 
     comb_method : str, optional
@@ -1042,10 +1044,12 @@ def combining(sig, snr, comb_method='MRC'):
     if len(sig.samples) < 2:
         print("Signal object only has one dimension. No combining was performed.")
         return sig
-    snr = np.array(snr)
-    if sig.n_dims != snr.size:
-        raise ValueError("Number of signal dimensions must match length of SNR value array.")
-    
+
+    if comb_method == "MRC":
+        snr = np.array(snr)
+        if sig.n_dims != snr.size:
+            raise ValueError("Number of signal dimensions must match length of SNR value array.")
+        
     # create new object with one dimension
     sig_comb = comm.signal.Signal(n_dims=1)
     for key in vars(sig):
