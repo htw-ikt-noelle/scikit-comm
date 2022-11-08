@@ -1056,7 +1056,7 @@ def combining(sig, comb_method='MRC', snr=None):
         if key == '_n_dims':
             pass
         else:
-            sig_comb.key = vars(sig)[key][0]
+            vars(sig_comb)[key] = vars(sig)[key][0]
     
     # scaling           
     if comb_method == 'MRC':
