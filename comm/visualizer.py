@@ -105,6 +105,7 @@ def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None],
         plt.plot(t, np.real(samples))
         plt.xlabel('time [s]')
         plt.ylabel('amplitude real part')
+        plt.grid()
         plt.subplot(122)
         plt.plot(t, np.imag(samples))
         plt.xlabel('time [s]')
