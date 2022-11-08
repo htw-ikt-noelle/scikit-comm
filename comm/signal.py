@@ -378,3 +378,14 @@ class Signal():
 
         visualizer.plot_eye(self.samples[dimension], self.sample_rate[dimension],
                             self.symbol_rate[dimension], offset, **kwargs)
+        
+        
+    def plot_signal(self, dimension=0, boundaries=[None, None], **kwargs):
+        """
+        Plot the signal samples of a given dimension as a function of time.
+
+        For further documentation see comm.visualizer.plot_signal
+        """
+        
+        visualizer.plot_signal(self.samples[dimension], self.sample_rate[dimension],
+                               boundaries=boundaries, **kwargs)

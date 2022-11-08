@@ -62,15 +62,41 @@ def plot_spectrum(samples, sample_rate=1, fNum=1, scale='logNorm', tit='spectrum
     plt.show()
 
 
-def plot_signal(samples, sample_rate = 1.0, fNum = 1, tit = 'time signal'):
-    """ plots the given signals as a funtion of time
-    
-    parameters:
-        sample_rate: sample rate of incoming samples
-        fNum: figure number to plot into        
-        tit: title of figure
+def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None], 
+                tit='time signal'):
     """
+    plot singal as a function of time.
+    
+
+    Parameters
+    ----------
+    samples : 1D numpy array, real or complex
+        sampled signal.
+    sample_rate : float, optional
+        The sample rate of the signal. The default is 1.0.
+    fNum : int, optional
+        Figure number to plot into. The default is 1.
+    boundaries : list of int or None, optional
+        The boundaries are given as list with two elements (start and end index).
+        The signal is only plotted within these given boundaries. A value of None
+        specifies the first and last signal sample, respectively. 
+        The default is [None, None] and therefore plots the whole signal.
+    tit : string, optional
+        Title of the plot. The default is 'time signal'.
+
+    Returns
+    -------
+    None.
+
+    """
+    # generate time axis
     t = np.linspace(0, (len(samples)-1)/sample_rate, len(samples))
+    
+    # cut signal and time axis if necessary
+    t = t[boundaries[0]:boundaries[1]]
+    samples = samples[boundaries[0]:boundaries[1]]
+    
+    # plotting
     plt.figure(fNum, facecolor='white', edgecolor='white')
     plt.clf()    
     # if complex input signal -> plot real and imag seperatly
