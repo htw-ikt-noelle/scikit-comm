@@ -1072,7 +1072,7 @@ def combining(sig, snr, comb_method='MRC'):
     # normalize samples to mean power of 1
     sig_comb.samples = sig_comb.samples[0] / (np.sqrt(np.mean(np.abs(sig_comb.samples[0])**2)))
     
-    return sig
+    return sig_comb
 
 def comb_timedelay_compensation(sig, word_length=None, method="crop", xcorr="abs"):
     """
