@@ -1042,9 +1042,11 @@ def frequency_offset_estimation(samples, sample_rate=1.0, order=4):
 
     Returns
     -------
-     foe_corrected : 1D numpy array, real or complex
-        output signal.  
-     estimated_freq: 1D numpy array, real or complex. Estimated Peak frequency offset 
+    results:  dict containing following keys
+        samples_corrected: 1D numpy array, real or complex
+                            output signal.  
+        estimated_fo: 1D numpy array, real or complex. 
+                    Estimated frequency offset 
      
     """  
 
@@ -1052,19 +1054,19 @@ def frequency_offset_estimation(samples, sample_rate=1.0, order=4):
     t = np.arange(0, np.size(samples)) / sample_rate 
     f = np.fft.fftshift(np.fft.fftfreq(t.shape[-1], d=1/sample_rate)) 
   
-    #samples to the power of order and FFT => power spectrum
+    #samples to the power of order and FFT
     samples_foe = samples**(order)
-    power_spectrum = np.fft.fftshift((np.abs(np.fft.fft(samples_foe))))
+    raised_spectrum = np.fft.fftshift((np.abs(np.fft.fft(samples_foe))))
     
     #Finding Index of peak of power spectrum
-    max_freq_index = np.argmax(power_spectrum) 
+    max_freq_index = np.argmax(raised_spectrum) 
 
     #Shift frequency to baseband for numerical better polyfit 
     shift_freq = f[max_freq_index]
     f = f-shift_freq
 
     #Polyfit 2nd order (range of polyfit: maximum +-1 sample)
-    y_res = power_spectrum[max_freq_index-1:max_freq_index+2]
+    y_res = raised_spectrum[max_freq_index-1:max_freq_index+2]
     x_res = f[max_freq_index-1:max_freq_index+2]
     poly_coeffs = np.polyfit(x_res, y_res, 2)
 
@@ -1078,11 +1080,10 @@ def frequency_offset_estimation(samples, sample_rate=1.0, order=4):
     estimated_freq = (max_value_of_poly+shift_freq)/order
 
     #Frequency Offset Recovery / compensation 
-    foe_corrected = samples *  np.exp(-1j*2*np.pi*(estimated_freq)*t)
-    samples = foe_corrected
+    samples_corrected = samples *  np.exp(-1j*2*np.pi*(estimated_freq)*t)    
 
     # generate output dict containing recoverd symbols and estimated frequency offset
     results = dict()
-    results['foe_corrected'] = foe_corrected
-    results['est_freq_offset'] = estimated_freq
+    results['samples_corrected'] = samples_corrected
+    results['estimated_fo'] = estimated_freq
     return results
