@@ -130,25 +130,35 @@ def pulseshaper(samples, upsampling=2.0, pulseshape='rc', roll_off=0.2):
     samples_up = np.c_[samples, tmp]
     samples_up = np.reshape(samples_up,-1)
     
+    # check if symbols are real
+    if np.isrealobj(samples_up):
+        real = True
+    else:
+        real = False
+    
     # actual pulseshaping filter
     if pulseshape == 'rc':
         samples_out = filters.raised_cosine_filter(samples_up, 
                                                    sample_rate=upsampling_int, 
                                                    roll_off=roll_off,
-                                                   domain='freq')
+                                                   domain='freq') * upsampling_int
     elif pulseshape == 'rrc':
         samples_out = filters.raised_cosine_filter(samples_up, 
                                                    sample_rate=upsampling_int, 
                                                    roll_off=roll_off, 
                                                    root_raised=True,
-                                                   domain='freq')
+                                                   domain='freq') * upsampling_int
     elif pulseshape == 'rect':
         samples_out = filters.moving_average(samples_up, upsampling_int, 
-                                             domain='freq')
+                                             domain='freq') * upsampling_int
     elif pulseshape == 'None':
         samples_out = samples_up
     else:
         raise ValueError('puseshape can only be either rc, rrc, None or rect...') 
+        
+    # if symbols are real, the pulseshaped samples should be real as well
+    if real:
+        samples_out = np.real(samples_out)
         
     if resampling_rem:
         # check for an integer number of samples after resampling

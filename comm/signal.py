@@ -369,7 +369,7 @@ class Signal():
         visualizer.plot_constellation(self.samples[dimension], decimation=decimation, **kwargs)
 
 
-    def plot_eye(self, dimension=0, offset=0, **kwargs):
+    def plot_eye(self, dimension=0, boundaries=[None, None], **kwargs):
         """
         Plot eye diagramm of signal samples of a given dimension.
 
@@ -377,4 +377,16 @@ class Signal():
         """
 
         visualizer.plot_eye(self.samples[dimension], self.sample_rate[dimension],
-                            self.symbol_rate[dimension], offset, **kwargs)
+                            self.symbol_rate[dimension],
+                            boundaries=boundaries, **kwargs)
+        
+        
+    def plot_signal(self, dimension=0, boundaries=[None, None], **kwargs):
+        """
+        Plot the signal samples of a given dimension as a function of time.
+
+        For further documentation see comm.visualizer.plot_signal
+        """
+        
+        visualizer.plot_signal(self.samples[dimension], self.sample_rate[dimension],
+                               boundaries=boundaries, **kwargs)
