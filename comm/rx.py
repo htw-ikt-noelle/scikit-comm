@@ -1013,7 +1013,7 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     results['eps'] = eps_tmp
     return results
 
-def combining(sig, comb_method='MRC', snr=None):
+def combining(sig, comb_method='EGC', snr=None):
     """
     Performs Diversity Combining of the rows of a passed n-dimensional signal-
     class object, where each row represents the signal captured by an antenna 
