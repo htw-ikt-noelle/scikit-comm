@@ -133,6 +133,8 @@ def pulseshaper(samples, upsampling=2.0, pulseshape='rc', roll_off=0.2):
     # check if symbols are real
     if np.isrealobj(samples_up):
         real = True
+    else:
+        real = False
     
     # actual pulseshaping filter
     if pulseshape == 'rc':
