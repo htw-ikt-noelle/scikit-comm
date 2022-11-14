@@ -6,6 +6,8 @@ import scipy.interpolate as sinter
 import scipy.special as sspecial
 import matplotlib.pyplot as plt
 from numpy.polynomial import Polynomial
+import scipy.signal as ssignal
+import scipy.interpolate as sinterp
 
 from . import signal
 from . import rx
@@ -767,6 +769,34 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         plt.show()
         
     return snr_db
+
+def est_snr_spec_wrapper(sig,roll_off,plotting=False):
+    
+    if roll_off.size != sig.n_dims:
+        raise ValueError('Length of array of roll_off factors and number of signal dimensions be equal.')
+    # init snr_dB array
+    snr_dB = np.zeros(shape=(sig.n_dims,),dtype='float')
+    # loop over signal dimensions
+    for dim in range(sig.n_dims):
+        #### generate freq axis from signal attributes
+        sr = sig.sample_rate[dim]
+        n_samples = sig.samples[dim].size
+        # frequency delta
+        df = sr/n_samples
+        faxis = np.linspace((-sr+df)/2,(sr-df)/2,n_samples)
+        #### calc linear power spectrum
+        pwr_vec = np.abs(np.fft.fftshift(np.fft.fft(sig.samples[dim])))**2
+        #### calc bandwidth from symbol rate and roll off factor
+        bw_half = sig.symbol_rate[dim]/2 + (1+roll_off[dim])
+        sig_range = np.array([-bw_half,bw_half])
+        #### calc noise range
+        noise_range = np.array([-bw_half-1e9,-bw_half,bw_half,bw_half+1e9])
+        #### call estimation function
+        snr_dB[dim] = estimate_snr_spectrum(faxis, pwr_vec, sig_range, noise_range,
+                                            order=1,noise_bw=sig.symbol_rate[dim],
+                                            scaling='lin',plotting=plotting)
+        
+    return snr_dB
         
     
     
@@ -936,6 +966,47 @@ def estimate_snr_nda(sig,block_size=-1,bias_comp=True):
             snr_estimate[dim].fill(_estimation_helper(sig.samples[dim],sig.modulation_info[dim]),dtype='float')
         
     return snr_estimate
+
+def estimate_SNR_m2m4(samples, constellation):
+    """
+    ref.: Aifen Wang; Hua Xu; Jing Ke, "NDA moment-based SNR estimation for 
+    envelope-based QAM", 2012 IEEE 11th International Conference on Signal Processing
+
+    Parameters
+    ----------
+    samples : TYPE
+        DESCRIPTION.
+    constellation : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    snr_estimate_m2m4 : TYPE
+        DESCRIPTION.
+
+    """
+    # normalize samples to have a mean power of 1
+    samples_norm = samples / np.sqrt(np.mean(np.abs(samples)**2))
+    # normalize constellation to have a mean power of 1 (?)
+    const_norm = constellation / np.sqrt(np.mean(np.abs(constellation)**2))
+    # find number of unique amplitudes in ideal constellation and how often they appear
+    A, A_cnt = np.unique(np.abs(const_norm),return_counts=True)
+    # find probability of constellation point with unique amplitude occuring
+    p = A_cnt / (const_norm.size)
+    # calc constellation moments
+    c2 = 1 # due to normalization to mean power of 1
+    c4 = np.sum(p*(A**4))
+    # c6 = np.sum(p*(A**6))
+    # calc sample moments
+    M2 = np.mean(np.abs(samples_norm)**2)
+    M4 = np.mean(np.abs(samples_norm)**4)
+    # calc enumerator and denominator of final SNR estimation eq
+    enum = 1 - 2*((M2**2)/M4) - np.sqrt((2-c4)*((2*(M2**4)/(M4**2))-((M2**2)/M4)))
+    denom = (c4 * (M2**2) / M4) - 1
+    
+    snr_estimate_m2m4 = enum/denom
+    
+    return snr_estimate_m2m4
 
 def estimate_SNR_evm(sig, **kwargs):
     """
@@ -1241,3 +1312,33 @@ def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9):
     plt.show()
     
     return comb
+    
+def add_edfa_noise(samples, sample_rate, opt_mid_wl=1550e-9, mode="APC", opt_target=0, opt_noise_figure=4.5, seed=None):
+    """
+    Simulation helper function. Add specific EDFA noise to samples.
+
+    """
+    h = 6.62606896e-34 #plancks constant
+
+    sig_pow = np.mean(abs(samples)**2) #calculate signal power
+
+    if mode == "APC" or mode == "power":
+        gain = 1e-3*10**(opt_target*0.1)/sig_pow
+    elif mode == "AGC" or mode == "gain":
+        gain = 10**(opt_target*0.1)
+    else:
+        raise Exception("EDFA mode not implemented right now. Should be APC/power or AGC/gain")
+
+    #amplify the signal
+    samples = samples*np.sqrt(gain)
+
+    #convert wavelength to mid freq
+    opt_mid_freq = (299792458/opt_mid_wl)
+
+    #add the noise
+    noisePow = abs((10**(opt_noise_figure*0.1)*(gain-1))*h*opt_mid_freq*sample_rate) # formula from VPI Photonic Reference Manual for AmpSysOpt (11) !!!BOTH POLARIZATIONS!!!   
+    rng = np.random.default_rng(seed)
+    noise = np.sqrt(noisePow/4)*rng.standard_normal((len(samples),2)) # sqrt(noisePow/4) because of noise power calculation for both pols
+    samples = samples + (noise.view(dtype=np.complex128)).flatten()
+
+    return samples
