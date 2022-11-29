@@ -81,7 +81,7 @@ def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
     # set initial state
     if running:
         # reset device condition
-        scope.write('TRIGger:MODE NORM')
+        scope.write('TRIGger:MODE AUTO')
     
     #print(float(scope.query('WAVeform:OFFSet?').split()[1]))
     
@@ -274,7 +274,7 @@ def write_samples_Agilent_33522A(samples, ip_address='192.168.1.44', sample_rate
         # wait a moment to have the output to turned on
         time.sleep(0.1)
         
-        if wait_for_ext_trigger:
+        if wait_for_ext_trigger[ch_idx]:
             # set external trigger and delay
             awg.write('TRIG{:d}:DELAY {:.1e}'.format(ch, trig_delay[ch_idx]))
             awg.write('TRIG{:d}:SOURCE EXTERNAL'.format(ch))
