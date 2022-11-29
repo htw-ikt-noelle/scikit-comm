@@ -99,6 +99,73 @@ def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
     
     return sample_rate, wfm
 
+def get_screenshot_DLM2034(address='192.168.1.11', folder='.', fname=None, timestamp=True, 
+                           tone='COLOR', capture_info='OFF'):
+    """
+    Get and save screenshot from Yokogawa DLM 2034/3024 sscilloscope as PNG.
+    
+
+    Parameters
+    ----------
+    address : string, optional
+        IP adress of the device. The default is '192.168.1.11'.
+    folder : string, optional
+        Folder to save the screenshot to. The default is '.'.
+    fname : string, optional
+        Filename to save the screenshot to. If None the standard name 'osci_screenshot'
+        is used. The default is None.
+    timestamp : bool, optional
+        Should a timestamp be added to the filename. The default is True.
+    tone : string, optional
+        Tone of the output image. Allowed are 'COLOR', 'GRAY', 'OFF', 'REVERSE'. 
+        The default is 'COLOR'.
+    capture_info : string, optional
+        Should oscilloscope settings (e.g. trigger mode) be included in the image?
+        'ON' for yes and 'OFF' for no. The default is 'OFF'.    
+
+    """
+    
+    if fname is None:
+        fname = 'osci_screenshot'
+    
+    if timestamp:
+        fname = time.strftime('%Y-%m-%dT%H%M%S_') + fname
+        
+    fname = folder + '/' + fname
+        
+    # create resource 
+    rm = visa.ResourceManager('@py')    
+
+    # open connection to scope
+    scope = rm.open_resource('TCPIP::' + address + '::INSTR', timeout=5000)
+    # set number of bytes to retireve at once...TODO: find reasonable value
+    scope.chunk_size = 2000
+
+    # check instrument IDN
+    idn = scope.query('*IDN?')
+    print(idn)
+    
+    # set type to PNG
+    scope.write(':IMAGE:FORMAT PNG')
+    # set capture output mode: HARD, NORMAL, WIDE
+    scope.write(':IMAGE:MODE HARD')
+    # show setting information (e.g. trigger mode, etc.) ON OFF
+    scope.write(':IMAGE:INFORMATION ' + capture_info)
+    # options are COLOR, GRAY, OFF, REVERSE
+    scope.write(':IMAGE:TONE ' + tone)
+    # get image data
+    scope.write(':IMAGE:SEND?')     
+    img_data = scope.read_binary_values(datatype='b', is_big_endian=False, container=np.array)
+    
+    with open(fname + '.png','wb') as pic_file:
+        pic_file.write(img_data)
+        pic_file.close()
+    
+    # close connection and delete objects
+    rm.close()
+    del rm
+    del scope    
+
 
 def write_samples_Agilent_33522A(samples, ip_address='192.168.1.44', sample_rate=[250e6], offset=[0.0], amp_pp=[1.0], channels=[1], out_filter=['normal'], wait_for_ext_trigger=[False], trig_delay=[0.0]):
     """
@@ -240,7 +307,7 @@ def write_samples_TTI_TG5012A(samples=np.asarray([]), ip_address='192.168.1.105'
     ----------
     samples : numpy array, float
         samples to be output, have to be scaled between -1 and 1 (values outside this 
-        range are clipped). The length of the samples array must be between 2 and 65536.
+        range are clipped). The length of the samples array must be between 2 and 131072.
         The default is np.asarray([]).
     ip_address : string, optional
         IP address of AWG. The default is '192.168.1.105'.
@@ -291,8 +358,8 @@ def write_samples_TTI_TG5012A(samples=np.asarray([]), ip_address='192.168.1.105'
         raise TypeError('samples has to be a numpy array...')
         
     if waveform.upper() == 'ARB':
-        if (samples.size < 2) or (samples.size > 2**16):
-            raise ValueError('length of waveform must be between 2 and 65536 points...')
+        if (samples.size < 2) or (samples.size > 2**17):
+            raise ValueError('length of waveform must be between 2 and 131072 points...')
             
         # clip samples to +-1.0
         samples = np.clip(samples, -1.0, 1.0)
