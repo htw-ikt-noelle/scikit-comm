@@ -1870,37 +1870,43 @@ def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [
 
 
 def get_opt_power_HP8163B(channels=['1'], ip_address='192.168.1.1'):
+    """
+    read optical power measurements from HP 8163B optical power meter.
+
+    Parameters
+    ----------
+    channels : list of strings, optional
+        Which channels should be read out? The default is ['1'].
+    ip_address : string, optional
+        IP address of the device. The default is '192.168.1.1'.
+
+    Returns
+    -------
+    channel_information : dict
+        dict keys are generated from input parameter channels. Each dict value
+        contains another dict with following keys:
+        'Power': measured power value for channel
+        'Unit' : power unit for channel ('dBm or Watt')
+        'Wavelength': wavelength [nm] for channel
+        
+
+    """
     
     rm = visa.ResourceManager('@py')
-   
-    # pm = rsm.open_resource('TCPIP0::' + ip_address + '::INST1::INSTR')
-    # pm = rsm.open_resource('TCPIP0::' + ip_address + '::INST1::INSTR')
+       
     pm = rm.open_resource('TCPIP0::' + ip_address + '::5025::SOCKET', 
                           read_termination='\n', write_termination='\n', 
                           timeout=3000)
-    
-    # used_modules = pm.query('*OPT?').rstrip('\n')
-
-    # =============================================================================
-    #  Settings for the analyzer
-    # ============================================================================= 
-    
-    # Note: Page numbers refer to the "Operating and Programming Manual HP8153A Lightwave Multimeter".
+   
     # Create dict with the the keys
     channel_information = dict.fromkeys(channels)
-    
-     
+        
     for channel in channels:
-        
-        
         # Acquire power values
         #page (8-8 , 8-9)
         channel_power_level = float(pm.query('fetch:chan{0:s}:power?'.format(channel)))
                        
         read_wavelength = float(pm.query('sense:chan{0:s}:power:wavelength?'.format(channel)))
-    
-        # Get the module name
-        # module = used_modules.split(',')[int(channel)-1]
         
         # Get power unit
         #page (8-21)
@@ -1917,16 +1923,12 @@ def get_opt_power_HP8163B(channels=['1'], ip_address='192.168.1.1'):
 
         #write the data in the dictionary 
         channel_information[channel]=data_dict
-    
 
     # closing lwm connection
     pm.close()
-   
     # closing resource manager 
     rm.close()
-
     return channel_information
-
 
 def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = [None], wavelengths = [None], GPIB_address='12', log_mode = False):
 
