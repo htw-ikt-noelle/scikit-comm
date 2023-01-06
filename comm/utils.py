@@ -1387,6 +1387,23 @@ def edfa_model(samples, sample_rate, opt_mid_wl=1550e-9, mode="APC", opt_target=
 
 
 def save_pickle(data, folder='.', f_name='tmp', add_timestamp=False):
+    """
+    save python data to file.
+    
+    This method is a wrapper for the python "pickle" module. 
+    
+    Parameters
+    ----------
+    data : arbitrary python data object
+        python object to be saved.
+    folder : string, optional
+        folder to save data to. The default is '.'.
+    f_name : string, optional
+        filename to save data to. The default is 'tmp'.
+    add_timestamp : bool, optional
+        should a timestamp be added in fromt of the filename. The default is False.
+
+    """
     
     if add_timestamp:
         f_name = folder + '/' + time.strftime('%Y-%m-%dT%H%M%S_') + f_name + '.pickle'
@@ -1398,6 +1415,29 @@ def save_pickle(data, folder='.', f_name='tmp', add_timestamp=False):
         
         
 def load_pickle(folder='.', f_name='tmp', ext='pickle'):
+    """
+    load python data from file.
+    
+    This method is a wrapper for the python "pickle" module. Please note that 
+    
+    "The pickle module is not secure. Only unpickle data you trust." (see 
+    https://docs.python.org/3/library/pickle.html for more information.)
+
+    Parameters
+    ----------
+    folder : string, optional
+        folder to save data to.. The default is '.'.
+    f_name : string, optional
+        filename to save data to.. The default is 'tmp'.
+    ext : string, optional
+        filename extension. The default is 'pickle'.
+
+    Returns
+    -------
+    data : arbitrary python data object
+        read data object.
+
+    """
     
     f_name = folder + '/' + f_name + '.' + ext
     
