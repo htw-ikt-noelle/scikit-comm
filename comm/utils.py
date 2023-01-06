@@ -1445,4 +1445,46 @@ def load_pickle(folder='.', f_name='tmp', ext='pickle'):
         data = pickle.load(f)
         
     return data
+
+def save_fig(fig, fformat='png', folder='.', f_name='tmp', fdpi=200, 
+             add_timestamp=False):
+    """
+    save given figure to file.
+
+    Parameters
+    ----------
+    fig : matplotlib Figure object
+        handle to the figure to be saved.
+    fformat : string, optional
+        format of the saved file, can either be 'png', 'pdf' or 'svg'. 
+        The default is 'png'.
+    folder : string, optional
+        folder to save figure to. The default is '.'.
+    f_name : string, optional
+        filename to save figure to. The default is 'tmp'.
+    fdpi : int, optional
+        resolution (dots per inch, DPI) to save the rastered image. Only used
+        in case of format=='png'. The default is 200.
+    add_timestamp : bool, optional
+        should a timestamp be added to the filename? The default is False.
+    """
+    
+    if add_timestamp:
+        t = time.strftime('%Y-%m-%dT%H%M%S_')
+    else:
+        t = ''
+    
+    path = folder + '/' + t + f_name + '.' + fformat
+        
+    if fformat == 'png':
+        fig.savefig(path, dpi=fdpi, format='png')
+    elif (fformat == 'pdf') or (fformat == 'svg'):
+        fig.savefig(path, format=fformat)     
+    else:
+        raise ValueError('unknown format given')
+            
+    
+    
+    
+    
     
