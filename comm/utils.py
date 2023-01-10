@@ -1315,7 +1315,37 @@ def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9):
     
 def add_edfa_noise(samples, sample_rate, opt_mid_wl=1550e-9, mode="APC", opt_target=0, opt_noise_figure=4.5, seed=None):
     """
-    Simulation helper function. Add specific EDFA noise to samples.
+    Tool for simulation of a very simple EDFA model and related noise behavior. 
+
+    Please note: This model is simple and not physically correct in total. 
+
+    Parameters
+    ----------
+    samples : np.ndarray
+        input signal samples.
+    sample_rate : np.ndarray
+        sample rate of the input signal samples.
+    opt_mid_wl : float, optional
+        center wavelengt of the input signal.
+        Default is 1550e-9.
+    mode : string, optional
+        operation mode of the simulated EDFA. Should be "APC" or "AGC", where APC is automatic power control
+        and AGC is automatic gain control. 
+        Default is "APC".
+    opt_target : float, optional
+        target output power of the EDFA in [dBm]. 
+        Default is 0 [dBm].
+    opt_noise_figure : float, optional
+        noise figure of the amplifier in [dB]. Specifies the noise behavior.
+        Default is 4.5 [dB].
+    seed : int, optional
+        seed for noise vector generation. 
+        Default is "None", for non-fixed seed operation. 
+
+    Returns
+    -------
+    samples : np.ndarray
+        output samples with edfa noise contribution.
 
     """
     h = 6.62606896e-34 #plancks constant
