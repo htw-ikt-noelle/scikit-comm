@@ -3,16 +3,48 @@ import numpy.fft as fft
 import matplotlib.pyplot as plt
 import copy
 
+from . import utils
+
     
-def plot_spectrum(samples, sample_rate=1, fNum=1, scale='logNorm', tit='spectrum'):
-    """ plots the amplitude spectrum of given samples
-    
-    parameters:
-        sample_rate: sample rate of incoming samples
-        fNum: figure number to plot into
-        scale: plot the spectrum in liear or logarithmic scale, use normalization to max or not 'logNorm' | 'log' | 'linNorm' | 'lin'
-        tit: title of figure
+def plot_spectrum(samples, sample_rate=1.0, fNum=1, scale='logNorm', tit='spectrum',
+                  save_fig=False, ffolder='.', ffname=None, fformat='png',
+                  add_timestamp=False):
     """
+    plot the amplitude spectrum of given samples.    
+    
+    If the samples are real, a onesided spectrum (only positive frequencies) is
+    plotted, otherwise a two-sided spectrum (positive and negative frequencies).
+    
+    Parameters
+    ----------
+    samples : 1D np.array, float
+        time domain samples of the signal.
+    sample_rate : float, optional
+        sample rate of the signal in Hz. The default is 1.0
+    fNum : int, optional
+        figure number to be used for plot. The default is 1.
+    scale : string, optional
+        scaling of the y axis, can either be 'logNorm', 'log', 'linNorm','lin'.
+        The y axis will be shown in linear or logarithmic scale and can either be
+        normalized to the maximum y value or not (absolute values). 
+        The default is 'logNorm'.
+    tit : string, optional
+        title of the plot. The default is 'spectrum'.
+    save_fig : bool, optional
+        should the plot be saved to file? The default is False.
+    ffolder : sting, optional
+        folder to save figure to. The default is '.'.
+    ffname : string, optional
+        filename to save figure to. The default is None, which uses the title
+        of the plot as filename.
+    fformat : string, optional
+        format of the saved file, can either be 'png', 'pdf' or 'svg'. 
+        The default is 'png'.
+    add_timestamp : bool, optional
+        should a timestamp be added to the filename? The default is False.    
+
+    """
+    
 
     isReal = np.all(np.isreal(samples))
 
@@ -47,7 +79,7 @@ def plot_spectrum(samples, sample_rate=1, fNum=1, scale='logNorm', tit='spectrum
         ylabel = "normalized amplitude [dB]"    
     
     # plot spectrum
-    plt.figure(fNum, facecolor='white', edgecolor='white')
+    fig = plt.figure(fNum, facecolor='white', edgecolor='white')
     plt.clf()
     # if signal real -> plot only positive frequencies
     if isReal:
@@ -59,11 +91,18 @@ def plot_spectrum(samples, sample_rate=1, fNum=1, scale='logNorm', tit='spectrum
     plt.xlabel('frequency [Hz]')
     plt.ylabel(ylabel)
     plt.grid()
+    
+    if save_fig:
+        if not ffname:
+            ffname = tit
+        utils.save_fig(fig, fformat=fformat, folder=ffolder, f_name=ffname, 
+                 add_timestamp=add_timestamp)
     plt.show()
 
 
 def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None], 
-                tit='time signal'):
+                tit='time signal', save_fig=False, ffolder='.', ffname=None, 
+                fformat='png', add_timestamp=False):
     """
     plot singal as a function of time.
     
@@ -83,6 +122,18 @@ def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None],
         The default is [None, None] and therefore plots the whole signal.
     tit : string, optional
         Title of the plot. The default is 'time signal'.
+    save_fig : bool, optional
+        should the plot be saved to file? The default is False.
+    ffolder : sting, optional
+        folder to save figure to. The default is '.'.
+    ffname : string, optional
+        filename to save figure to. The default is None, which uses the title
+        of the plot as filename.
+    fformat : string, optional
+        format of the saved file, can either be 'png', 'pdf' or 'svg'. 
+        The default is 'png'.
+    add_timestamp : bool, optional
+        should a timestamp be added to the filename? The default is False. 
 
     Returns
     -------
@@ -97,7 +148,7 @@ def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None],
     samples = samples[boundaries[0]:boundaries[1]]
     
     # plotting
-    plt.figure(fNum, facecolor='white', edgecolor='white')
+    fig = plt.figure(fNum, facecolor='white', edgecolor='white')
     plt.clf()    
     # if complex input signal -> plot real and imag seperatly
     if np.any(np.iscomplex(samples)):
@@ -111,19 +162,26 @@ def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None],
         plt.xlabel('time [s]')
         plt.ylabel('amplitude imaginary part')
         plt.title(tit)
-        plt.grid()
-        plt.show()
+        plt.grid()        
     else:
         plt.plot(t, samples)
         plt.xlabel('time [s]')
         plt.ylabel('amplitude')
         plt.title(tit)
         plt.grid()
-        plt.show()
+    
+    if save_fig:
+        if not ffname:
+            ffname = tit
+        utils.save_fig(fig, fformat=fformat, folder=ffolder, f_name=ffname, 
+                 add_timestamp=add_timestamp)
+        
+    plt.show()
         
 	
 def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=1, 
-             boundaries=[None, None], tit='eye diagramm'):
+             boundaries=[None, None], tit='eye diagramm', save_fig=False, 
+             ffolder='.', ffname=None, fformat='png', add_timestamp=False):
     """
     Plot eye diagram of sampled signal.
 
@@ -146,7 +204,18 @@ def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=1,
         the whole signal.
     tit : string, optional
         Title of the plot. The default is 'eye diagramm'.
-
+    save_fig : bool, optional
+        should the plot be saved to file? The default is False.
+    ffolder : sting, optional
+        folder to save figure to. The default is '.'.
+    ffname : string, optional
+        filename to save figure to. The default is None, which uses the title
+        of the plot as filename.
+    fformat : string, optional
+        format of the saved file, can either be 'png', 'pdf' or 'svg'. 
+        The default is 'png'.
+    add_timestamp : bool, optional
+        should a timestamp be added to the filename? The default is False.
     
     Returns
     -------
@@ -167,7 +236,7 @@ def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=1,
     t = np.linspace(0, (2 * sps -1) * (1/sample_rate), int(2 * sps))
     samples = np.reshape(samples, (int(2 * sps), -1), order = 'F')
     
-    plt.figure(fNum, facecolor='white', edgecolor='white')    
+    fig = plt.figure(fNum, facecolor='white', edgecolor='white')    
         
     if np.any(np.iscomplex(samples)):
         plt.subplot(121)
@@ -181,15 +250,21 @@ def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=1,
         plt.xlabel('time [s]')
         plt.ylabel('amplitude imaginary part')
         plt.grid()
-        plt.gcf().tight_layout()
-        plt.show()
+        plt.gcf().tight_layout()        
     else:
         plt.plot(t, samples, color = '#1f77b4')
         plt.xlabel('time [s]')
         plt.ylabel('amplitude')
         plt.title(tit)
         plt.grid()
-        plt.show()
+    
+    if save_fig:
+        if not ffname:
+            ffname = tit
+        utils.save_fig(fig, fformat=fformat, folder=ffolder, f_name=ffname, 
+                 add_timestamp=add_timestamp)
+        
+    plt.show()
     
     
 	
@@ -198,7 +273,10 @@ def plot_hist(samples, nBins=100):
     # check for complex input??
     pass
 
-def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation', hist=False, axMax=None, nBins=128):
+def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation',
+                       hist=False, axMax=None, nBins=128, save_fig=False, 
+                       ffolder='.', ffname=None, fformat='png', 
+                       add_timestamp=False):
     """
     Plot the constellation diagramm (complex plane) of samples.
 
@@ -219,6 +297,18 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation', h
         if None: 1.1 times maximum absolute value of samples (real and imaginalry part) is used
     nBins: int
         number of bins (in each quadrature) for plotting the 2D histogramm
+    save_fig : bool, optional
+        should the plot be saved to file? The default is False.
+    ffolder : sting, optional
+        folder to save figure to. The default is '.'.
+    ffname : string, optional
+        filename to save figure to. The default is None, which uses the title
+        of the plot as filename.
+    fformat : string, optional
+        format of the saved file, can either be 'png', 'pdf' or 'svg'. 
+        The default is 'png'.
+    add_timestamp : bool, optional
+        should a timestamp be added to the filename? The default is False.
     """
     
     samples = samples[0::decimation]
@@ -226,7 +316,7 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation', h
     if axMax is None:
         axMax = max(np.abs(samples.real).max(), np.abs(samples.imag).max())*1.1
     
-    plt.figure(fNum, facecolor='white', edgecolor='white')
+    fig = plt.figure(fNum, facecolor='white', edgecolor='white')
     
     if hist:
         bins = nBins
@@ -240,11 +330,21 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation', h
     plt.ylim((-axMax,axMax))  
     plt.title(tit)
     plt.xlabel('real part')
-    plt.ylabel('imaginary part')    
+    plt.ylabel('imaginary part')  
+    
+    if save_fig:
+        if not ffname:
+            ffname = tit
+        utils.save_fig(fig, fformat=fformat, folder=ffolder, f_name=ffname, 
+                 add_timestamp=add_timestamp)
+    
     plt.show()
     
     
-def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, tit = 'Poincaré sphere', labels=True):
+def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, 
+                         tit = 'Poincaré sphere', labels=True, save_fig=False, 
+                         ffolder='.', ffname=None, fformat='png', 
+                         add_timestamp=False):
     """
     Plot the signal (given as components of the Jones vector) on the Poincaré sphere.
     
@@ -284,6 +384,18 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, tit = 'Poin
         certain, specific polarization states (like H, V, right circular 
         polarized (RCP), etc. (True) or as a plain sphere only showing the three
         coordinate axes (False)? The default is True.
+    save_fig : bool, optional
+        should the plot be saved to file? The default is False.
+    ffolder : sting, optional
+        folder to save figure to. The default is '.'.
+    ffname : string, optional
+        filename to save figure to. The default is None, which uses the title
+        of the plot as filename.
+    fformat : string, optional
+        format of the saved file, can either be 'png', 'pdf' or 'svg'. 
+        The default is 'png'.
+    add_timestamp : bool, optional
+        should a timestamp be added to the filename? The default is False.
 
     Returns
     -------
@@ -317,7 +429,7 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, tit = 'Poin
     if fNum not in plt.get_fignums():
     
         # prepare figure
-        f = plt.figure(fNum) 
+        fig = plt.figure(fNum) 
         ax = plt.axes(projection ='3d')    
         plt.axis('Off')
         ax.set_box_aspect([1,1,1])
@@ -374,8 +486,8 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, tit = 'Poin
     # ...otherwise only update data in figure (for speed)
     else:
         # get all required handles
-        f = plt.figure(fNum)
-        ax = f.axes[0]
+        fig = plt.figure(fNum)
+        ax = fig.axes[0]
         # find all artists labeled as 'SOP'
         li = ax.findobj(_isSOP)
         # update data
@@ -383,13 +495,19 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, tit = 'Poin
         li[0].set_ydata(s2/s0)
         li[0].set_3d_properties(s3/s0)
         # update plot
-        f.canvas.draw()
+        fig.canvas.draw()
         # wait for figure to update
-        plt.pause(0.1)        
+        plt.pause(0.1)
+
+    if save_fig:
+        if not ffname:
+            ffname = tit
+        utils.save_fig(fig, fformat=fformat, folder=ffolder, f_name=ffname, 
+                 add_timestamp=add_timestamp)
     
     # prepare return params
     handles = dict()
-    handles['fig'] = f
+    handles['fig'] = fig
     handles['ax'] = ax
     handles['line'] = li[0]
     return handles

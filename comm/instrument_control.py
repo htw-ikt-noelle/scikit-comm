@@ -81,7 +81,7 @@ def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
     # set initial state
     if running:
         # reset device condition
-        scope.write('TRIGger:MODE NORM')
+        scope.write('TRIGger:MODE AUTO')
     
     #print(float(scope.query('WAVeform:OFFSet?').split()[1]))
     
@@ -274,7 +274,7 @@ def write_samples_Agilent_33522A(samples, ip_address='192.168.1.44', sample_rate
         # wait a moment to have the output to turned on
         time.sleep(0.1)
         
-        if wait_for_ext_trigger:
+        if wait_for_ext_trigger[ch_idx]:
             # set external trigger and delay
             awg.write('TRIG{:d}:DELAY {:.1e}'.format(ch, trig_delay[ch_idx]))
             awg.write('TRIG{:d}:SOURCE EXTERNAL'.format(ch))
@@ -1867,6 +1867,68 @@ def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [
 
     return channel_information
 
+
+
+def get_opt_power_HP8163B(channels=['1'], ip_address='192.168.1.1'):
+    """
+    read optical power measurements from HP 8163B optical power meter.
+
+    Parameters
+    ----------
+    channels : list of strings, optional
+        Which channels should be read out? The default is ['1'].
+    ip_address : string, optional
+        IP address of the device. The default is '192.168.1.1'.
+
+    Returns
+    -------
+    channel_information : dict
+        dict keys are generated from input parameter channels. Each dict value
+        contains another dict with following keys:
+        'Power': measured power value for channel
+        'Unit' : power unit for channel ('dBm or Watt')
+        'Wavelength': wavelength [nm] for channel
+        
+
+    """
+    
+    rm = visa.ResourceManager('@py')
+       
+    pm = rm.open_resource('TCPIP0::' + ip_address + '::5025::SOCKET', 
+                          read_termination='\n', write_termination='\n', 
+                          timeout=3000)
+   
+    # Create dict with the the keys
+    channel_information = dict.fromkeys(channels)
+        
+    for channel in channels:
+        # Acquire power values
+        #page (8-8 , 8-9)
+        channel_power_level = float(pm.query('fetch:chan{0:s}:power?'.format(channel)))
+                       
+        read_wavelength = float(pm.query('sense:chan{0:s}:power:wavelength?'.format(channel)))
+        
+        # Get power unit
+        #page (8-21)
+        read_power_unit = pm.query('sense:chan{0:s}:POWer:UNIT?'.format(channel)).rstrip('\n')
+        
+        if read_power_unit == '+0':
+            read_power_unit = 'DBM'
+        if read_power_unit == '+1':
+            read_power_unit = 'Watt'
+    
+        #make dictionary for power level ,power, wavelength and the name of the inserted module
+        data_dict={'Power':channel_power_level , 'Unit':read_power_unit , 
+                   'Wavelength':read_wavelength}
+
+        #write the data in the dictionary 
+        channel_information[channel]=data_dict
+
+    # closing lwm connection
+    pm.close()
+    # closing resource manager 
+    rm.close()
+    return channel_information
 
 def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = [None], wavelengths = [None], GPIB_address='12', log_mode = False):
 

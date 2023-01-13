@@ -1,4 +1,7 @@
 import math
+import pickle
+import time
+import copy
 
 import numpy as np
 from scipy import optimize
@@ -1206,7 +1209,7 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
     return evm
 
 
-def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9):
+def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9, save_fig=False, f_name=None):
     """
     Combine multiple spectra of an optical spectrum analyzer.
     
@@ -1278,8 +1281,8 @@ def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9):
     if ((x0 < np.min(x_data[0])) or (x0 > np.max(x_data[0]))):
         raise ValueError('x0 needs to be within x axis range')
         
-    comb = y_data[0]
-    plt.figure(0)
+    comb = copy.deepcopy(y_data[0])
+    f1 = plt.figure(0)
     plt.plot(x_data[0], y_data[0])
     plt.xlabel('wavelength / m or frequency / Hz')
     plt.ylabel('power / dBm or W')
@@ -1302,15 +1305,19 @@ def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9):
     plt.show()
     att0 = comb[np.argmin(np.abs(x_data[0]-x0))]
         
-    plt.figure()
+    f2 = plt.figure()
     plt.plot(x_data[0], comb)
     plt.plot(x0, att0, 'ro', label='{:.1f} dB'.format(att0))
     plt.legend()
     plt.grid()
     plt.xlabel('wavelength / m or frequency / Hz')
-    plt.ylabel('gain / dB')
+    plt.ylabel('gain / dB') 
     plt.show()
     
+    if save_fig:
+        f1.savefig(f_name + '_1.png', dpi='figure', format='png')
+        f2.savefig(f_name + '_2.png', dpi='figure', format='png')
+           
     return comb
     
 def edfa_model(samples, sample_rate, opt_mid_wl=1550e-9, mode="APC", opt_target=0, opt_noise_figure=4.5, seed=None):
@@ -1377,3 +1384,107 @@ def edfa_model(samples, sample_rate, opt_mid_wl=1550e-9, mode="APC", opt_target=
     samples = samples + (noise.view(dtype=np.complex128)).flatten()
 
     return samples
+
+
+def save_pickle(data, folder='.', f_name='tmp', add_timestamp=False):
+    """
+    save python data to file.
+    
+    This method is a wrapper for the python "pickle" module. 
+    
+    Parameters
+    ----------
+    data : arbitrary python data object
+        python object to be saved.
+    folder : string, optional
+        folder to save data to. The default is '.'.
+    f_name : string, optional
+        filename to save data to. The default is 'tmp'.
+    add_timestamp : bool, optional
+        should a timestamp be added in fromt of the filename. The default is False.
+
+    """
+    
+    if add_timestamp:
+        f_name = folder + '/' + time.strftime('%Y-%m-%dT%H%M%S_') + f_name + '.pickle'
+    else:
+        f_name = folder + '/' + f_name + '.pickle'
+        
+    with open(f_name, 'wb') as f:    
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+        
+        
+def load_pickle(folder='.', f_name='tmp', ext='pickle'):
+    """
+    load python data from file.
+    
+    This method is a wrapper for the python "pickle" module. Please note that 
+    
+    "The pickle module is not secure. Only unpickle data you trust." (see 
+    https://docs.python.org/3/library/pickle.html for more information.)
+
+    Parameters
+    ----------
+    folder : string, optional
+        folder to save data to.. The default is '.'.
+    f_name : string, optional
+        filename to save data to.. The default is 'tmp'.
+    ext : string, optional
+        filename extension. The default is 'pickle'.
+
+    Returns
+    -------
+    data : arbitrary python data object
+        read data object.
+
+    """
+    
+    f_name = folder + '/' + f_name + '.' + ext
+    
+    with open(f_name, 'rb') as f:    
+        data = pickle.load(f)
+        
+    return data
+
+def save_fig(fig, fformat='png', folder='.', f_name='tmp', fdpi=200, 
+             add_timestamp=False):
+    """
+    save given figure to file.
+
+    Parameters
+    ----------
+    fig : matplotlib Figure object
+        handle to the figure to be saved.
+    fformat : string, optional
+        format of the saved file, can either be 'png', 'pdf' or 'svg'. 
+        The default is 'png'.
+    folder : string, optional
+        folder to save figure to. The default is '.'.
+    f_name : string, optional
+        filename to save figure to. The default is 'tmp'.
+    fdpi : int, optional
+        resolution (dots per inch, DPI) to save the rastered image. Only used
+        in case of format=='png'. The default is 200.
+    add_timestamp : bool, optional
+        should a timestamp be added to the filename? The default is False.
+    """
+    
+    if add_timestamp:
+        t = time.strftime('%Y-%m-%dT%H%M%S_')
+    else:
+        t = ''
+    
+    path = folder + '/' + t + f_name + '.' + fformat
+        
+    if fformat == 'png':
+        fig.savefig(path, dpi=fdpi, format='png')
+    elif (fformat == 'pdf') or (fformat == 'svg'):
+        fig.savefig(path, format=fformat)     
+    else:
+        raise ValueError('unknown format given')
+            
+    
+    
+    
+    
+    
