@@ -591,7 +591,7 @@ def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolat
 
     return OSNR_01nm,OSNR_val
 
-def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9, scaling='lin', fit_lin=True, plotting=False):
+def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9, scaling='lin', fit_lin=True, plotting=False, fNum=None):
     """
     Estimate the signal to noise ratio (SNR) from a given power spectrum.
     
@@ -644,6 +644,9 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         Shall the spectrum (plus integration regions and noise fit) be plotted?
         Useful for tuning sig_range and noise_range and verifying the fitting results.
         The default is False.
+    fNum : int, optional
+        Figure number to plot into. The default is None which uses the 
+        "next unused figure number".
 
     Returns
     -------
@@ -760,7 +763,11 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         # plt.show()
     
         # logarithmic plot
-        plt.figure()
+        if fNum:
+            plt.figure(fNum)
+            plt.clf()
+        else:
+            plt.figure()
         plt.plot(x,10*np.log10(y))
         plt.plot(x[sig_range_idx], 10*np.log10(y[sig_range_idx]), 'o')
         plt.plot(x[noise_range_idx[0]:noise_range_idx[1]], 10*np.log10(y[noise_range_idx[0]:noise_range_idx[1]]), 'ro-')
