@@ -6,7 +6,7 @@ import copy
 from . import utils
 
     
-def plot_spectrum(samples, sample_rate=1.0, fNum=1, scale='logNorm', tit='spectrum',
+def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spectrum',
                   save_fig=False, ffolder='.', ffname=None, fformat='png',
                   add_timestamp=False):
     """
@@ -22,7 +22,8 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=1, scale='logNorm', tit='spectr
     sample_rate : float, optional
         sample rate of the signal in Hz. The default is 1.0
     fNum : int, optional
-        figure number to be used for plot. The default is 1.
+        figure number to be used for plot. The default is None which uses the 
+        "next unused figure number".
     scale : string, optional
         scaling of the y axis, can either be 'logNorm', 'log', 'linNorm','lin'.
         The y axis will be shown in linear or logarithmic scale and can either be
@@ -79,7 +80,11 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=1, scale='logNorm', tit='spectr
         ylabel = "normalized amplitude [dB]"    
     
     # plot spectrum
-    fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    if fNum:
+        fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    else:
+        fig = plt.figure(facecolor='white', edgecolor='white')
+        
     plt.clf()
     # if signal real -> plot only positive frequencies
     if isReal:
@@ -100,7 +105,7 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=1, scale='logNorm', tit='spectr
     plt.show()
 
 
-def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None], 
+def plot_signal(samples, sample_rate=1.0, fNum=None, boundaries=[None, None], 
                 tit='time signal', save_fig=False, ffolder='.', ffname=None, 
                 fformat='png', add_timestamp=False):
     """
@@ -114,7 +119,8 @@ def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None],
     sample_rate : float, optional
         The sample rate of the signal. The default is 1.0.
     fNum : int, optional
-        Figure number to plot into. The default is 1.
+        Figure number to plot into. The default is None which uses the 
+        "next unused figure number".
     boundaries : list of int or None, optional
         The boundaries are given as list with two elements (start and end index).
         The signal is only plotted within these given boundaries. A value of None
@@ -148,7 +154,11 @@ def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None],
     samples = samples[boundaries[0]:boundaries[1]]
     
     # plotting
-    fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    if fNum:
+        fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    else:
+        fig = plt.figure(facecolor='white', edgecolor='white')
+        
     plt.clf()    
     # if complex input signal -> plot real and imag seperatly
     if np.any(np.iscomplex(samples)):
@@ -179,7 +189,7 @@ def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None],
     plt.show()
         
 	
-def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=1, 
+def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=None, 
              boundaries=[None, None], tit='eye diagramm', save_fig=False, 
              ffolder='.', ffname=None, fformat='png', add_timestamp=False):
     """
@@ -195,7 +205,8 @@ def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=1,
     bit_rate : float, optional
         Bit rate (or symbol rate) of hte signal. The default is 1.    
     fNum : int, optional
-        Figure number to plot into. The default is 1.
+        Figure number to plot into. The default is None which uses the 
+        "next unused figure number".
     boundaries : list of int or None, optional
         The boundaries are given as list with two elements (start and end index).
         The eye diagram is only plotted within these given boundaries. A value of None
@@ -236,7 +247,10 @@ def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=1,
     t = np.linspace(0, (2 * sps -1) * (1/sample_rate), int(2 * sps))
     samples = np.reshape(samples, (int(2 * sps), -1), order = 'F')
     
-    fig = plt.figure(fNum, facecolor='white', edgecolor='white')    
+    if fNum:
+        fig = plt.figure(fNum, facecolor='white', edgecolor='white')    
+    else:
+        fig = plt.figure(facecolor='white', edgecolor='white')    
         
     if np.any(np.iscomplex(samples)):
         plt.subplot(121)
@@ -273,7 +287,7 @@ def plot_hist(samples, nBins=100):
     # check for complex input??
     pass
 
-def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation',
+def plot_constellation(samples, decimation=1, fNum =None, tit='constellation',
                        hist=False, axMax=None, nBins=128, save_fig=False, 
                        ffolder='.', ffname=None, fformat='png', 
                        add_timestamp=False):
@@ -287,7 +301,8 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation',
     decimation : int, optional
         take only every decimations-th sample of the input signal. The default is 1.
     fNum : int, optional
-        figure number of the plot to be created. The default is 1.
+        figure number of the plot to be created. The default is None which uses the 
+        "next unused figure number".
     tit : string, optional
         title of the plot to be created. The default is 'constellation'.
     hist : bool, optional
@@ -316,7 +331,10 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation',
     if axMax is None:
         axMax = max(np.abs(samples.real).max(), np.abs(samples.imag).max())*1.1
     
-    fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    if fNum:
+        fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    else:
+        fig = plt.figure(facecolor='white', edgecolor='white')
     
     if hist:
         bins = nBins
@@ -341,7 +359,7 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation',
     plt.show()
     
     
-def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, 
+def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum=1, 
                          tit = 'Poincaré sphere', labels=True, save_fig=False, 
                          ffolder='.', ffname=None, fformat='png', 
                          add_timestamp=False):
