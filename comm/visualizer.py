@@ -63,10 +63,12 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spe
     
     # scale spectrum
     if scale == 'logNorm':
-        fSamples = 20*np.log10(fSamples / np.max(fSamples))  
+        with np.errstate(divide='ignore'):
+            fSamples = 20*np.log10(fSamples / np.max(fSamples))  
         ylabel = "normalized amplitude [dB]"
     elif scale == 'log':
-        fSamples = 20*np.log10(fSamples)
+        with np.errstate(divide='ignore'):
+            fSamples = 20*np.log10(fSamples)
         ylabel = "amplitude [dB]"
     elif scale == 'linNorm':
         fSamples = fSamples / np.max(fSamples)
@@ -75,8 +77,9 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spe
         fSamples = fSamples
         ylabel = "amplitude [a.u.]"
     else:
-        print('plotSpectrum scale must be lin(Norm) or log(Norm)...using "logNorm"')        
-        fSamples = 20*np.log10(fSamples / np.max(fSamples))
+        print('plotSpectrum scale must be lin(Norm) or log(Norm)...using "logNorm"')
+        with np.errstate(divide='ignore'):
+            fSamples = 20*np.log10(fSamples / np.max(fSamples))
         ylabel = "normalized amplitude [dB]"    
     
     # plot spectrum

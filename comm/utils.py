@@ -768,11 +768,12 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
             plt.clf()
         else:
             plt.figure()
-        plt.plot(x,10*np.log10(y))
-        plt.plot(x[sig_range_idx], 10*np.log10(y[sig_range_idx]), 'o')
-        plt.plot(x[noise_range_idx[0]:noise_range_idx[1]], 10*np.log10(y[noise_range_idx[0]:noise_range_idx[1]]), 'ro-')
-        plt.plot(x[noise_range_idx[2]:noise_range_idx[3]], 10*np.log10(y[noise_range_idx[2]:noise_range_idx[3]]), 'ro-')
-        plt.plot(xx_n,10*np.log10(yy_n),'g-')
+        with np.errstate(divide='ignore'):
+            plt.plot(x,10*np.log10(y))
+            plt.plot(x[sig_range_idx], 10*np.log10(y[sig_range_idx]), 'o')
+            plt.plot(x[noise_range_idx[0]:noise_range_idx[1]], 10*np.log10(y[noise_range_idx[0]:noise_range_idx[1]]), 'ro-')
+            plt.plot(x[noise_range_idx[2]:noise_range_idx[3]], 10*np.log10(y[noise_range_idx[2]:noise_range_idx[3]]), 'ro-')
+            plt.plot(xx_n,10*np.log10(yy_n),'g-')
         plt.xlabel('given x value / a.u.')
         plt.ylabel('given y value / dB')
         plt.title('est. SNR = {:.1f} dB in noise bandwidth of {:.2e}'.format(snr_db, noise_bw))
