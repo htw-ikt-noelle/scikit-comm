@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import copy
 from . import visualizer
 from . import tx
 from . import utils
@@ -108,7 +109,7 @@ class Signal():
                 if (value.ndim == 1):
                     # set all dimensions at once by generating list of correct
                     # length having the ndarray in each element
-                    value = [value] * self.n_dims
+                    value = [copy.deepcopy(value) for dim in range(self.n_dims)]
                 elif ((value.ndim == 2) and (value.shape[0] == self.n_dims)):
                     # generate a list in which ever entry contains one row of
                     # the given ndarray
@@ -119,7 +120,7 @@ class Signal():
             elif (isinstance(value, (int, float, str, bool)) or (value == None)):
                 # set all dimensions at once by generating list of correct
                 # length form salar integers, floats, strings, bool or None
-                value = [value] * self.n_dims
+                value = [copy.deepcopy(value) for dim in range(self.n_dims)]
             else:
                 raise TypeError('Cannot reasonably convert attribute type to list...')
 
