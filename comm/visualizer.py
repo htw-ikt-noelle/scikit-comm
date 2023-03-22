@@ -2,11 +2,12 @@ import numpy as np
 import numpy.fft as fft
 import matplotlib.pyplot as plt
 import copy
+import tkinter as tk
 
 from . import utils
 
     
-def plot_spectrum(samples, sample_rate=1.0, fNum=1, scale='logNorm', tit='spectrum',
+def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spectrum',
                   save_fig=False, ffolder='.', ffname=None, fformat='png',
                   add_timestamp=False):
     """
@@ -22,7 +23,8 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=1, scale='logNorm', tit='spectr
     sample_rate : float, optional
         sample rate of the signal in Hz. The default is 1.0
     fNum : int, optional
-        figure number to be used for plot. The default is 1.
+        figure number to be used for plot. The default is None which uses the 
+        "next unused figure number".
     scale : string, optional
         scaling of the y axis, can either be 'logNorm', 'log', 'linNorm','lin'.
         The y axis will be shown in linear or logarithmic scale and can either be
@@ -62,10 +64,12 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=1, scale='logNorm', tit='spectr
     
     # scale spectrum
     if scale == 'logNorm':
-        fSamples = 20*np.log10(fSamples / np.max(fSamples))  
+        with np.errstate(divide='ignore'):
+            fSamples = 20*np.log10(fSamples / np.max(fSamples))  
         ylabel = "normalized amplitude [dB]"
     elif scale == 'log':
-        fSamples = 20*np.log10(fSamples)
+        with np.errstate(divide='ignore'):
+            fSamples = 20*np.log10(fSamples)
         ylabel = "amplitude [dB]"
     elif scale == 'linNorm':
         fSamples = fSamples / np.max(fSamples)
@@ -74,12 +78,17 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=1, scale='logNorm', tit='spectr
         fSamples = fSamples
         ylabel = "amplitude [a.u.]"
     else:
-        print('plotSpectrum scale must be lin(Norm) or log(Norm)...using "logNorm"')        
-        fSamples = 20*np.log10(fSamples / np.max(fSamples))
+        print('plotSpectrum scale must be lin(Norm) or log(Norm)...using "logNorm"')
+        with np.errstate(divide='ignore'):
+            fSamples = 20*np.log10(fSamples / np.max(fSamples))
         ylabel = "normalized amplitude [dB]"    
     
     # plot spectrum
-    fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    if fNum:
+        fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    else:
+        fig = plt.figure(facecolor='white', edgecolor='white')
+        
     plt.clf()
     # if signal real -> plot only positive frequencies
     if isReal:
@@ -100,7 +109,7 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=1, scale='logNorm', tit='spectr
     plt.show()
 
 
-def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None], 
+def plot_signal(samples, sample_rate=1.0, fNum=None, boundaries=[None, None], 
                 tit='time signal', save_fig=False, ffolder='.', ffname=None, 
                 fformat='png', add_timestamp=False):
     """
@@ -114,7 +123,8 @@ def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None],
     sample_rate : float, optional
         The sample rate of the signal. The default is 1.0.
     fNum : int, optional
-        Figure number to plot into. The default is 1.
+        Figure number to plot into. The default is None which uses the 
+        "next unused figure number".
     boundaries : list of int or None, optional
         The boundaries are given as list with two elements (start and end index).
         The signal is only plotted within these given boundaries. A value of None
@@ -148,7 +158,11 @@ def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None],
     samples = samples[boundaries[0]:boundaries[1]]
     
     # plotting
-    fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    if fNum:
+        fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    else:
+        fig = plt.figure(facecolor='white', edgecolor='white')
+        
     plt.clf()    
     # if complex input signal -> plot real and imag seperatly
     if np.any(np.iscomplex(samples)):
@@ -179,7 +193,7 @@ def plot_signal(samples, sample_rate=1.0, fNum=1, boundaries=[None, None],
     plt.show()
         
 	
-def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=1, 
+def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=None, 
              boundaries=[None, None], tit='eye diagramm', save_fig=False, 
              ffolder='.', ffname=None, fformat='png', add_timestamp=False):
     """
@@ -195,7 +209,8 @@ def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=1,
     bit_rate : float, optional
         Bit rate (or symbol rate) of hte signal. The default is 1.    
     fNum : int, optional
-        Figure number to plot into. The default is 1.
+        Figure number to plot into. The default is None which uses the 
+        "next unused figure number".
     boundaries : list of int or None, optional
         The boundaries are given as list with two elements (start and end index).
         The eye diagram is only plotted within these given boundaries. A value of None
@@ -236,7 +251,10 @@ def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=1,
     t = np.linspace(0, (2 * sps -1) * (1/sample_rate), int(2 * sps))
     samples = np.reshape(samples, (int(2 * sps), -1), order = 'F')
     
-    fig = plt.figure(fNum, facecolor='white', edgecolor='white')    
+    if fNum:
+        fig = plt.figure(fNum, facecolor='white', edgecolor='white')    
+    else:
+        fig = plt.figure(facecolor='white', edgecolor='white')    
         
     if np.any(np.iscomplex(samples)):
         plt.subplot(121)
@@ -273,7 +291,7 @@ def plot_hist(samples, nBins=100):
     # check for complex input??
     pass
 
-def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation',
+def plot_constellation(samples, decimation=1, fNum =None, tit='constellation',
                        hist=False, axMax=None, nBins=128, save_fig=False, 
                        ffolder='.', ffname=None, fformat='png', 
                        add_timestamp=False):
@@ -287,7 +305,8 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation',
     decimation : int, optional
         take only every decimations-th sample of the input signal. The default is 1.
     fNum : int, optional
-        figure number of the plot to be created. The default is 1.
+        figure number of the plot to be created. The default is None which uses the 
+        "next unused figure number".
     tit : string, optional
         title of the plot to be created. The default is 'constellation'.
     hist : bool, optional
@@ -316,7 +335,10 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation',
     if axMax is None:
         axMax = max(np.abs(samples.real).max(), np.abs(samples.imag).max())*1.1
     
-    fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    if fNum:
+        fig = plt.figure(fNum, facecolor='white', edgecolor='white')
+    else:
+        fig = plt.figure(facecolor='white', edgecolor='white')
     
     if hist:
         bins = nBins
@@ -341,7 +363,7 @@ def plot_constellation(samples, decimation=1, fNum = 1, tit = 'constellation',
     plt.show()
     
     
-def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1, 
+def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum=1, 
                          tit = 'Poincaré sphere', labels=True, save_fig=False, 
                          ffolder='.', ffname=None, fformat='png', 
                          add_timestamp=False):
@@ -511,3 +533,124 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum = 1,
     handles['ax'] = ax
     handles['line'] = li[0]
     return handles
+
+
+def place_figures(auto_layout=True, offset=[0,0], screen_resolution=None, nc=4, 
+                  nr=3, taskbar_offset=40, figure_toolbar=64):
+    """
+    Place open figures on screen unsing specified layout. Basic programmatic
+    idea taken from [1].
+    
+    [1] JaeJun Lee (2023). automatically arrange figure windows 
+    (https://www.mathworks.com/matlabcentral/fileexchange/48480-automatically-arrange-figure-windows), 
+    MATLAB Central File Exchange. Retrieved January 23, 2023. 
+    
+        Parameters
+    ----------
+    auto_layout : bool, optional
+        The layout is chosen automatically depending on the number of opened 
+        figures. Number of figures must not exceed 32. The default is True.
+    offset : list, optional
+        Specifies the offset from top left screen edge in integer pixels [x, y],
+        where the layout is supposed to start. This can be used to put the layout
+        onto the second screen, if available. The default is [0,0].
+    screen_resolution : list, optional
+        Specifies the resolution in integer pixels [width,height] which is used 
+        for the layout of the figures. If None, the resolution of the whole screen
+        (using the specified offset) is estimated. The default is None.
+    nc : int, optional
+        Number of coloums used for the layout. Only used if auto_layout=False.
+        The default is 4.
+    nr : int, optional
+        Number of rows used for the layout. Only used if auto_layout=False.
+        The default is 3.
+    taskbar_offset : int, optional
+        Height of the (windows) taskbar which should not be covered by the layout. 
+        The taskbar is assumed to be on the bottom of the screen. The default is 40.
+    figure_toolbar : int, optional
+        Height of the toolbar of the individual plot windows. The default is 64.
+
+    Returns
+    -------
+    None.
+
+    """      
+    
+    # get figure handles
+    figHandle = list(map(plt.figure, plt.get_fignums()))   
+    n_fig = len(figHandle)
+
+    if n_fig <= 0:
+        raise ValueError('no figures found to place')
+
+    if screen_resolution:
+        screen_resolution[1] = screen_resolution[1] -  taskbar_offset
+    else:    
+        # workaround to determine screen resolution:
+        # * open tk window
+        # * place the window according to offset
+        # * make it fullscreen
+        # * get width and height
+        # * kill window
+        # from https://stackoverflow.com/questions/3129322/how-do-i-get-monitor-resolution-in-python
+        # TODO: find better way to determine screen resolutions of individual monitors
+        root = tk.Tk()
+        root.update_idletasks()
+        root.geometry(f'100x100+{offset[0]}+{offset[1]}')
+        # print(root.geometry())
+        root.attributes('-fullscreen', True)
+        # print(root.geometry())
+        root.state('iconic')
+        screen_resolution = []
+        screen_resolution.append(root.winfo_screenwidth())
+        # reduce screen height by the (windows) taskbar
+        screen_resolution.append(root.winfo_screenheight() -  taskbar_offset)
+        root.destroy()
+
+    # auto layout?
+    if auto_layout:
+        grid = [
+            [1,1],[1,2],
+            [2,2],[2,2],
+            [2,3],[2,3],
+            [3,3],[3,3],[3,3],
+            [3,4],[3,4],[3,4],
+            [4,4],[4,4],[4,4],[4,4],
+            [4,5],[4,5],[4,5],[4,5],
+            [4,6],[4,6],[4,6],[4,6],
+            [4,7],[4,7],[4,7],[4,7],
+            [4,8],[4,8],[4,8],[4,8]
+            ]
+       
+        if n_fig > len(grid)*2:
+            raise ValueError('more figures opened than layout options available')        
+        
+        # portrait mode
+        if screen_resolution[0] < screen_resolution[1]:
+            nc = grid[n_fig-1][0]
+            nr = grid[n_fig-1][1]
+        # landscape mode
+        else:
+            nc = grid[n_fig-1][1]
+            nr = grid[n_fig-1][0]
+    # manual layout
+    else:
+        if (nc * nr) < n_fig:
+            raise ValueError(f'more figures opened ({n_fig}) than rows times coloumns given ({nc*nr}): try to increase numbers or switch to auto layout mode')
+            
+
+    fig_width = screen_resolution[0]/nc 
+    fig_height = screen_resolution[1]/nr - figure_toolbar 
+
+    fig_cnt = 0
+    for r in range(nr):
+        for c in range(nc):
+            if fig_cnt >= n_fig:
+                break        
+            figHandle[fig_cnt].set_figheight(fig_height / figHandle[fig_cnt].get_dpi())
+            figHandle[fig_cnt].set_figwidth(fig_width / figHandle[fig_cnt].get_dpi())
+            if r == 0:
+                figHandle[fig_cnt].canvas.manager.window.move(int(fig_width*c + offset[0]), int(fig_height*r) + offset[1])
+            else:
+                figHandle[fig_cnt].canvas.manager.window.move(int(fig_width*c + offset[0]), int((fig_height+figure_toolbar)*r) + offset[1])
+            fig_cnt += 1
