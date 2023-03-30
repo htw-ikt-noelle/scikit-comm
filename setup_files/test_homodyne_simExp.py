@@ -156,7 +156,7 @@ sig_rx = copy.deepcopy(sig_tx)
 sig_rx.samples = samples
 sig_rx.sample_rate = sr
 
-sig_rx.plot_spectrum(tit='spectrum from scope')
+sig_rx.plot_spectrum(tit='spectrum from scope',fNum=1)
 
 #%% # From here: "standard" coherent complex baseband signal processing ############
 #%% # resample to 2 sps
@@ -166,7 +166,7 @@ new_length = int(sig_rx.samples[0].size/sps*sps_new)
 sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
 sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
 
-sig_rx.plot_spectrum(tit='spectrum after resampling')
+sig_rx.plot_spectrum(tit='spectrum after resampling',fNum=2)
 
 #%% # estimate SNR
 sig_range = np.asarray([-1, 1])*sig_rx.symbol_rate[0]/2*(1+ROLL_OFF) + F_OFFSET
@@ -196,7 +196,7 @@ mag_const = np.mean(abs(sig_rx.constellation[0]))
 mag_samples= np.mean(abs(sig_rx.samples[0]))
 sig_rx.samples = sig_rx.samples[0] * mag_const / mag_samples
 
-sig_rx.plot_constellation(hist=True, tit='constellation before EQ')
+sig_rx.plot_constellation(hist=True, tit='constellation before EQ', fNum=3)
 
 adaptive_filter = True
 #%% # either blind adaptive filter....
@@ -210,13 +210,16 @@ if adaptive_filter == True:
     h = results['h'][0]
     eps = results['eps'][0]
     # plot error evolution
+    f = plt.figure(4)
+    f.clear()
     plt.plot(np.abs(eps))
     plt.title('evolution of equalizer error')
     plt.xlabel('time / symbols')
     plt.ylabel('error /a.u.')
     plt.show()       
     # plot evolution of filters frequency response
-    plt.figure()
+    f = plt.figure(5)
+    f.clear()
     ax = plt.subplot(projection='3d')
     f = np.fft.fftshift(np.fft.fftfreq(h[0,:].size, d=1/sig_rx.sample_rate[0]))
     outsymbs = [0, 1000, 5000, 10000, 20000, 30000, h[:,0].size-1]    
@@ -227,6 +230,8 @@ if adaptive_filter == True:
     plt.ylabel('time / symbols')  
     plt.show()
      # plot last filter frequency response
+    f = plt.figure(6)
+    f.clear()
     f = np.fft.fftshift(np.fft.fftfreq(h[0,:].size, d=1/sig_rx.sample_rate[0]))
     plt.plot(f, np.abs(np.fft.fftshift(np.fft.fft(h[-1,:]))))
     plt.title('last equalizer frequency response')
@@ -260,7 +265,7 @@ else:
 START_SAMPLE = 0
 sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
 sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
-sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
+sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ',fNum=7)
 
 #%% # CPE
 viterbi = True
@@ -277,7 +282,9 @@ else:
                                                n_taps=15, n_test_phases=45, const_symmetry=np.pi/2)
     sig_rx.samples = cpe_results['samples_corrected']
     est_phase = cpe_results['est_phase_noise']
-    
+
+f = plt.figure(8)
+f.clear()
 plt.plot(est_phase)
 plt.title('estimated phase noise')
 plt.xlabel('time / symbols')
@@ -285,7 +292,7 @@ plt.ylabel('phase / rad')
 plt.grid()
 plt.show()
 
-sig_rx.plot_constellation(hist=True, tit='constellation after CPE')
+sig_rx.plot_constellation(hist=True, tit='constellation after CPE',fNum=9)
 
 #%% # delay and phase ambiguity estimation and compensation
 sig_rx = skc.rx.symbol_sequence_sync(sig_rx, dimension=-1)
