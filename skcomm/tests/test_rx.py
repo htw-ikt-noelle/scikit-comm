@@ -6,10 +6,8 @@ from numpy.testing import (
         suppress_warnings
         )
 
-import os
-import sys
-sys.path.insert(0, os.path.abspath('..\..'))
-import comm as comm
+from .. import rx
+from .. import utils
 
 
 class TestDemapper(unittest.TestCase):
@@ -21,7 +19,7 @@ class TestDemapper(unittest.TestCase):
         bits = np.asarray([0,0,0,1,1,1,1,0]) # 0 1 3 2
         samples = np.asarray([1+0j, 0+1j, 0-1j, -1+0j])
         constellation = np.asarray([1+0j, 0+1j, -1+0j, 0-1j])
-        demapped = comm.rx.demapper(samples, constellation)
+        demapped = rx.demapper(samples, constellation)
         assert_equal(demapped, bits)
         
 class TestDecision(unittest.TestCase):
@@ -33,7 +31,7 @@ class TestDecision(unittest.TestCase):
         samples = np.asarray([2+0j, 1+0.99j, 0.01-0j, 0.5-0.49j])
         constellation = np.asarray([1+0j, 0+1j, -1+0j, 0-1j])
         result = np.asarray([1+0j, 1+0j, 1+0j, 1+0j]) 
-        dec = comm.rx.decision(samples, constellation)
+        dec = rx.decision(samples, constellation)
         assert_equal(result, dec)
         
     def test_scaling(self):
@@ -41,8 +39,8 @@ class TestDecision(unittest.TestCase):
         samples1 = constellation*4
         samples2 = constellation*0.1
         result = constellation
-        dec1 = comm.rx.decision(samples1, constellation)
-        dec2 = comm.rx.decision(samples2, constellation)
+        dec1 = rx.decision(samples1, constellation)
+        dec2 = rx.decision(samples2, constellation)
         assert_equal(result, dec1)
         assert_equal(result, dec2)
         
@@ -56,15 +54,15 @@ class TestSamplingPhaseClockAdjustment(unittest.TestCase):
         symbr = 1.0
         phase = 1.0
         n_samples = 100
-        t = comm.utils.create_time_axis(sample_rate=10.0, n_samples=n_samples)
+        t = utils.create_time_axis(sample_rate=10.0, n_samples=n_samples)
         samples = np.cos(2*np.pi*symbr/2*t + phase)
-        shift = comm.rx.sampling_phase_adjustment(samples, sample_rate=sr, symbol_rate=symbr, shift_dir='delay')['est_shift']
+        shift = rx.sampling_phase_adjustment(samples, sample_rate=sr, symbol_rate=symbr, shift_dir='delay')['est_shift']
         assert_array_almost_equal(shift, -phase/np.pi/symbr, decimal=10)
-        shift = comm.rx.sampling_phase_adjustment(samples, sample_rate=sr, symbol_rate=symbr, shift_dir='advance')['est_shift']
+        shift = rx.sampling_phase_adjustment(samples, sample_rate=sr, symbol_rate=symbr, shift_dir='advance')['est_shift']
         assert_array_almost_equal(shift, 1.0-(phase/np.pi/symbr), decimal=10)
-        shift = comm.rx.sampling_phase_adjustment(samples, sample_rate=sr, symbol_rate=symbr, shift_dir='both')['est_shift']
+        shift = rx.sampling_phase_adjustment(samples, sample_rate=sr, symbol_rate=symbr, shift_dir='both')['est_shift']
         assert_array_almost_equal(shift, -phase/np.pi/symbr, decimal=10)
-        shifts = comm.rx.sampling_clock_adjustment(samples, sample_rate=sr, symbol_rate=symbr, block_size=int(n_samples/(sr/symbr*2)))['est_shift']
+        shifts = rx.sampling_clock_adjustment(samples, sample_rate=sr, symbol_rate=symbr, block_size=int(n_samples/(sr/symbr*2)))['est_shift']
         assert_array_almost_equal(shifts, np.asarray([-phase/np.pi/symbr, -phase/np.pi/symbr]), decimal=10)
         
         
