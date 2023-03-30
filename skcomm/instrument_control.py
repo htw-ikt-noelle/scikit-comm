@@ -1,4 +1,8 @@
-import logging, struct, sys, time
+import logging
+import struct
+import sys
+import time
+
 import pyvisa as visa
 import numpy as np
 from socket import socket, AF_INET, SOCK_STREAM, SHUT_RDWR
@@ -1623,18 +1627,18 @@ def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [
                                        
     Examples
     --------
-            >>> import comm as comm
+            >>> import skcomm as skc
         
         The power of channel 1 should be acquired. The wavelength will be set to 1550 nm and the power unit to dBm.
         GPIB address will be set to 22. In this example, the verbose mode is activated.
-            >>> p = comm.instrument_control.get_opt_power_HP8153A(channels = ['1'], GPIB_address = 22, power_units = ['DBM'], wavelengths = [1550.0])
+            >>> p = skc.instrument_control.get_opt_power_HP8153A(channels = ['1'], GPIB_address = 22, power_units = ['DBM'], wavelengths = [1550.0])
         
         The power of both channels should be acquired. The wavelength of channel 1 should not be changed. For channel 2, 
         the wavelengths will be set to 1550nm. Power unit for channel 1 should be "Watt" and "dBm" for channel 2.
-            >>> p = comm.instrument_control.get_opt_power_HP8153A(channels = ['1','2'], GPIB_address = 22, power_units = ['Watt','DBM'], wavelengths = [None,1550.0])
+            >>> p = skc.instrument_control.get_opt_power_HP8153A(channels = ['1','2'], GPIB_address = 22, power_units = ['Watt','DBM'], wavelengths = [None,1550.0])
         
         Only the power value should be acquired from both channels. Therfore, the verbose_mode can be deactivated.
-            >>> p = comm.instrument_control.get_opt_power_HP8153A(channels = ['1','2'], GPIB_address = 22, verbose_mode = False)
+            >>> p = skc.instrument_control.get_opt_power_HP8153A(channels = ['1','2'], GPIB_address = 22, verbose_mode = False)
         Note, in this example, no values for wavelengths and power_unit are provided. Hence, the current values of the multimeter will be used.
         
         Access the power level only of channel 1
@@ -2019,22 +2023,22 @@ def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = 
     Examples
     -------
 
-        >>> import comm as comm
+        >>> import skcomm as skc
         
         Get the data from the cassette 1 and 2. The properties of the device will not be changed.
-        >>> a = comm.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'])
+        >>> a = skc.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'])
 
         Change values of attenuation, offset and wavelength for cassette 2
-        >>> b = comm.instrument_control.set_attenuation_MTA_150(cassettes=['2'],attenuations=[5.0], offsets=[5.0], wavelengths=[1300.5])
+        >>> b = skc.instrument_control.set_attenuation_MTA_150(cassettes=['2'],attenuations=[5.0], offsets=[5.0], wavelengths=[1300.5])
 
         Change attenuation of cassette 1 and wavelength of cassette 2
-        >>> c = comm.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'],attenuations=[5.0,None],wavelengths=[None,1550.0])
+        >>> c = skc.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'],attenuations=[5.0,None],wavelengths=[None,1550.0])
 
         Cassettes order can be changed
-        >>> d = comm.instrument_control.set_attenuation_MTA_150(cassettes=['2','1'],attenuations=[None,0.0],wavelengths=[1500.0,None])
+        >>> d = slc.instrument_control.set_attenuation_MTA_150(cassettes=['2','1'],attenuations=[None,0.0],wavelengths=[1500.0,None])
 
         Access actual attenuation value of cassette 1
-        >>> e = comm.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'])
+        >>> e = skc.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'])
         >>> attenuation_value = e['1']['attenuation']
 
 

@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.signal as ssignal
-import matplotlib.pyplot as plt
+
 from . import utils
 from . import filters
 

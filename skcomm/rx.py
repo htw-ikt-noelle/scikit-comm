@@ -3,14 +3,10 @@ import warnings
 import numpy as np
 import scipy.signal as ssignal
 from scipy import interpolate
-from scipy import optimize
 import matplotlib.pyplot as plt
-import copy
-import comm
 
 from . import utils
 from . import filters
-from . import visualizer
 from . import signal
 
 
@@ -269,7 +265,7 @@ def sampling_clock_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, block_s
     and actual (sample rate of samples) sampling frequency and corrects for the
     found value.
     This is done by splitting the singal into blocks of block_size SYMBOLS and 
-    estimating the sampling time offset for each of the blocks (see comm.rx.sampling_phase_adjustment).
+    estimating the sampling time offset for each of the blocks (see skcomm.rx.sampling_phase_adjustment).
     Then, the sampling time offest is corrected for by cyclic time shift of the individual blocks.
     Longer block sizes enhance the accuracy of the time offset estimatin, but cause the sampling
     clock offset to be larger within one block.
@@ -658,7 +654,7 @@ def symbol_sequence_sync(sig, dimension=-1):
 
     Parameters
     ----------
-    sig : comm.signal.Signal
+    sig : skcomm.signal.Signal
         signal containing the sequences to be synced.
 
     dimension : int
@@ -667,12 +663,12 @@ def symbol_sequence_sync(sig, dimension=-1):
 
     Returns
     -------
-    sig : comm.signal.Signal
+    sig : skcomm.signal.Signal
         signal containing the synced sequences.
 
     """    
     if type(sig) != signal.Signal:
-        raise TypeError("input parameter must be of type 'comm.signal.Signal'")
+        raise TypeError("input parameter must be of type 'skcomm.signal.Signal'")
         
     if dimension == -1:
         dims = range(sig.n_dims)
@@ -794,7 +790,7 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
         
     Parameters
     ----------
-    sig : comm.signal.Signal
+    sig : skcomm.signal.Signal
         input signal to be equalized.
     n_taps : int or list of ints, optional
         length of the equalizers impulse response in samples for each dimension. Has to be odd. 
@@ -828,7 +824,7 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     Returns
     -------
     results :  dict containing following keys
-        sig : comm.signal.Signal
+        sig : skcomm.signal.Signal
             equalized output signal.
         h : list of np.arrays 
             each list element consists of either a np.array of shape 
@@ -842,7 +838,7 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
             empty np.array in case of return_info==False.
     """
     if type(sig) != signal.Signal:
-        raise TypeError("input parameter must be of type 'comm.signal.Signal'")
+        raise TypeError("input parameter must be of type 'skcomm.signal.Signal'")
     
     # parameter cheching
     if type(n_taps) == list:
@@ -1051,7 +1047,7 @@ def combining(sig, comb_method='EGC', snr=None):
             raise ValueError("Number of signal dimensions must match length of SNR value array.")
         
     # create new object with one dimension
-    sig_comb = comm.signal.Signal(n_dims=1)
+    sig_comb = signal.Signal(n_dims=1)
     for key in vars(sig):
         if key == '_n_dims':
             pass

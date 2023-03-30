@@ -5,7 +5,7 @@ import scipy.signal as ssignal
 import matplotlib.pyplot as plt
 import scipy.interpolate as sinterp
 
-import skcomm as comm
+import skcomm as skc
 
 #%% Tx 
 #%% # signal parameters
@@ -20,7 +20,7 @@ SNR = 20
 F_OFFSET = 100e6 # frequency offset
 
 #%% # contruct signal
-sig_tx = comm.signal.Signal(n_dims=1)
+sig_tx = skc.signal.Signal(n_dims=1)
 sig_tx.symbol_rate = 12.8e9
 
 TX_UPSAMPLE_FACTOR = DAC_SR / sig_tx.symbol_rate[0]
@@ -40,14 +40,14 @@ sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=[RO
 
 #%% # sinc correction
 if SINC_CORRECTION:
-    sig_tx.samples[0] = comm.pre_distortion.dac_sinc_correction(sig_tx.samples[0],
+    sig_tx.samples[0] = skc.pre_distortion.dac_sinc_correction(sig_tx.samples[0],
                                                                 f_max=1.0)
 
 #%% # pre-equalization of AWG frequency response
 if USE_PREDIST:
     #filtershape = np.load('setup_files/preDistFilter.npy')
     filtershape = np.transpose(np.array([[-16e9, -8e9, -7.8e9, 0, 7.8e9, 8e9, 16e9], [-100, -100, 2, 0 , 2,-100,-100]]))
-    sig_tx.samples[0] = comm.filters.filter_arbitrary(sig_tx.samples[0], 
+    sig_tx.samples[0] = skc.filters.filter_arbitrary(sig_tx.samples[0], 
                                                       filtershape, 
                                                       sample_rate=sig_tx.symbol_rate[0]*TX_UPSAMPLE_FACTOR)
 
@@ -64,14 +64,14 @@ samples = np.concatenate((np.real(samples), np.imag(samples)))
 if EXPERIMENT:
     if UPLOAD_SAMPLES:                    
         # write samples to AWG        
-        comm.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', 
+        skc.instrument_control.write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', 
                                                         sample_rate=[DAC_SR], amp_pp=[0.25, 0.25], 
                                                         channels=[1, 2], log_mode = False)
         time.sleep(2.0)
         
     if not HOLD_SHOT:
     	# get samples from scope
-        sr, samples = comm.instrument_control.get_samples_Tektronix_MSO6B(channels=[1, 2], 
+        sr, samples = skc.instrument_control.get_samples_Tektronix_MSO6B(channels=[1, 2], 
                                                                       ip_address='192.168.1.20',
                                                                       number_of_bytes = 1,
                                                                       log_mode = False)
@@ -126,15 +126,15 @@ else: # Simulation
     # samples = np.conj(samples * np.exp(-1j*np.pi/3))
     
     #%% ## add amplitude noise
-    samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=sig_tx.sample_rate[0]/sig_tx.symbol_rate[0], seed=None)
+    samples = skc.channel.set_snr(samples, snr_dB=SNR, sps=sig_tx.sample_rate[0]/sig_tx.symbol_rate[0], seed=None)
     
     ##%% ## add frequency offset
-    samples = comm.channel.add_frequency_offset(samples,
+    samples = skc.channel.add_frequency_offset(samples,
                                                 sample_rate=sig_tx.sample_rate[0], 
                                                 f_offset=F_OFFSET)
 
     ##%% ## phase noise emulation
-    samples = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)['samples']
+    samples = skc.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)['samples']
     sr = sig_tx.sample_rate[0]
     
     #%% ## add artificial sample clock error
@@ -174,7 +174,7 @@ noise_range = np.asarray([-1.1, -1.05, 1.05, 1.1]) * sig_rx.symbol_rate[0]/2 * (
                 
 spec = np.abs(np.fft.fftshift(np.fft.fft(sig_rx.samples[0])))**2
 freq = np.fft.fftshift(np.fft.fftfreq(sig_rx.samples[0].size, 1/sig_rx.sample_rate[0]))
-snr = comm.utils.estimate_snr_spectrum(freq, spec, sig_range=sig_range, 
+snr = skc.utils.estimate_snr_spectrum(freq, spec, sig_range=sig_range, 
                                        noise_range=noise_range, order=1, 
                                        noise_bw=sig_rx.symbol_rate[0], 
                                        scaling='lin', plotting=True)
@@ -183,7 +183,7 @@ print('est. SNR (from spectrum): {:.1f} dB'.format(snr))
 
 
 #%% # frequency offset estimation / correction
-results_foe = comm.rx.frequency_offset_estimation(sig_rx.samples[0], 
+results_foe = skc.rx.frequency_offset_estimation(sig_rx.samples[0], 
                                                   sample_rate=sig_rx.sample_rate[0],
                                                   order=4)
 
@@ -201,7 +201,7 @@ sig_rx.plot_constellation(hist=True, tit='constellation before EQ')
 adaptive_filter = True
 #%% # either blind adaptive filter....
 if adaptive_filter == True:    
-    results = comm.rx.blind_adaptive_equalizer(sig_rx, n_taps=51, mu_cma=1e-4, 
+    results = skc.rx.blind_adaptive_equalizer(sig_rx, n_taps=51, mu_cma=1e-4, 
                                                mu_rde=1e-5, mu_dde=0.5, decimate=True, 
                                                return_info=True, stop_adapting=-1, 
                                                start_rde=5000*0, start_dde=5000*0)
@@ -266,14 +266,14 @@ sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
 viterbi = True
 # ...either VV
 if viterbi:
-    cpe_results = comm.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, 
+    cpe_results = skc.rx.carrier_phase_estimation_VV(sig_rx.samples[0], n_taps=31, 
                                                       filter_shape='wiener', mth_power=4, 
                                                       rho=.001)
     sig_rx.samples = cpe_results['rec_symbols']
     est_phase = cpe_results['phi_est'].real
 # ...or BPS
 else:
-    cpe_results = comm.rx.carrier_phase_estimation_bps(sig_rx.samples[0], sig_rx.constellation[0], 
+    cpe_results = skc.rx.carrier_phase_estimation_bps(sig_rx.samples[0], sig_rx.constellation[0], 
                                                n_taps=15, n_test_phases=45, const_symmetry=np.pi/2)
     sig_rx.samples = cpe_results['samples_corrected']
     est_phase = cpe_results['est_phase_noise']
@@ -288,14 +288,14 @@ plt.show()
 sig_rx.plot_constellation(hist=True, tit='constellation after CPE')
 
 #%% # delay and phase ambiguity estimation and compensation
-sig_rx = comm.rx.symbol_sequence_sync(sig_rx, dimension=-1)
+sig_rx = skc.rx.symbol_sequence_sync(sig_rx, dimension=-1)
     
 #%% # calc EVM
-evm = comm.utils.calc_evm(sig_rx, norm='max')
+evm = skc.utils.calc_evm(sig_rx, norm='max')
 print("EVM: {:2.2%}".format(evm[0]))
 
 #%% # estimate SNR
-snr = comm.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=False)
+snr = skc.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=False)
 if EXPERIMENT:
     print("est. SNR: {:.2f} dB".format(snr[0]))
 else:
@@ -306,5 +306,5 @@ sig_rx.decision()
 sig_rx.demapper()
 
 #%% # BER counting
-ber_res = comm.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
+ber_res = skc.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
 print('BER = {:.2e}'.format(ber_res['ber']))

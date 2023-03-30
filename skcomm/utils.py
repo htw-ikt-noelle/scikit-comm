@@ -4,13 +4,11 @@ import time
 import copy
 
 import numpy as np
+from numpy.polynomial import Polynomial
 from scipy import optimize
 import scipy.interpolate as sinter
 import scipy.special as sspecial
 import matplotlib.pyplot as plt
-from numpy.polynomial import Polynomial
-import scipy.signal as ssignal
-import scipy.interpolate as sinterp
 
 from . import signal
 from . import rx
@@ -430,7 +428,7 @@ def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolat
 
     Examples
     --------
-        >>> import comm as comm
+        >>> import skcomm as skc
         >>> import numpy as np
 
         # Set area for polynom creation (Values were randomly selected for this example)
@@ -447,13 +445,13 @@ def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolat
         >>> poly_ord = 2
 
         # Get optical spectrum data from OSA or another arbitary source
-        >>> OSA_trace_dict = comm.instrument_control.get_samples_HP_71450B_OSA()
+        >>> OSA_trace_dict = skc.instrument_control.get_samples_HP_71450B_OSA()
         >>> power = OSA_trace_dict['A']['Trace_data']
         >>> wavelength = OSA_trace_dict['A']['WL_Vector']
         >>> resolution_bw = OSA_trace_dict['A']['Resolution_BW']*1e9
 
         # Calculate OSNR with plot
-        >>> [ONSR_0.1nm,OSNR] = comm.osnr.osnr(power_vector = power,
+        >>> [ONSR_0.1nm,OSNR] = skc.osnr.osnr(power_vector = power,
                             wavelength_vector = wavelength,
                             interpolation_points = np.array([a,b,c,d]),
                             integration_area = np.array([integration_start,integration_stop]),
@@ -1023,10 +1021,10 @@ def estimate_SNR_evm(sig, **kwargs):
     """
     Estimate SNR (in dB) based on the calculated EVM.
     
-    The EVM is calculated using the method comm.utils.calc_evm() and from this 
+    The EVM is calculated using the method skcomm.utils.calc_evm() and from this 
     result, the SNR is derived according to [1].
     
-    For more information about the valid parameters see comm.utils.calc_evm().
+    For more information about the valid parameters see skcomm.utils.calc_evm().
     
     [1] R. A. Shafik, et al. "On the Extended Relationships Among EVM, BER and 
     SNR as Performance Metrics" https://doi.org/10.1109/ICECE.2006.355657 
@@ -1102,7 +1100,7 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
     ideal constellation points. 
     In case of 'data_aided', the actual sent symbol sequence
     (sig.symbols) is used as reference after normalization. In this case a temporal and
-    phase synchronizaiton (comm.rx.symbol_sequence_sync) is performed before
+    phase synchronizaiton (skcomm.rx.symbol_sequence_sync) is performed before
     calculation of the error vector.
     It can further be specified (opt==False), if the normalization of the samples is done
     by scaling the samples to the same mean power as the ideal constellation 
@@ -1124,7 +1122,7 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
 
     Parameters
     ----------
-    sig : comm.signal.Signal
+    sig : skcomm.signal.Signal
         signal containing the symbols (samples) and the original constellation.    
     norm : string, optional
         Specifies the EVM Normalization Reference [2] and can either be 
@@ -1149,7 +1147,7 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
     """
     
     if type(sig) != signal.Signal:
-        raise TypeError("input parameter must be of type 'comm.signal.Signal'")
+        raise TypeError("input parameter must be of type 'skcomm.signal.Signal'")
         
     if dimension == -1:
         dims = range(sig.n_dims)
@@ -1257,18 +1255,18 @@ def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9, save_fig=False,
     output of the device). Therefore it assumes that the spectra are given in dBm.
     One specific attenuation at a wavelength of 1550 nm should explicitly be evaluated.
     
-    >>> import comm as comm
+    >>> import skcomm as skc
     >>>
     >>> # get input spectrum to device and save wavelength data to wl1 and power 
-    >>> # data to spectrum1 (e.g. by using comm.instrument_control.get_spectrum_HP_71450B_OSA())
+    >>> # data to spectrum1 (e.g. by using skcomm.instrument_control.get_spectrum_HP_71450B_OSA())
     >>>
     >>> # get output spectrum from device and save wavelength data to wl2 and power 
-    >>> # data to spectrum2 (e.g. by using comm.instrument_control.get_spectrum_HP_71450B_OSA())
+    >>> # data to spectrum2 (e.g. by using skcomm.instrument_control.get_spectrum_HP_71450B_OSA())
     >>>
     >>> # generate input lists
     >>> x_data = [wl1, wl2]
     >>> y_data = [spectrum1, spectrum2]
-    >>> combined = comm.utils.combine_OSA_traces(x_data, y_data, operator='-', x0=1550.15e-9)        
+    >>> combined = skc.utils.combine_OSA_traces(x_data, y_data, operator='-', x0=1550.15e-9)        
 
     """
     

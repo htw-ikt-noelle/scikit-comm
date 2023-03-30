@@ -1,4 +1,4 @@
-# Simulation toolbox for communication systems
+# Scikit-comm: Simulation toolbox for communication systems
 
 This repository contains a collection of DSP routines and algorithms to perform numerical simulations on simple communication systems. Its functionality is divided into transmitter, link, and receiver subsystems and - at its current state - contains very limited functionalities.
 
@@ -50,14 +50,14 @@ This example generates a 50 MBd QPSK modulated signal and demodulates it afterwa
 
 ```python
 import copy
-import comm as comm
+import skcomm as skc
 
 ##########################
 ####### TRANSMITTER ######
 ##########################
 
 # construct signal
-sig_tx = comm.signal.Signal(n_dims=1)
+sig_tx = skc.signal.Signal(n_dims=1)
 sig_tx.symbol_rate = 50e6 
 
 # generate bits
@@ -92,7 +92,7 @@ sig_rx.decision()
 sig_rx.demapper()
 
 # BER counting
-ber_res = comm.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
+ber_res = skc.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
 ```
 
 Multiple, more advanced algorithms and procedures could now be added at transmitter (**from module tx**) and receiver side (**from module rx**). Further, also distortion effects caused by the channel (***module channel***) could be added.
@@ -105,7 +105,7 @@ This example demonstrates a 50 MBd QPSK modulation using an intermediate frequen
 ```python
 import numpy as np
 import scipy.signal as ssignal
-import comm as comm
+import skcomm as skc
 import copy
 
 ############################################################
@@ -118,7 +118,7 @@ TX_UPSAMPLE_FACTOR = 5
 SNR = 20
 
 # construct signal
-sig_tx = comm.signal.Signal(n_dims=1)
+sig_tx = skc.signal.Signal(n_dims=1)
 sig_tx.symbol_rate = 50e6 
 
 # generate bits
@@ -162,10 +162,10 @@ delay = 10*sps
 samples = samples[delay:]
 
 ## add amplitude noise
-samples = comm.channel.set_snr(samples, snr_dB=SNR, sps=int(sig_tx.sample_rate[0]/sig_tx.symbol_rate[0]), seed=None)
+samples = skc.channel.set_snr(samples, snr_dB=SNR, sps=int(sig_tx.sample_rate[0]/sig_tx.symbol_rate[0]), seed=None)
 
 ## phase noise emulation
-samples = comm.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)['samples']
+samples = skc.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)['samples']
 sr = sig_tx.sample_rate[0]
 
 # after heterodyne detection and balanced detection
@@ -191,7 +191,7 @@ sig_rx.sample_rate = sr_dsp
 sig_rx.plot_spectrum(tit='received spectrum before IF downmixing')
 
 # IQ-Downmixing 
-t = comm.utils.create_time_axis(sig_rx.sample_rate[0], np.size(sig_rx.samples[0]))
+t = skc.utils.create_time_axis(sig_rx.sample_rate[0], np.size(sig_rx.samples[0]))
 samples_bb = samples *  np.exp(-1j*2*np.pi*(f_if+1e4*0)*t)
 sig_rx.samples[0] = samples_bb
 
@@ -232,27 +232,27 @@ sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
 sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
 
 # CPE
-cpe_results = comm.rx.carrier_phase_estimation_bps(sig_rx.samples[0], sig_rx.constellation[0], 
+cpe_results = skc.rx.carrier_phase_estimation_bps(sig_rx.samples[0], sig_rx.constellation[0], 
                                            n_taps=15, n_test_phases=15, const_symmetry=np.pi/2)
 
 sig_rx.samples = cpe_results['samples_corrected']
 est_phase = cpe_results['est_phase_noise']
     
-comm.visualizer.plot_signal(est_phase, tit='estimated phase noise')
+skc.visualizer.plot_signal(est_phase, tit='estimated phase noise')
 sig_rx.plot_constellation(hist=True, tit='constellation after CPE')
 
 # delay and phase ambiguity estimation and compensation
-sig_rx = comm.rx.symbol_sequence_sync(sig_rx, dimension=-1)
+sig_rx = skc.rx.symbol_sequence_sync(sig_rx, dimension=-1)
     
 # calc EVM
-evm = comm.rx.calc_evm(sig_rx.samples[0], sig_rx.constellation[0], norm='max')
-print("EVM: {:2.2%}".format(evm))
+evm = skc.utils.calc_evm(sig_rx, norm='max')
+print("EVM: {:2.2%}".format(evm[0]))
 
 # decision and demapper
 sig_rx.decision()
 sig_rx.demapper()
 
 # BER counting
-ber_res = comm.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
+ber_res = skc.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
 print('BER = {}'.format(ber_res['ber']))
 ```

@@ -1,8 +1,9 @@
+import copy
+import tkinter as tk
+
 import numpy as np
 import numpy.fft as fft
 import matplotlib.pyplot as plt
-import copy
-import tkinter as tk
 
 from . import utils
 
