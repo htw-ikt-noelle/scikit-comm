@@ -12,15 +12,14 @@
 #
 import os
 import sys
-#sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../../'))
 
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'comm'
-copyright = '2022, noelle'
+project = 'scikit-comm'
+copyright = '2023, noelle'
 author = 'noelle'
 
 
