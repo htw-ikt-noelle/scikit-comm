@@ -164,9 +164,7 @@ def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, shift_d
     
     To contain this frequency component, the signal has to be sampled at least 
     with a rate of three times the symbol rate. If the input signal is sampled
-    with lower frequency, the signal is temporally upsampled.
-    
-    Literature: see ???
+    with lower frequency, the signal is temporally upsampled.    
 
     Parameters
     ----------
@@ -184,12 +182,7 @@ def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, shift_d
         can be in the range between [-1/symbol_rate, 0] or [0, 1/symbol_rate], respectively. 
         The option 'both' will shift the signal either to the left or to the 
         right, depending on the minimum amount of time shift. The time shift will 
-        therefore be in the range between [-0.5/symbol_rate, 0.5/symbol_rate].
-
-    Raises
-    ------
-    ValueError
-        DESCRIPTION.
+        therefore be in the range between [-0.5/symbol_rate, 0.5/symbol_rate].    
 
     Returns
     -------
@@ -388,23 +381,8 @@ def carrier_phase_estimation_VV(symbols, n_taps=31, filter_shape='wiener', mth_p
     
     This function estimates the phase noise of the carrier using the Viterbi-Viterbi
     method [1]. Either a rectangular or a Wiener filter shape can be applied for
-    phase averaging.
+    phase averaging.    
     
-    
-    [1] A. Viterbi, "Nonlinear estimation of PSK-modulated carrier phase with 
-    application to burst digital transmission," in IEEE Transactions on 
-    Information Theory, vol. 29, no. 4, pp. 543-551, July 1983, doi: 10.1109/TIT.1983.1056713.
-    
-    [2] Ezra Ip, Alan Pak Tao Lau, Daniel J. F. Barros, and Joseph M. Kahn, 
-    "Coherent detection in optical fiber systems," Opt. Express 16, 753-791 (2008)
-    
-    [3] E. Ip and J. M. Kahn, "Feedforward Carrier Recovery for Coherent 
-    Optical Communications," in Journal of Lightwave Technology, vol. 25, 
-    no. 9, pp. 2675-2692, Sept. 2007, doi: 10.1109/JLT.2007.902118.
-    
-    [4]  Wolfram Language & System Documentation Center, 
-    https://reference.wolfram.com/language/ref/CauchyDistribution.html,
-    https://en.wikipedia.org/wiki/Cauchy_distribution
 
     Parameters
     ----------
@@ -449,6 +427,23 @@ def carrier_phase_estimation_VV(symbols, n_taps=31, filter_shape='wiener', mth_p
             estimated phase noise random walk
         cpe_window: 1D numpy array, real
             applied CPE slicing-average window ()
+    
+    References
+    ----------
+    [1] A. Viterbi, "Nonlinear estimation of PSK-modulated carrier phase with 
+    application to burst digital transmission," in IEEE Transactions on 
+    Information Theory, vol. 29, no. 4, pp. 543-551, July 1983, doi: 10.1109/TIT.1983.1056713.
+    
+    [2] Ezra Ip, Alan Pak Tao Lau, Daniel J. F. Barros, and Joseph M. Kahn, 
+    "Coherent detection in optical fiber systems," Opt. Express 16, 753-791 (2008)
+    
+    [3] E. Ip and J. M. Kahn, "Feedforward Carrier Recovery for Coherent 
+    Optical Communications," in Journal of Lightwave Technology, vol. 25, 
+    no. 9, pp. 2675-2692, Sept. 2007, doi: 10.1109/JLT.2007.902118.
+    
+    [4]  Wolfram Language & System Documentation Center, 
+    https://reference.wolfram.com/language/ref/CauchyDistribution.html,
+    https://en.wikipedia.org/wiki/Cauchy_distribution
     """    
     # TODO: change input argument 'symbols' to class Signal()
     
@@ -552,12 +547,7 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     Additional to the decided (ideal) constellation per block (as proposed in [1]),
     also the unwraped estimated random phase walk is calculated and interpolated.
     This estimated phase walk is subtracted from the phases of the input samples
-    and therefore used to recover the carrier phase of the signal.    
-
-    [1] T. Pfau, S. Hoffmann and R. Noe, "Hardware-Efficient Coherent Digital 
-    Receiver Concept With Feedforward Carrier Recovery for M -QAM Constellations," 
-    in Journal of Lightwave Technology, vol. 27, no. 8, pp. 989-999, April15, 2009, 
-    doi: 10.1109/JLT.2008.2010511.
+    and therefore used to recover the carrier phase of the signal.        
 
     Parameters
     ----------
@@ -584,6 +574,13 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
             input symbols with recovered carrier phase.
         est_phase_noise : 1D numpy array, real
             estimated (unwraped) random phase walk.
+            
+    References
+    ----------
+    [1] T. Pfau, S. Hoffmann and R. Noe, "Hardware-Efficient Coherent Digital 
+    Receiver Concept With Feedforward Carrier Recovery for M -QAM Constellations," 
+    in Journal of Lightwave Technology, vol. 27, no. 8, pp. 989-999, April15, 2009, 
+    doi: 10.1109/JLT.2008.2010511.
     """        
     # normalize samples to constellation    
     mag_const = np.mean(abs(constellation))
@@ -767,11 +764,12 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     started AFTER the CMA mode has started. start_dde=0 does not start this mode at all.
     
     EXAMPLES:
-        start_rde=10e3, start_dde=0     -->     10e3 symbols CMA, rest RDE
-        start_rde=0, start_dde=0        -->     all samples filterd with CMA
-        start_rde=0, start_dde=10e3     -->    10e3 symbols CMA, rest DDE
-        start_rde=0, start_dde=1        -->    1 symbol CMA, rest DDE
-        start_rde=5e3, start_dde=10e3   -->     5e3 symbols CMA, 10e3 sybmosl RDE, rest DDE
+    
+        * start_rde=10e3, start_dde=0     -->     10e3 symbols CMA, rest RDE
+        * start_rde=0, start_dde=0        -->     all samples filterd with CMA
+        * start_rde=0, start_dde=10e3     -->    10e3 symbols CMA, rest DDE
+        * start_rde=0, start_dde=1        -->    1 symbol CMA, rest DDE
+        * start_rde=5e3, start_dde=10e3   -->     5e3 symbols CMA, 10e3 sybmosl RDE, rest DDE
     
     The equalizer can output every filtered SAMPLE or only every filtered 
     SYMBOL, which is controlled with the parameter decimate. 
@@ -781,12 +779,10 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     
     The equalizer operates on each signal dimension independently. The parameters
     can be passed as 
-        * singular values [int, float or bool], which are broadcasted to every dimension, or
-        * lists of length n_dims to specify independent parameters for each signal dimension
-   
-    [1] D. Godard, “Self-recovering equalization and carrier tracking in twodimensional data communication systems,” IEEE Trans. Commun., vol. 28, no. 11, pp. 1867–1875, Nov. 1980.
-    [2] S. Savory, "Digital Coherent Optical Receivers: Algorithms and Subsystems", IEEE STQE, vol 16, no. 5, 2010
-    [3] P. Winzer, A. Gnauck, C. Doerr, M. Magarini, and L. Buhl, “Spectrally efficient long-haul optical networking using 112-Gb/s polarizationmultiplexed16-QAM,” J. Lightw. Technol., vol. 28, no. 4, pp. 547–556, Feb. 15, 2010.
+    
+    * singular values [int, float or bool], which are broadcasted to every dimension, or
+    * lists of length n_dims to specify independent parameters for each signal dimension
+       
         
     Parameters
     ----------
@@ -836,6 +832,14 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
             (n_output_samples,) in case of return_info==True which
             documents the evolution of the error signal or of an
             empty np.array in case of return_info==False.
+            
+    References
+    ----------
+    [1] D. Godard, “Self-recovering equalization and carrier tracking in twodimensional data communication systems,” IEEE Trans. Commun., vol. 28, no. 11, pp. 1867–1875, Nov. 1980.
+    
+    [2] S. Savory, "Digital Coherent Optical Receivers: Algorithms and Subsystems", IEEE STQE, vol 16, no. 5, 2010
+    
+    [3] P. Winzer, A. Gnauck, C. Doerr, M. Magarini, and L. Buhl, “Spectrally efficient long-haul optical networking using 112-Gb/s polarizationmultiplexed16-QAM,” J. Lightw. Technol., vol. 28, no. 4, pp. 547–556, Feb. 15, 2010.
     """
     if type(sig) != signal.Signal:
         raise TypeError("input parameter must be of type 'skcomm.signal.Signal'")
@@ -1085,13 +1089,8 @@ def frequency_offset_estimation(samples, sample_rate=1.0, order=4):
     Its maxima is equal to the frequency offset. For a more accurate estimate, 
     a 2nd order polynomial fit is performed in the baseband before the maxima 
     is determined. The correction is done by mixing down by multiplying with 
-    the estimated value. 
-       
-    [1] Savory, S. (2010, September/Oktober). Digital Coherent Optical Receivers: 
-        Algorithms and Subsystems. Abgerufen von https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=5464309 
+    the estimated value.        
     
-    [2] Dr. Lichtmann, M.. (o.J.). PySDR: A Guide to SDR and SDP using Python. 
-    Abgerufen von https://pysdr.org/content/frequency_domain.html
 
     Parameters
     ----------
@@ -1110,6 +1109,14 @@ def frequency_offset_estimation(samples, sample_rate=1.0, order=4):
                             output signal.  
         estimated_fo: 1D numpy array, real or complex. 
                     Estimated frequency offset 
+                    
+    References
+    ----------
+    [1] Savory, S. (2010, September/Oktober). Digital Coherent Optical Receivers: 
+        Algorithms and Subsystems. Abgerufen von https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=5464309 
+    
+    [2] Dr. Lichtmann, M.. (o.J.). PySDR: A Guide to SDR and SDP using Python. 
+    Abgerufen von https://pysdr.org/content/frequency_domain.html
      
     """  
 

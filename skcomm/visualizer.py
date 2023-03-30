@@ -379,11 +379,7 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum=1,
     Please note that the Stokes parameters S1, S2 and S3 are normalized to the 
     total instantaneous signal power (S0). Therefore, the Poincaré sphere plot
     in this implementation does not reveal any information on degree of 
-    polarization of the signal.
-    
-    [1] https://en.wikipedia.org/wiki/Jones_calculus#Jones_vector
-    [2] https://en.wikipedia.org/wiki/Stokes_parameters
-    [3] https://en.wikipedia.org/wiki/Polarization_(waves)#Poincar%C3%A9_sphere
+    polarization of the signal.    
 
     Parameters
     ----------
@@ -429,6 +425,14 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum=1,
             Axes object which contains the Poincaré sphere artists
         line : mpl_tooklits.mplot3d.art3d.Line3d
             Line object which contains the Stokes parameters (S1, S2, S3).
+            
+    References
+    ----------
+    [1] https://en.wikipedia.org/wiki/Jones_calculus#Jones_vector
+    
+    [2] https://en.wikipedia.org/wiki/Stokes_parameters
+    
+    [3] https://en.wikipedia.org/wiki/Polarization_(waves)#Poincar%C3%A9_sphere
     """
     
     # helper function to select the artist labeled with 'SOP'
@@ -539,14 +543,12 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum=1,
 def place_figures(auto_layout=True, offset=[0,0], screen_resolution=None, nc=4, 
                   nr=3, taskbar_offset=40, figure_toolbar=64):
     """
+    Place open figure on screen.
+    
     Place open figures on screen unsing specified layout. Basic programmatic
-    idea taken from [1].
+    idea taken from [1].    
     
-    [1] JaeJun Lee (2023). automatically arrange figure windows 
-    (https://www.mathworks.com/matlabcentral/fileexchange/48480-automatically-arrange-figure-windows), 
-    MATLAB Central File Exchange. Retrieved January 23, 2023. 
-    
-        Parameters
+    Parameters
     ----------
     auto_layout : bool, optional
         The layout is chosen automatically depending on the number of opened 
@@ -574,7 +576,13 @@ def place_figures(auto_layout=True, offset=[0,0], screen_resolution=None, nc=4,
     Returns
     -------
     None.
-
+    
+    References
+    ----------
+    
+    [1] JaeJun Lee (2023). automatically arrange figure windows 
+    (https://www.mathworks.com/matlabcentral/fileexchange/48480-automatically-arrange-figure-windows), 
+    MATLAB Central File Exchange. Retrieved January 23, 2023. 
     """      
     
     # get figure handles

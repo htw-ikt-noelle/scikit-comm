@@ -57,7 +57,8 @@ def add_phase_noise(samples, s_rate=1.0, linewidth=1.0, seed=None):
     
     See https://github.com/htw-ikt-noelle/OptischeKommunikationssysteme/blob/master/LaserPhaseNoise.ipynb
     
-    TODO: expand to two polatizations (or higher dimension signals)!!!
+    TODO:
+    expand to two polatizations (or higher dimension signals)!!!
 
     Parameters
     ----------

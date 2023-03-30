@@ -5,14 +5,13 @@ from scipy.interpolate import interp1d
 
 def filter_samples(samples, filter, domain='freq'):
     """ Filter the input signal.
-    
-    
+        
     Filter is either implemented in either in the 
     
-        -time domain filter (convolution). CAUTION: size of signal vector changes!
+    * time domain filter (convolution). CAUTION: size of signal vector changes!
     
-        -frequency domain (multiplication of input signal spectrum with transfer 
-                           function...equivalent to a cyclic convolution).
+    * frequency domain (multiplication of input signal spectrum with transfer 
+                        function...equivalent to a cyclic convolution).
         
         
     Parameters
@@ -53,15 +52,16 @@ def raised_cosine_filter(samples, sample_rate=1.0, symbol_rate=1.0, roll_off=0.0
     """
     Filter a given signal with a (root) raised cosine filter.
     
-     -time domain (convolution): data is convolved with an (root) raised cosine 
-     impulse response (h). CAUTION: This filter generates a group delay which is 
-     equal to ceil(size(h)/2). Further, the number of samples of the output signal
-     differs from the number of samples of the input signal.
+     * time domain (convolution):
+         data is convolved with an (root) raised cosine impulse response (h). 
+         CAUTION: This filter generates a group delay which is equal to 
+         ceil(size(h)/2). Further, the number of samples of the output signal
+         differs from the number of samples of the input signal.
         
-     -frequency domain (multiplication of spectra equivalent to a CYCLIC 
-    convolution), the frequency response of an (root) raised cosine filter is
-    multiplied with the spectrum of the signal. This filter is acausal and does
-    not produce any group delay.
+     * frequency domain (multiplication of spectra equivalent to a CYCLIC convolution):
+         the frequency response of an (root) raised cosine filter is multiplied 
+         with the spectrum of the signal. This filter is acausal and does not 
+         produce any group delay.
      
      
 
@@ -176,7 +176,7 @@ def moving_average(samples, average=4, domain='freq'):
     In the frequency domain implementation (cyclic convolution), an acausal 
     filter is used which does not generate any group delay.
     
-     Parameters
+    Parameters
     ----------
     samples : 1D numpy array, real or complex
         input signal.
@@ -376,15 +376,17 @@ def time_shift(samples, sample_rate=1.0, tau=0.0):
 
 def filter_arbitrary(samples,FILTER,sample_rate=1.0):
     """
+    Arbitrarily filter a signal.
+    
     Filters a given signal with an arbitrary filter defined in a table.
     This filter is implemented in frequency domain (cyclic convolution).
     The filter can be defined as single-sided frequency axis (real filter response is assumed),
     or with double-sided frequency axis (complex filter response is assumed).
 
     Parameters
-    ----------
-    samples : 1D numpy array, real or complex input signal.
-        shape = (N,)
+    ----------    
+    samples : 1D numpy array, real or complex 
+        input signal of shape = (N,)
     sample_rate : float
         Sample rate of the signal in Hz. The default is 1.0.
     FILTER : 2D numpy array
@@ -394,9 +396,9 @@ def filter_arbitrary(samples,FILTER,sample_rate=1.0):
 
     Returns
     -------
+    
     samples_out : 1D numpy array, real or complex
         filtered output signal.
-
     """
     # convert Nx1 matrix to vector (see https://stackoverflow.com/questions/39549331/reshape-numpy-n-vector-to-n-1-vector?rq=1)
     samples = samples.reshape(-1,)

@@ -30,10 +30,7 @@ def generate_constellation(format='QAM', order=4):
     Constellation points in QAM and PAM modulation schemes are currently built
     with a Euclidean distance of 2 between two neighbouring points, as per the
     convention in [1]. This might require normalization of the constellation
-    array.
-    
-    [1] J. G. Smith, "Odd-Bit Amplitude Quadrature-Shift Keying", IEEE Transactions
-    on Communications, pp. 385-389, 1975
+    array.    
     
     Parameters
     ----------
@@ -56,6 +53,11 @@ def generate_constellation(format='QAM', order=4):
     -------
     constellation : ndarray of complex
         Array of complex constellation points to map bit words to.
+        
+    References
+    ----------
+    [1] J. G. Smith, "Odd-Bit Amplitude Quadrature-Shift Keying", IEEE Transactions
+    on Communications, pp. 385-389, 1975
 
     """
 
@@ -213,9 +215,25 @@ def generate_constellation(format='QAM', order=4):
 
 
 def bits_to_dec(bits, m):
-    """ Convert 1D array of bits into 1D array of decimals, using a resolution of m bits.
-    
     """
+    Convert bits to decimals.
+    
+     Convert 1D array of bits into 1D array of decimals, using a resolution of m bits.
+    
+    
+    Parameters
+    ----------
+    bits : iterable of ints of bools
+        Bit values to be converted
+    m : int of float
+        Resolution of bit values.
+
+    Returns
+    -------
+    decimals : ndarray of floats
+        Converted decimals.
+    """
+    
     bits = np.asarray(bits)
     
     if bits.ndim > 1:
@@ -233,9 +251,25 @@ def bits_to_dec(bits, m):
 
 
 def dec_to_bits(decimals, m):
-    """ Convert 1D array of decimals into 1D array of bits, using a resolution of m bits.
-    
     """
+    Convert decimals to bits.
+    
+    Convert 1D array of decimals into 1D array of bits, 
+    using a resolution of m bits.
+    
+    Parameters
+    ----------
+    decimals : ndarray of floats
+        Decimal values to be converted.
+    m : int or float
+        Resolution of resulting bit values.    
+
+    Returns
+    -------
+    bits : ndarray of bool
+        Converted bits.
+    """
+    
     decimals = np.asarray(decimals)
     
     if decimals.ndim > 1:
@@ -282,13 +316,6 @@ def ber_awgn(value=np.arange(20), modulation_format='QAM', modulation_order=4, t
     signal-to-noise ratio per bit (SNRB) or as
     optical signal-to-noise ratio (OSNR), respectively.
     NOTE: The parameter value is interpreted as logarithmic scale (dB).
-       
-    References:
-        
-    [1] Essiambre et al., JLT, vol 28, no. 4, 2010, "Capacity Limits of Optical Fiber Networks"
-    [2] Xiong, 2006, "Digital Modulation Techniques", second edition, Artech House
-    
-   
 
     Parameters
     ----------
@@ -325,7 +352,12 @@ def ber_awgn(value=np.arange(20), modulation_format='QAM', modulation_order=4, t
     -------
     ber : 1D array, float
         theoretical BER performance for the specified amount of AWGN.
-
+    
+    References
+    ----------
+        
+    [1] Essiambre et al., JLT, vol 28, no. 4, 2010, "Capacity Limits of Optical Fiber Networks"
+    [2] Xiong, 2006, "Digital Modulation Techniques", second edition, Artech House
     """    
     # reference bandwidth to convert OSNR to SNR and vice versa, see [1], eq. (34)
     # 12.5GHz corresponds roughly to 0.1nm at 1550nm wavelength
@@ -377,45 +409,45 @@ def ber_awgn(value=np.arange(20), modulation_format='QAM', modulation_order=4, t
 def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolation_points = [], integration_area = [], resolution_bandwidth = 0.1, polynom_order = 3, plotting = False):
 
     """ 
-    Description
-    -----------
+    Estimate OSNR from spectrum.
+    
     Function to calculate the OSNR from OSA (Optical spectrum analyzer) trace data via interpolation method. The function will interpolate the spectral noise shape 
     in a given spectral area, which can be definded by the user. From this data the noise power is estimated. Than the function will calculate the signal power and 
     will afterwards calculate the OSNR. 
 
 
-    Paramters
+    Parameters
     ---------
-        power_vector: numpy array
-            Vector with the power values of the OSA trace. 
-            Must be dBm.
-            Must be same length as wavelength_vector.
+    power_vector: numpy array
+        Vector with the power values of the OSA trace. 
+        Must be dBm.
+        Must be same length as wavelength_vector.
 
-        wavelength_vector: numpy array
-            Vector with the wavelength values of the OSA trace.
-            Must be nm.
-            Must be same length as power vector.
+    wavelength_vector: numpy array
+        Vector with the wavelength values of the OSA trace.
+        Must be nm.
+        Must be same length as power vector.
 
-        interpolation_points: numpy array of length 4 [a,b,c,d]
-            This array specifies the areas for creating the polynomial. This requires 4 points. The array elements a and b indicate the left area of ​​
-            the signal spectrum and the elements c and d the right area.
+    interpolation_points: numpy array of length 4 [a,b,c,d]
+        This array specifies the areas for creating the polynomial. This requires 4 points. The array elements a and b indicate the left area of ​​
+        the signal spectrum and the elements c and d the right area.
 
-            If the passed wavelength value is not present in the wavelength vector, the passed values ​​are rounded to the nearest existing value.
+        If the passed wavelength value is not present in the wavelength vector, the passed values ​​are rounded to the nearest existing value.
 
-        integration_area: numpy array of length 2 [integration_start, integration_stop]
-            These two points determine the bandwidth in which the noise and signal power are determined.
+    integration_area: numpy array of length 2 [integration_start, integration_stop]
+        These two points determine the bandwidth in which the noise and signal power are determined.
 
-            If the passed wavelength value is not present in the wavelength vector, the passed values ​​are rounded to the nearest existing value.
+        If the passed wavelength value is not present in the wavelength vector, the passed values ​​are rounded to the nearest existing value.
 
-        resolution_bandwidth: float
-            Insert here the used resolution bandwidth (rbw) of the OSA.
+    resolution_bandwidth: float
+        Insert here the used resolution bandwidth (rbw) of the OSA.
 
-        polynom_order: int
-            Insert here the polynomial order for the noise interpolation.
+    polynom_order: int
+        Insert here the polynomial order for the noise interpolation.
 
-        plotting: boolean, optional (default = False)
-            If true, the spectrum is plotted with the interpolation area, integration area and interpolated noise shape. 
-            To show the plot, plt.show() must be called in the main script. 
+    plotting: boolean, optional (default = False)
+        If true, the spectrum is plotted with the interpolation area, integration area and interpolated noise shape. 
+        To show the plot, plt.show() must be called in the main script. 
 
     Returns
     -------
@@ -430,27 +462,27 @@ def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolat
     --------
         >>> import skcomm as skc
         >>> import numpy as np
-
-        # Set area for polynom creation (Values were randomly selected for this example)
+        >>>
+        >>> # Set area for polynom creation (Values were randomly selected for this example)
         >>> a = 1552.025
         >>> b = 1552.325
         >>> c = 1552.725
         >>> d = 1553.025
-
-        # Set integration area (Values were randomly selected for this example)
+        >>>
+        >>> # Set integration area (Values were randomly selected for this example)
         >>> integration_start = 1552.375
         >>> integration_stop = 1552.675
-
-        # Set polynomial order
+        >>>
+        >>> # Set polynomial order
         >>> poly_ord = 2
-
-        # Get optical spectrum data from OSA or another arbitary source
+        >>>
+        >>> # Get optical spectrum data from OSA or another arbitary source
         >>> OSA_trace_dict = skc.instrument_control.get_samples_HP_71450B_OSA()
         >>> power = OSA_trace_dict['A']['Trace_data']
         >>> wavelength = OSA_trace_dict['A']['WL_Vector']
         >>> resolution_bw = OSA_trace_dict['A']['Resolution_BW']*1e9
-
-        # Calculate OSNR with plot
+        >>>
+        >>> # Calculate OSNR with plot
         >>> [ONSR_0.1nm,OSNR] = skc.osnr.osnr(power_vector = power,
                             wavelength_vector = wavelength,
                             interpolation_points = np.array([a,b,c,d]),
@@ -820,16 +852,7 @@ def estimate_snr_nda(sig,block_size=-1,bias_comp=True):
     the 'samples' attribute of the signal class object contains symbols, i.e. 
     that the signal has been downsampled to 1 sample per symbol, and that no 
     sampling phase error is present.
-
-    References:
-    [1]: Ijaz, A., Awoseyila, A.B., Evans, B.G.: "Improved SNR estimation for BPSK and
-    QPSK signals", Electronics Letters Vol. 45 No. 16, 2009
-        
-    [2]: Qun, X., Jian, Z.: "Improved SNR Estimation Algorithm, International Conference
-    on Computer Systems", Electronics, and Control (ICCSEC), 2017
     
-    [3]: Xu, H., Li, Z., Zheng, H.: "A non-data-aided SNR Estimation Algorithm for QAM
-    Signals", IEEE, 2004
 
     Parameters
     ----------
@@ -851,6 +874,18 @@ def estimate_snr_nda(sig,block_size=-1,bias_comp=True):
     -------
     snr_estimate : numpy array
         Array with the same shape as sig.samples containing the estimated SNR values.
+    
+    References
+    ----------
+    
+    [1]: Ijaz, A., Awoseyila, A.B., Evans, B.G.: "Improved SNR estimation for BPSK and
+    QPSK signals", Electronics Letters Vol. 45 No. 16, 2009
+        
+    [2]: Qun, X., Jian, Z.: "Improved SNR Estimation Algorithm, International Conference
+    on Computer Systems", Electronics, and Control (ICCSEC), 2017
+    
+    [3]: Xu, H., Li, Z., Zheng, H.: "A non-data-aided SNR Estimation Algorithm for QAM
+    Signals", IEEE, 2004
 
     """
 
@@ -1026,13 +1061,21 @@ def estimate_SNR_evm(sig, **kwargs):
     
     For more information about the valid parameters see skcomm.utils.calc_evm().
     
-    [1] R. A. Shafik, et al. "On the Extended Relationships Among EVM, BER and 
-    SNR as Performance Metrics" https://doi.org/10.1109/ICECE.2006.355657 
-
+    Parameters
+    ----------
+    skcomm.signal.Signal
+        signal containing the symbols (samples) and the original constellation.    
+    
+    
     Returns
     -------
     list of floats
         Derived SNR values in dB per signal dimension.
+        
+    References
+    ----------
+    [1] R. A. Shafik, et al. "On the Extended Relationships Among EVM, BER and 
+    SNR as Performance Metrics" https://doi.org/10.1109/ICECE.2006.355657 
 
     """
     # calc EVM
@@ -1113,13 +1156,9 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
     received symbols and the DECIDED constellation points and not between the 
     received symbols and the ACTUALLY ("really") sent constellations as in case of
     method=='data_aided'. The former method will therefore lead to an too optimistic 
-    EVM in case of low SNR (and many wrong symbol decisions e.g. high BER).  
-        
+    EVM in case of low SNR (and many wrong symbol decisions e.g. high BER).        
     
-    [1] https://rfmw.em.keysight.com/wireless/helpfiles/89600b/webhelp/subsystems/digdemod/Content/digdemod_symtblerrdata_evm.htm
     
-    [2] https://rfmw.em.keysight.com/wireless/helpfiles/89600b/webhelp/subsystems/digdemod/Content/dlg_digdemod_comp_evmnormref.htm
-
     Parameters
     ----------
     sig : skcomm.signal.Signal
@@ -1143,7 +1182,12 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
     evm : list of floats
         calculated EVM value per sigmal dimension as ratio (to convert to 
         percent, the ratio has to be multiplied by 100).
-
+        
+    References
+    ----------
+    [1] https://rfmw.em.keysight.com/wireless/helpfiles/89600b/webhelp/subsystems/digdemod/Content/digdemod_symtblerrdata_evm.htm
+    
+    [2] https://rfmw.em.keysight.com/wireless/helpfiles/89600b/webhelp/subsystems/digdemod/Content/dlg_digdemod_comp_evmnormref.htm
     """
     
     if type(sig) != signal.Signal:
