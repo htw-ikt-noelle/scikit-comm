@@ -3,7 +3,11 @@ __pycache__
 .vscode
 .ipynb_checkpoints/
 .pylint.d
-docs/build
+docs/
+!docs/HOWTO.txt
+!docs/make.bat
+!docs/source/conf.py
+!docs/source/gettingStarted.md
+!docs/source/index.rst
 public
-.gitignore
 *.log
