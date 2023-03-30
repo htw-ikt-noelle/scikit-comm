@@ -1,4 +1,4 @@
-image: python:3.10
+image: python:3.11
 
 # TODO: investigate reason for failure of documentation build (likely culprit: myst parser)
 
