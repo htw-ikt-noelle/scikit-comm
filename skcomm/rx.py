@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from . import utils
 from . import filters
 from . import signal
+from .cython_mods import rx_cython
 
 
 def demapper(samples, constellation):
@@ -728,7 +729,6 @@ def symbol_sequence_sync(sig, dimension=-1):
     
     return sig    
 
-
 def _bae_loop(samples_in, samples_out, h, n_taps, sps, n_CMA, mu_cma, n_RDE, 
               mu_rde, radii, mu_dde, stop_adapting, sig_constellation, r, 
               shift, return_info, h_tmp, eps_tmp):
@@ -1029,7 +1029,17 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
         
         # use compiled Cython code for EQ loop...
         if compiled:
-            pass          
+            samples_out, h_tmp[dim], eps_tmp[dim] = rx_cython._bae_loop(samples_in, 
+                                                                        samples_out, 
+                                                                        h, n_taps[dim], 
+                                                                        sps, n_CMA, 
+                                                                        mu_cma[dim], 
+                                                                        n_RDE, mu_rde[dim], 
+                                                                        radii, mu_dde[dim], 
+                                                                        stop_adapting[dim], 
+                                                                        sig.constellation[dim], 
+                                                                        r, shift, return_info[dim], 
+                                                                        h_tmp[dim], eps_tmp[dim])            
         # ... or use Python code
         else:
             samples_out, h_tmp[dim], eps_tmp[dim] = _bae_loop(samples_in, samples_out, 

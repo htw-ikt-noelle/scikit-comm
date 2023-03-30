@@ -11,3 +11,4 @@ docs/
 !docs/source/index.rst
 public
 *.log
+skcomm/cython_mods/build
