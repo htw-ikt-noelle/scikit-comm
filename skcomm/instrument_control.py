@@ -1,4 +1,8 @@
-import logging, struct, sys, time
+import logging
+import struct
+import sys
+import time
+
 import pyvisa as visa
 import numpy as np
 from socket import socket, AF_INET, SOCK_STREAM, SHUT_RDWR
@@ -480,9 +484,9 @@ def get_samples_Tektronix_MSO6B(channels=[1], ip_address='192.168.1.20',number_o
         actual sample rate of returned samples.
     wfm : list of numpy arrays, float
         each list element constains the samples of a requested channel as numpy float array.
-
-    Errors
-    -------
+        
+    Raises
+    ------
     Type Error: 
         Will be raised when a wrong data type is used for the input parameter
         -> Possible errors
@@ -719,7 +723,7 @@ def write_samples_Tektronix_AWG70002B(samples, ip_address='192.168.1.21', sample
     -------
     None.
 
-    Errors
+    Raises
     ------
     Type Error: 
         Will be raised when a wrong data type is used for the input parameter
@@ -1163,7 +1167,7 @@ def get_spectrum_HP_71450B_OSA (traces = ['A'], GPIB_bus=0, GPIB_address=13,log_
                     -> Resolution_BW: (float) Contains the resolution bandwidth of the spectrum (in m)
                     -> wavelength    : (np.array) Numpy array with evenly spaced wavelengths between Start_WL and Stop_WL (in m)
             
-    Errors
+    Raises
     -------
         Type Error: 
             Will be raised when a wrong data type is used for the input parameter
@@ -1506,16 +1510,14 @@ def get_opt_power_Anritsu_ML910B(GPIB_bus=0, GPIB_address=11):
 ####### HP_8153A lightwave multimeter ##############
 def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [None], wavelengths = [None] ,verbose_mode = True ,log_mode = False):
     """
-
-    get_opt_pwr_HP8153A
+    Read opitcal power.
     
     Function for reading power values from a HP8153A lightwave multimeter.
     
     Wavelength ranges of the currently used modules:
-        - HP 81533A  850 nm to 1700 nm 
-        - HP 81531A  800 nm to 1700 nm
     
-    This list can be expanded for additional modules
+    * HP 81533A  850 nm to 1700 nm 
+    * HP 81531A  800 nm to 1700 nm        
     
     Parameters
     ----------
@@ -1523,11 +1525,14 @@ def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [
             Insert here the required channel of the lightwave multimeter as a list of strings.
             
             - for channel 1:
-            - >>> channels = ['1']
+            
+                >>> channels = ['1']
             - for channel 2: 
-            - >>> channels = ['2']
+            
+                >>> channels = ['2']
             - for channels 1 and 2:
-            - >>> channels = ['1','2']
+            
+                >>> channels = ['1','2']
                         
             The channel assignment of the parameters power_units and wavelengths corresponds to the elements of this list.
 
@@ -1540,7 +1545,7 @@ def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [
         log_mode: boolean, optional (default = False)
             Enables a log file for this method.
             
-        power_units : list of strings, optional (default = [None]).
+        power_units : list of string soptional (default = [None])
             Sets the power unit(s) for the acquired channel(s).
             Available power units are 'DBM' and 'Watt' (case-sensitive).
             Maximum number of list items is 2.
@@ -1548,6 +1553,7 @@ def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [
             - Examples for one channel :
             >>> power_units = ['DBM']
             >>> power_units = ['Watt']
+            
             - Examples for two channels:
             >>> power_units = ['DBM','Watt']
             >>> power_units = ['DBM','DBM']
@@ -1559,16 +1565,19 @@ def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [
             
             Special case: The power level of both channels shall be acquired and for one channel the power unit should
             be changed. In this case, a 'None' is used for the channel that should be not changed.
+            
             >>> power_units = ['DBM','None']
          
-
         wavelengths : list of floats, optional ( default = [None]).
             Sets the calibration wavelength(s) for the acquired channel(s).
             Maximum number of list items is 2.
             
             - Example one channel:
+                
             >>> wavelengths = ['1550']
+            
             - Example two channels:
+                
             >>> wavelengths = ['1550','1500']
             
             The assignment of the wavelengths corresponds to the elements in the channels list.
@@ -1594,56 +1603,70 @@ def get_opt_power_HP8153A(channels, GPIB_bus=0, GPIB_address=22 ,power_units = [
         channel_information: dict
             Returns two versions depending on verbose_mode.
             
-            verbose_mode = False:
+            * verbose_mode = False:
                 Consist of dicts which only contain the acquired channel power level.
-            
-            verbose_mode = True:
-                Consist of dicts which contain the acquired channel power level, wavelength, power unit and modulename.
                 
-                - To access the dict:
+                To access the dict use:
+                
                 >>> object[Name of channels][Name of data]
                 
-                - Name of channels: 
-                    - '1': channel 1
-                    - '2': channel 2
-                - Name of data:
-                    - Power: (float) contains the power level of the channel
-                    - Unit: (string) contains the power unit
-                    - Wavelength: (float) contains the calibration wavelength in nanometers (nm)
-                    - Module: (string) contains the module name for the channel
-                        
-        To access the dict use:
-            >>> object[Name of channels][Name of data]
+                Name of channels: 
+                    
+                * '1': channel 1
+                * '2': channel 2
+                  
+                Name of data:
+                    
+                * Power: (float) contains power level of the channel 
             
-                    - Name of channels: 
-                        - '1': channel 1
-                        - '2': channel 2
-                    - Name of data:
-                        - Power: (float) contains power level of the channel 
+            * verbose_mode = True:
+                Consist of dicts which contain the acquired channel power level, wavelength, power unit and modulename.
+                
+                To access the dict:
+                
+                >>> object[Name of channels][Name of data]
+                
+                Name of channels: 
+                    
+                * '1': channel 1
+                * '2': channel 2
+                
+                Name of data:
+                    
+                * Power: (float) contains the power level of the channel
+                * Unit: (string) contains the power unit
+                * Wavelength: (float) contains the calibration wavelength in nanometers (nm)
+                * Module: (string) contains the module name for the channel
                                        
     Examples
     --------
-            >>> import comm as comm
+        >>> import skcomm as skc
         
         The power of channel 1 should be acquired. The wavelength will be set to 1550 nm and the power unit to dBm.
         GPIB address will be set to 22. In this example, the verbose mode is activated.
-            >>> p = comm.instrument_control.get_opt_power_HP8153A(channels = ['1'], GPIB_address = 22, power_units = ['DBM'], wavelengths = [1550.0])
+        
+        >>> p = skc.instrument_control.get_opt_power_HP8153A(channels = ['1'], GPIB_address = 22, power_units = ['DBM'], wavelengths = [1550.0])
         
         The power of both channels should be acquired. The wavelength of channel 1 should not be changed. For channel 2, 
         the wavelengths will be set to 1550nm. Power unit for channel 1 should be "Watt" and "dBm" for channel 2.
-            >>> p = comm.instrument_control.get_opt_power_HP8153A(channels = ['1','2'], GPIB_address = 22, power_units = ['Watt','DBM'], wavelengths = [None,1550.0])
+        
+        >>> p = skc.instrument_control.get_opt_power_HP8153A(channels = ['1','2'], GPIB_address = 22, power_units = ['Watt','DBM'], wavelengths = [None,1550.0])
         
         Only the power value should be acquired from both channels. Therfore, the verbose_mode can be deactivated.
-            >>> p = comm.instrument_control.get_opt_power_HP8153A(channels = ['1','2'], GPIB_address = 22, verbose_mode = False)
+        
+        >>> p = skc.instrument_control.get_opt_power_HP8153A(channels = ['1','2'], GPIB_address = 22, verbose_mode = False)
+        
         Note, in this example, no values for wavelengths and power_unit are provided. Hence, the current values of the multimeter will be used.
         
         Access the power level only of channel 1
-            >>> power_level_ch1 = p['1']['Power']
+        
+        >>> power_level_ch1 = p['1']['Power']
             
         Access the wavelength of channel 2
-            >>> wavelength_ch2 = p['2']['Wavelength']
+        
+        >>> wavelength_ch2 = p['2']['Wavelength']
 
-    Errors
+    Raises
     -------
         Type Error:
             This will be raised when a wrong data type is used for the input parameter.
@@ -1931,7 +1954,6 @@ def get_opt_power_HP8163B(channels=['1'], ip_address='192.168.1.1'):
     return channel_information
 
 def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = [None], wavelengths = [None], GPIB_address='12', log_mode = False):
-
     """
     set_attenuation_MTA_150
     
@@ -1957,21 +1979,17 @@ def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = 
             transferred as a list. For example: ['1','2','3'] (Three cassettes).
             Maximum number of cassettes is 8.
             
-
-
-            WARNING:
-            If a cassette is selected which is not physically available, the last selected cassette is used. There is a risk that 
-            values ​​will be overwritten.
-            
+            WARNING: If a cassette is selected which is not physically available, the last selected cassette is used. There is a risk that 
+            values ​​will be overwritten.            
 
         attenuations : list of floats or Nones, optional (default = [None])
             Sets the total attenuation to the parameter value by changing the actual attenuation. 
             Value must be between 0dB and 60dB
             If not used, the value of the MTA is unchanged.
             If the value of one cassette is to be changed and the others not, a None can simply be inserted in the vector for the value
-            that is not to be changed. For example: [20,None,30] (Value of the second entry will not changed)
+            that is not to be changed. 
+            For example: [20,None,30] (Value of the second entry will not changed)
         
-
         offsets: list of floats, optional (default = [None])
             Sets the display offset of the MTA system. The value of the offset has no affecton to the actual attenuation,
             but it does affect the total attenuation.
@@ -2002,43 +2020,55 @@ def set_attenuation_MTA_150(cassettes = ['1'], attenuations = [None], offsets = 
     -------
         cassette_information : dict
             Consist of dicts which contains the attenuation, offset, wavelength and total attenuation of the sected cassette.
+            
             To access the dict use:
-            >Name of object<[>Name of cassette<][>Name of data<]
-                -> Name of Trace: (string)
-                    -> 1 : Cassette 1
-                    -> 2 : Cassette 2
-                    ...
-                    -> 8 : Cassette 8
-                -> Name of data: (string)
-                    -> attenuation      : (float) Contains the selected attenuations (Att_actual)
-                    -> offset           : (float) Contains the selected offset
-                    -> wavelength       : (float) Contains the selected wavelength
-                    -> Total attenuation: (float) Contains the total attenuation (Att_total = Att_actual + Offset) Corresponds with the 
-                                          showed attenuation of the device.
+                
+            <Name of object>[<Name of cassette>][<Name of data>]
+            
+            Name of cassette: (string)
+            
+            * 1 : Cassette 1
+            * 2 : Cassette 2
+            * ...
+            * 8 : Cassette 8
+            
+            Name of data: (string)
+            
+            * attenuation      : (float) Contains the selected attenuations (Att_actual)
+            * offset           : (float) Contains the selected offset
+            * wavelength       : (float) Contains the selected wavelength
+            * Total attenuation: (float) Contains the total attenuation 
+            (Att_total = Att_actual + Offset) Corresponds with the showed 
+            attenuation of the device.
             
     Examples
     -------
 
-        >>> import comm as comm
+        >>> import skcomm as skc
         
         Get the data from the cassette 1 and 2. The properties of the device will not be changed.
-        >>> a = comm.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'])
+        
+        >>> a = skc.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'])
 
         Change values of attenuation, offset and wavelength for cassette 2
-        >>> b = comm.instrument_control.set_attenuation_MTA_150(cassettes=['2'],attenuations=[5.0], offsets=[5.0], wavelengths=[1300.5])
+        
+        >>> b = skc.instrument_control.set_attenuation_MTA_150(cassettes=['2'],attenuations=[5.0], offsets=[5.0], wavelengths=[1300.5])
 
         Change attenuation of cassette 1 and wavelength of cassette 2
-        >>> c = comm.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'],attenuations=[5.0,None],wavelengths=[None,1550.0])
+        
+        >>> c = skc.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'],attenuations=[5.0,None],wavelengths=[None,1550.0])
 
         Cassettes order can be changed
-        >>> d = comm.instrument_control.set_attenuation_MTA_150(cassettes=['2','1'],attenuations=[None,0.0],wavelengths=[1500.0,None])
+        
+        >>> d = slc.instrument_control.set_attenuation_MTA_150(cassettes=['2','1'],attenuations=[None,0.0],wavelengths=[1500.0,None])
 
         Access actual attenuation value of cassette 1
-        >>> e = comm.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'])
+        
+        >>> e = skc.instrument_control.set_attenuation_MTA_150(cassettes=['1','2'])
         >>> attenuation_value = e['1']['attenuation']
 
 
-    Errors
+    Raises
     -------
         Type Error: 
             Will be raised when a wrong data type is used for the input parameter

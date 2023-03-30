@@ -10,7 +10,7 @@ if "%SPHINXBUILD%" == "" (
 set APIDOC=sphinx-apidoc
 set SOURCEDIR=source
 set BUILDDIR=build
-set PROJECTDIR=../comm
+set PROJECTDIR=../skcomm
 
 if "%1" == "" goto help
 

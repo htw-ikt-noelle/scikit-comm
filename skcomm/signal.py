@@ -1,6 +1,7 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import copy
+
+import numpy as np
+
 from . import visualizer
 from . import tx
 from . import utils
@@ -38,7 +39,7 @@ class Signal():
     constellation: list of ndarrays, list of length n_dims, each element containing
     a complex ndarray of size (nConstellationPoints,) representing representing the
     complex modulation symbols, while the order specifies the mapping
-    between bits and modulation symbols (see comm.tx.mapper() for details)
+    between bits and modulation symbols (see skcomm.tx.mapper() for details)
 
     """
 
@@ -215,7 +216,7 @@ class Signal():
         """
         Generate an array of size (n_bits,) binary values.
 
-        For detailed documentation see comm.tx.generate_bits.     
+        For detailed documentation see skcomm.tx.generate_bits.     
         """
         n_bits = self._check_attribute(n_bits)
         type = self._check_attribute(type)
@@ -229,7 +230,7 @@ class Signal():
         """
         Set the SNR of the signal.
         
-        For detailed documentation see comm.channel.set_snr.       
+        For detailed documentation see skcomm.channel.set_snr.       
         """
         snr_dB = self._check_attribute(snr_dB)
         seed = self._check_attribute(seed)
@@ -244,7 +245,7 @@ class Signal():
         """
         Generate sig.symbols from sig.bits and sig.constellation.
 
-        For detailed documentation see comm.tx.mapper.     
+        For detailed documentation see skcomm.tx.mapper.     
         """
         for i, (b, c) in enumerate(zip(self.bits, self.constellation)):
             self.symbols[i] = tx.mapper(bits=b, constellation=c)
@@ -253,7 +254,7 @@ class Signal():
         """
         Demap samples to bits using a given constellation alphabet.
         
-        For detailed documentation see comm.rx.demapper.        
+        For detailed documentation see skcomm.rx.demapper.        
         """
         for i, (s, c) in enumerate(zip(self.samples, self.constellation)):
             self.samples[i] = rx.demapper(samples=s, constellation=c)
@@ -263,7 +264,7 @@ class Signal():
         """
         Decide samples to a given constellation alphabet.
         
-        For detailed documentation see comm.rx.decision.        
+        For detailed documentation see skcomm.rx.decision.        
         """
         for i, (s, c) in enumerate(zip(self.samples, self.constellation)):
             self.samples[i] = rx.decision(samples=s, constellation=c)
@@ -273,7 +274,7 @@ class Signal():
         """
         Filter samples with a raised cosine filter.
 
-        For detailed documentation see comm.filters.raised_cosine_filter.      
+        For detailed documentation see skcomm.filters.raised_cosine_filter.      
         """
         roll_off = self._check_attribute(roll_off)
         root_raised = self._check_attribute(root_raised)
@@ -292,7 +293,7 @@ class Signal():
         """
         Estimate the sampling phase offset and compensate for it.
         
-        For detailed documentation see comm.rx.sampling_phase_adjustment.
+        For detailed documentation see skcomm.rx.sampling_phase_adjustment.
         """
         for i, (s, sr, symr) in enumerate(zip(self.samples,
                                                       self.sample_rate,
@@ -306,7 +307,7 @@ class Signal():
         """
         Estimate the sampling clock offset and compensate for it.
         
-        For detailed documentation see comm.rx.sampling_clock_adjustment.
+        For detailed documentation see skcomm.rx.sampling_clock_adjustment.
         """
         block_size = self._check_attribute(block_size)
         
@@ -326,7 +327,7 @@ class Signal():
         """
         Set sig.constellation and sig.modulation_info.
 
-        For detailed documentation see comm.utils.generate_constellation.    
+        For detailed documentation see skcomm.utils.generate_constellation.    
         """
         format = self._check_attribute(format)
         order = self._check_attribute(order)
@@ -340,7 +341,7 @@ class Signal():
         """
         Upsample and pulseshape the modulated symbols and write them to samples.
 
-        For detailed documentation see comm.tx.pulseshaper
+        For detailed documentation see skcomm.tx.pulseshaper
         """
         upsampling = self._check_attribute(upsampling)
         pulseshape = self._check_attribute(pulseshape)
@@ -357,7 +358,7 @@ class Signal():
         """
         Plot spectum of the signal samples of a given dimension.
 
-        For further documentation see comm.visualizer.plot_spectrum.
+        For further documentation see skcomm.visualizer.plot_spectrum.
         """
         visualizer.plot_spectrum(self.samples[dimension], self.sample_rate[dimension], **kwargs)
 
@@ -365,7 +366,7 @@ class Signal():
         """
         Plot constellation of signal samples of a given dimension.
 
-        For further documentation see comm.visualizer.plot_constellation.
+        For further documentation see skcomm.visualizer.plot_constellation.
         """
         visualizer.plot_constellation(self.samples[dimension], decimation=decimation, **kwargs)
 
@@ -374,7 +375,7 @@ class Signal():
         """
         Plot eye diagramm of signal samples of a given dimension.
 
-        For further documentation see comm.visualizer.plot_eye
+        For further documentation see skcomm.visualizer.plot_eye
         """
 
         visualizer.plot_eye(self.samples[dimension], self.sample_rate[dimension],
@@ -386,7 +387,7 @@ class Signal():
         """
         Plot the signal samples of a given dimension as a function of time.
 
-        For further documentation see comm.visualizer.plot_signal
+        For further documentation see skcomm.visualizer.plot_signal
         """
         
         visualizer.plot_signal(self.samples[dimension], self.sample_rate[dimension],

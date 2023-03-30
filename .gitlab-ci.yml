@@ -17,4 +17,4 @@ unittests:
   script:
   - python -V
   - pip install -r requirements.txt 
-  - python -m unittest discover -s comm/tests
+  - python -m unittest discover -s skcomm/tests -t . -v
