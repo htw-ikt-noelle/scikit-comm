@@ -728,7 +728,64 @@ def symbol_sequence_sync(sig, dimension=-1):
     
     return sig    
 
-def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0.5, decimate=False, return_info=True, stop_adapting=-1, start_rde=5000, start_dde=5000):    
+
+def _bae_loop(samples_in, samples_out, h, n_taps, sps, n_CMA, mu_cma, n_RDE, 
+              mu_rde, radii, mu_dde, stop_adapting, sig_constellation, r, 
+              shift, return_info, h_tmp, eps_tmp):
+    """
+    Helper function which implements the actual loop for the blind 
+    adaptive equalizer (bae).
+    
+    For explanation and help regarding the input and output parameters see
+    docu of comm.rx.blind_adaptive_equalizer().
+    """
+    
+    n_update = 0
+    
+    # equalizer loop
+    for sample in range(0, samples_out.size, shift):        
+        # filter the signal for each desired output sample (convolution)
+        # see [1], eq. (5)
+        samples_out[sample] = np.sum(h * samples_in[n_taps+sample:sample:-1])        
+        
+        # for each symbol, calculate error signal... 
+        if (sample % sps == 0):            
+            # in CMA operation case
+            if sample <= n_CMA:
+                # calc error, see [1], eq. (26)
+                eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r) 
+                mu = mu_cma
+            # in DDE operation case
+            elif sample > (n_CMA + n_RDE):
+                # decision (find closest point of original constellation)                    
+                idx = np.argmin(np.abs(samples_out[sample] - sig_constellation))
+                const_point = sig_constellation[idx]
+                eps = (samples_out[sample] - const_point)
+                mu = mu_dde
+            # in RDE operation case
+            else:
+                # decision (find closest radius of original constellation)                    
+                r_tmp = radii[np.argmin(np.abs(np.abs(samples_out[sample])**2 - radii))]
+                eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r_tmp)                         
+                mu = mu_rde
+            
+            # ...and update impulse response, if necessary
+            if (int(sample/sps) <= stop_adapting):
+                # update impulse response, see [1], eq (28)
+                h -= mu * np.conj(samples_in[n_taps+sample:sample:-1]) * eps
+            
+            # save return info, if necessary
+            if return_info:                
+                # h_tmp.append(h.copy())
+                # eps_tmp.append(eps)
+                h_tmp[n_update,:] = h.copy()
+                eps_tmp[n_update] = eps
+            
+            n_update += 1
+                
+    return samples_out, h_tmp, eps_tmp
+
+def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0.5, decimate=False, return_info=True, stop_adapting=-1, start_rde=5000, start_dde=5000, compiled=True):    
     """
     Equalize the signal using a blind adaptive equalizer filter.
     
@@ -815,6 +872,9 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     start_dde :  int or list of ints, optional
         defines after how many RDE SYMBOLS the DDE mode is started. start_rde=0 means 
         DDE mode does not start at all. See also examples above. The default is 5000.
+    compiled :  bool, optional
+        should the equalizer use compiled cython code or native Python code?
+        The default is True.
 
     
     Returns
@@ -904,11 +964,7 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
     eps_tmp = []
     
     # iterate over dimensions
-    for dim in range(sig.n_dims):
-
-        # generate new empty list for each dimension
-        h_tmp.append([]) 
-        eps_tmp.append([])
+    for dim in range(sig.n_dims):        
     
         if n_taps[dim] % 2 == 0:
             raise ValueError('n_taps need to be odd')       
@@ -921,9 +977,9 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
         h = np.zeros(n_taps[dim], dtype=np.complex128)
         h[n_taps[dim]//2] = 1.0
         
-        # generate tmp arrays
+        # generate sample arrays
         samples_in = sig.samples[dim]
-        samples_out = np.full(samples_in.size-n_taps[dim], np.nan, dtype=np.complex128)
+        samples_out = np.full(samples_in.size-n_taps[dim], np.nan, dtype=np.complex128)        
         
         # desired modulus for CMA for p=2, see [1], eq. (28) + 1    
         r = np.mean(np.abs(sig.constellation[dim])**4) / np.mean(np.abs(sig.constellation[dim])**2) 
@@ -931,6 +987,8 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
         # desired radii for RDE, enhancement of [2], eq. (44)
         if start_rde[dim] > 0:
             radii = np.unique(np.abs(sig.constellation[dim]))**2
+        else:
+            radii = np.asarray([0.0])
         
         # convert symbols to samples
         start_rde[dim] = start_rde[dim] * sps
@@ -959,42 +1017,30 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
         if stop_adapting[dim] == -1:
             stop_adapting[dim] = int(samples_out.size/sps)
         
-        # equalizer loop
-        for sample in range(0, samples_out.size, shift):        
-            # filter the signal for each desired output sample (convolution)
-            # see [1], eq. (5)
-            samples_out[sample] = np.sum(h * samples_in[n_taps[dim]+sample:sample:-1])        
-            
-            # for each symbol, calculate error signal... 
-            if (sample % sps == 0):
-                # in CMA operation case
-                if sample <= n_CMA:
-                    # calc error, see [1], eq. (26)
-                    eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r) 
-                    mu = mu_cma[dim]
-                # in DDE operation case
-                elif sample > (n_CMA + n_RDE):
-                    # decision (find closest point of original constellation)                    
-                    idx = np.argmin(np.abs(samples_out[sample] - sig.constellation[dim]))
-                    const_point = sig.constellation[dim][idx]
-                    eps = (samples_out[sample] - const_point)
-                    mu = mu_dde[dim]
-                # in RDE operation case
-                else:
-                    # decision (find closest radius of original constellation)                    
-                    r_tmp = radii[np.argmin(np.abs(np.abs(samples_out[sample])**2 - radii))]
-                    eps = samples_out[sample] * (np.abs(samples_out[sample])**2 - r_tmp)                         
-                    mu = mu_rde[dim]
-                
-                # ...and update impulse response, if necessary
-                if (int(sample/sps) <= stop_adapting[dim]):
-                    # update impulse response, see [1], eq (28)
-                    h -= mu * np.conj(samples_in[n_taps[dim]+sample:sample:-1]) * eps
-                
-                # save return info, if necessary
-                if return_info[dim]:
-                    h_tmp[dim].append(h.copy())
-                    eps_tmp[dim].append(eps)
+        # generate new list element for each dimension and initialize return values
+        if return_info[dim]:            
+            h_tmp.append(np.full((int(np.ceil((samples_in.size-n_taps[dim])/shift)), n_taps[dim]), 
+                                 np.nan, dtype=np.complex128())) 
+            eps_tmp.append(np.full(int(np.ceil((samples_in.size-n_taps[dim])/shift)), 
+                                   np.nan, dtype=np.complex128()))
+        else:
+            h_tmp.append(np.asarray([]))
+            eps_tmp.append(np.asarray([]))
+        
+        # use compiled Cython code for EQ loop...
+        if compiled:
+            pass          
+        # ... or use Python code
+        else:
+            samples_out, h_tmp[dim], eps_tmp[dim] = _bae_loop(samples_in, samples_out, 
+                                                              h, n_taps[dim], sps, 
+                                                              n_CMA, mu_cma[dim], 
+                                                              n_RDE, mu_rde[dim], 
+                                                              radii, mu_dde[dim], 
+                                                              stop_adapting[dim], 
+                                                              sig.constellation[dim], 
+                                                              r, shift, return_info[dim], 
+                                                              h_tmp[dim], eps_tmp[dim])
         
         # only take "valid" (actually calculated) output samples
         if decimate[dim]:
@@ -1003,8 +1049,6 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
         
         # generate output signal and return_info np.arrays
         sig.samples[dim] = samples_out
-        h_tmp[dim] = np.asarray(h_tmp[dim])
-        eps_tmp[dim] = np.asarray(eps_tmp[dim])
         
     # generate result dict
     results = dict()
