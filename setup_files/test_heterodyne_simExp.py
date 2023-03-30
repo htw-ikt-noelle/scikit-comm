@@ -5,7 +5,7 @@ import scipy.signal as ssignal
 import matplotlib.pyplot as plt
 import scipy.interpolate as sinterp
 
-import comm as comm
+import skcomm as comm
 
 #%% Tx 
 #%% # signal parameters
