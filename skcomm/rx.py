@@ -1024,8 +1024,8 @@ def blind_adaptive_equalizer(sig, n_taps=111, mu_cma=5e-3, mu_rde=5e-3, mu_dde=0
             eps_tmp.append(np.full(int(np.ceil((samples_in.size-n_taps[dim])/shift)), 
                                    np.nan, dtype=np.complex128()))
         else:
-            h_tmp.append(np.asarray([]))
-            eps_tmp.append(np.asarray([]))
+            h_tmp.append(np.asarray([[]],dtype=np.complex128()))
+            eps_tmp.append(np.asarray([],dtype=np.complex128()))
         
         # use compiled Cython code for EQ loop...
         if compiled:
