@@ -204,7 +204,8 @@ if adaptive_filter == True:
     results = skc.rx.blind_adaptive_equalizer(sig_rx, n_taps=51, mu_cma=1e-4, 
                                                mu_rde=1e-5, mu_dde=0.5, decimate=True, 
                                                return_info=True, stop_adapting=-1, 
-                                               start_rde=5000*0, start_dde=5000*0)
+                                               start_rde=5000*0, start_dde=5000*0,
+                                               compiled=False)
     
     sig_rx = results['sig']
     h = results['h'][0]
