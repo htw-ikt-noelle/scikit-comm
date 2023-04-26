@@ -1,10 +1,10 @@
 # Experimental first version of a communication toolbox using some commonly used
 # funtions in communications engineering.
 #
-# Project was initially started by Markus Nölle at the HTW Berlin
+# Project was initially started by Markus Nölle and Lutz Molle at the HTW Berlin.
 
 
-__version__ = '0.1'
+__version__ = '0.1.0'
 
 from . import tx
 from . import rx
