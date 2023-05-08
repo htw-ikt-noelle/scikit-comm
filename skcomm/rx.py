@@ -1115,7 +1115,7 @@ def combining(sig, comb_method='EGC', snr=None):
     # scaling           
     if comb_method == 'MRC':
         for i in range(len(sig.samples)):
-            sig.samples[i] = sig.samples[i] * (10**(snr[i]/20)) 
+            sig.samples[i] = sig.samples[i] * (10**(snr[i]/10)) 
     elif comb_method == 'EGC':
         pass
     elif comb_method == 'SDC':
