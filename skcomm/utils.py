@@ -750,7 +750,7 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         x_n = np.append(x[noise_range_idx[0]:noise_range_idx[1]], 
                         x[noise_range_idx[2]:noise_range_idx[3]])
         
-        y_n = 10*np. log10(np.append(y[noise_range_idx[0]:noise_range_idx[1]], 
+        y_n = 10*np.log10(np.append(y[noise_range_idx[0]:noise_range_idx[1]], 
                                      y[noise_range_idx[2]:noise_range_idx[3]]))
         c = Polynomial.fit(x_n, y_n, order)
         
