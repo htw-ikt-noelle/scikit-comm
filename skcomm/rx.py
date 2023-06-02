@@ -595,9 +595,11 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     
     errors = np.full(n_test_phases,fill_value=np.nan, dtype=np.float64)
     dec_samples = np.full((n_taps,n_test_phases), fill_value=np.nan, dtype=np.complex128)
-    samples_out = []
-    est_phase_noise = []
-    
+    #samples_out = []
+    #est_phase_noise = []
+    samples_out = np.zeros([n_blocks, n_taps], dtype=np.complex128)
+    est_phase_noise = np.zeros(n_blocks)
+
     for block in range(n_blocks):
         for idx, rotation in enumerate(rotations):
             # rotate block by test phases
@@ -606,8 +608,10 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
             dec_samples[:,idx] =  constellation[np.argmin(np.abs(rotated_samples - constellation.reshape(-1,1)), axis=0)]    
             # calc error for particular test phase
             errors[idx] = np.sum(np.abs(rotated_samples - dec_samples[:,idx])**2)        
-        samples_out.append(dec_samples[:,np.argmin(errors)])        
-        est_phase_noise.append(np.angle(rotations[np.argmin(errors)]))
+        #samples_out.append(dec_samples[:,np.argmin(errors)])
+        samples_out[block, :] = dec_samples[:,np.argmin(errors)]
+        #est_phase_noise.append(np.angle(rotations[np.argmin(errors)]))
+        est_phase_noise[block] = np.angle(rotations[np.argmin(errors)])
     
     samples_out = np.asarray(samples_out).reshape(-1)
     
