@@ -8,12 +8,12 @@ import numpy as np
 from socket import socket, AF_INET, SOCK_STREAM, SHUT_RDWR
 
 
-def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
+def get_samples_DLM2034(channels=[1], address='192.168.1.12'):
     """
     Parameters
     ----------
-    channels : iterable, int, optional
-        iterable containing the channel numbers to fetch data samples from device. The default is (1).
+    channels : list of integers, optional
+        list containing the channel numbers to fetch data samples from device. The default is [1].
     address : string, optional
         IP Adress of device. The default is '192.168.1.12'.
 
@@ -87,19 +87,10 @@ def get_samples_DLM2034(channels=(1), address='192.168.1.12'):
         # reset device condition
         scope.write('TRIGger:MODE AUTO')
     
-    #print(float(scope.query('WAVeform:OFFSet?').split()[1]))
-    
-    #t = np.linspace(0, (len(wfm)-1) / sample_rate, len(wfm))
-    #plt.plot(t, wfm)
-    #plt.grid(True)
-    
     # close connection and delete objects
     rm.close()
     del rm
-    del scope
-    
-    # change list of nparrays to single nparray
-    wfm = np.asarray(wfm)
+    del scope    
     
     return sample_rate, wfm
 
