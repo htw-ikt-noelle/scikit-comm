@@ -1,9 +1,13 @@
 import numpy as np
+import math
 import cython
+from libc.math cimport atan2
+# from libcpp.complex cimport real
+# import cmath
 
 # speed gain can be increased when deactivating boundary checks for NumPy arrays
-# @cython.boundscheck(False)  # Deactivate bounds checking
-# @cython.wraparound(False)   # Deactivate negative indexing.
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
 @cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
 def _bae_loop(double complex [:] samples_in, samples_out, double complex [:] h, 
               int n_taps, int sps, int n_CMA, double mu_cma, int n_RDE, 
@@ -91,3 +95,55 @@ def _bae_loop(double complex [:] samples_in, samples_out, double complex [:] h,
             n_update += 1
                 
     return samples_out, h_tmp, eps_tmp
+
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
+@cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
+def _cpe_bps_loop(double complex [:] samples_norm, samples_out, dec_samples, 
+                  est_phase_noise, double [:] errors, int n_blocks, int n_taps, 
+                  double complex [:] rotations, 
+                  double complex [:] constellation):
+    
+    cdef:
+        Py_ssize_t block, idx_rot, idx_const, sample, min_err_rot_idx
+        Py_ssize_t len_rot = len(rotations)
+        Py_ssize_t len_const = len(constellation)
+        
+        double err, err_min, min_err_rot
+        
+        double complex rotated_sample
+        
+        # memory view of Pythons NumPy arrays
+        double complex [:,:] samples_out_view = samples_out
+        double [:] est_phase_noise_view = est_phase_noise
+        double complex [:,:] dec_samples_view = dec_samples
+    
+    for block in range(n_blocks):  
+        min_err_rot = 1e10
+        min_err_rot_idx = 0
+        for idx_rot in range(len_rot):
+            errors[idx_rot] = 0.0            
+            # decide nearest constellation points for each sample in block for particular test phase
+            for sample in range(n_taps):
+                # rotate each sample in block by test phase
+                rotated_sample = samples_norm[block*n_taps+sample] * rotations[idx_rot]
+                err_min = abs(rotated_sample-constellation[0])
+                err_idx = 0
+                for idx_const in range(1,len_const):
+                    err = abs(rotated_sample-constellation[idx_const])
+                    if err < err_min:
+                        err_min = err
+                        err_idx = idx_const
+                dec_samples_view[sample, idx_rot] = constellation[err_idx]
+                errors[idx_rot] += abs(rotated_sample - dec_samples_view[sample, idx_rot])**2
+            if errors[idx_rot] < min_err_rot:
+                min_err_rot = errors[idx_rot]
+                min_err_rot_idx = idx_rot
+                                    
+        samples_out_view[block, :] = dec_samples_view[:,min_err_rot_idx]        
+        # est_phase_noise_view[block] = np.angle(rotations[min_err_rot_idx])
+        est_phase_noise_view[block] = atan2(rotations[min_err_rot_idx].imag, rotations[min_err_rot_idx].real)
+        # est_phase_noise_view[block] = arg(rotations[min_err_rot_idx])
+        
+    
+    return samples_out, est_phase_noise

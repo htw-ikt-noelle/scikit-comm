@@ -529,8 +529,23 @@ def carrier_phase_estimation_VV(symbols, n_taps=31, filter_shape='wiener', mth_p
     results['cpe_window'] = cpe_window # center tap = zero-delay (t=0)
     return results
 
+def _cpe_bps_loop(samples_norm, samples_out, dec_samples, est_phase_noise, errors, n_blocks, n_taps, rotations, constellation):
+    
+    for block in range(n_blocks):
+        for idx, rotation in enumerate(rotations):
+            # rotate block by test phases
+            rotated_samples = samples_norm[block*n_taps:(block+1)*n_taps] * rotation
+            # decide nearest constellation points for each sample in block for particular test phase
+            dec_samples[:,idx] =  constellation[np.argmin(np.abs(rotated_samples - constellation.reshape(-1,1)), axis=0)]    
+            # calc error for particular test phase
+            errors[idx] = np.sum(np.abs(rotated_samples - dec_samples[:,idx])**2)                
+        samples_out[block, :] = dec_samples[:,np.argmin(errors)]        
+        est_phase_noise[block] = np.angle(rotations[np.argmin(errors)])
+    
+    return samples_out, est_phase_noise
 
-def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phases=15, const_symmetry=np.pi/2):
+
+def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phases=15, const_symmetry=np.pi/2, loop='inline'):
     """
     "Blind phase search" carrier phase estimation and recovery.
     
@@ -597,17 +612,25 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     dec_samples = np.full((n_taps,n_test_phases), fill_value=np.nan, dtype=np.complex128)    
     samples_out = np.zeros([n_blocks, n_taps], dtype=np.complex128)
     est_phase_noise = np.zeros(n_blocks)
-
-    for block in range(n_blocks):
-        for idx, rotation in enumerate(rotations):
-            # rotate block by test phases
-            rotated_samples = samples_norm[block*n_taps:(block+1)*n_taps] * rotation
-            # decide nearest constellation points for each sample in block for particular test phase
-            dec_samples[:,idx] =  constellation[np.argmin(np.abs(rotated_samples - constellation.reshape(-1,1)), axis=0)]    
-            # calc error for particular test phase
-            errors[idx] = np.sum(np.abs(rotated_samples - dec_samples[:,idx])**2)                
-        samples_out[block, :] = dec_samples[:,np.argmin(errors)]        
-        est_phase_noise[block] = np.angle(rotations[np.argmin(errors)])
+    
+    if loop=='extern':
+        samples_out, est_phase_noise = _cpe_bps_loop(samples_norm, samples_out, dec_samples, est_phase_noise, errors, n_blocks, n_taps, rotations, constellation)
+        
+    elif loop=='intern':
+        for block in range(n_blocks):
+            for idx, rotation in enumerate(rotations):
+                # rotate block by test phases
+                rotated_samples = samples_norm[block*n_taps:(block+1)*n_taps] * rotation
+                # decide nearest constellation points for each sample in block for particular test phase
+                dec_samples[:,idx] =  constellation[np.argmin(np.abs(rotated_samples - constellation.reshape(-1,1)), axis=0)]    
+                # calc error for particular test phase
+                errors[idx] = np.sum(np.abs(rotated_samples - dec_samples[:,idx])**2)                
+            samples_out[block, :] = dec_samples[:,np.argmin(errors)]        
+            est_phase_noise[block] = np.angle(rotations[np.argmin(errors)])
+    elif loop=='cython':
+        samples_out, est_phase_noise = rx_cython._cpe_bps_loop(samples_norm, samples_out, dec_samples, est_phase_noise, errors, n_blocks, n_taps, rotations, constellation)
+        # est_phase_noise = np.angle(est_phase_noise)
+            
     
     samples_out = np.asarray(samples_out).reshape(-1)
     
