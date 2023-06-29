@@ -653,14 +653,27 @@ def place_figures(auto_layout=True, offset=[0,0], screen_resolution=None, nc=4,
     fig_height = screen_resolution[1]/nr - figure_toolbar 
 
     fig_cnt = 0
+    backend = plt.get_backend()
     for r in range(nr):
         for c in range(nc):
             if fig_cnt >= n_fig:
                 break        
             figHandle[fig_cnt].set_figheight(fig_height / figHandle[fig_cnt].get_dpi())
             figHandle[fig_cnt].set_figwidth(fig_width / figHandle[fig_cnt].get_dpi())
+            # solution for different backends taken
+            # from https://stackoverflow.com/questions/7449585/how-do-you-set-the-absolute-position-of-figure-windows-with-matplotlib
             if r == 0:
-                figHandle[fig_cnt].canvas.manager.window.move(int(fig_width*c + offset[0]), int(fig_height*r) + offset[1])
+                if backend == 'TkAgg':
+                    figHandle[fig_cnt].canvas.manager.window.wm_geometry("+%d+%d" % (int(fig_width*c + offset[0]), int(fig_height*r) + offset[1]))
+                elif backend == 'WXAgg':
+                    figHandle[fig_cnt].canvas.manager.window.SetPosition((int(fig_width*c + offset[0]), int(fig_height*r) + offset[1]))
+                else:
+                    figHandle[fig_cnt].canvas.manager.window.move(int(fig_width*c + offset[0]), int(fig_height*r) + offset[1])
             else:
-                figHandle[fig_cnt].canvas.manager.window.move(int(fig_width*c + offset[0]), int((fig_height+figure_toolbar)*r) + offset[1])
+                if backend == 'TkAgg':
+                    figHandle[fig_cnt].canvas.manager.window.wm_geometry("+%d+%d" % (int(fig_width*c + offset[0]), int((fig_height+figure_toolbar)*r) + offset[1]))
+                elif backend == 'WXAgg':
+                    figHandle[fig_cnt].canvas.manager.window.SetPosition((int(fig_width*c + offset[0]), int((fig_height+figure_toolbar)*r) + offset[1]))
+                else:
+                    figHandle[fig_cnt].canvas.manager.window.move(int(fig_width*c + offset[0]), int((fig_height+figure_toolbar)*r) + offset[1])
             fig_cnt += 1
