@@ -6,8 +6,8 @@ from libc.math cimport atan2
 # import cmath
 
 # speed gain can be increased when deactivating boundary checks for NumPy arrays
-@cython.boundscheck(False)  # Deactivate bounds checking
-@cython.wraparound(False)   # Deactivate negative indexing.
+@cython.boundscheck(True)  # De/activate bounds checking
+@cython.wraparound(True)   # De/activate negative indexing.
 @cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
 def _bae_loop(double complex [:] samples_in, samples_out, double complex [:] h, 
               int n_taps, int sps, int n_CMA, double mu_cma, int n_RDE, 
@@ -96,8 +96,8 @@ def _bae_loop(double complex [:] samples_in, samples_out, double complex [:] h,
                 
     return samples_out, h_tmp, eps_tmp
 
-@cython.boundscheck(False)  # Deactivate bounds checking
-@cython.wraparound(False)   # Deactivate negative indexing.
+@cython.boundscheck(True)  # De/activate bounds checking
+@cython.wraparound(True)   # De/activate negative indexing.
 @cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
 def _cpe_bps_loop(double complex [:] samples_norm, samples_out, dec_samples, 
                   est_phase_noise, double [:] errors, int n_blocks, int n_taps, 

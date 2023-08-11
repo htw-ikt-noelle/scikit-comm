@@ -1328,6 +1328,9 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject **argnames[],\
     PyObject *kwds2, PyObject *values[], Py_ssize_t num_pos_args,\
     const char* function_name);
 
+/* BufferIndexError.proto */
+static void __Pyx_RaiseBufferIndexError(int axis);
+
 /* MemviewSliceInit.proto */
 #define __Pyx_BUF_MAX_NDIMS %(BUF_MAX_NDIMS)d
 #define __Pyx_MEMVIEW_DIRECT   1
@@ -2411,7 +2414,7 @@ static PyObject *__pyx_codeobj__30;
 /* Late includes */
 
 /* "rx_cython.pyx":12
- * @cython.wraparound(False)   # Deactivate negative indexing.
+ * @cython.wraparound(True)   # De/activate negative indexing.
  * @cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
  * def _bae_loop(double complex [:] samples_in, samples_out, double complex [:] h,             # <<<<<<<<<<<<<<
  *               int n_taps, int sps, int n_CMA, double mu_cma, int n_RDE,
@@ -2690,10 +2693,11 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
   Py_ssize_t __pyx_t_8;
   Py_ssize_t __pyx_t_9;
   Py_ssize_t __pyx_t_10;
-  Py_ssize_t __pyx_t_11;
-  int __pyx_t_12;
-  Py_ssize_t __pyx_t_13;
-  __Pyx_memviewslice __pyx_t_14 = { 0, 0, { 0 }, { 0 }, { 0 } };
+  int __pyx_t_11;
+  Py_ssize_t __pyx_t_12;
+  int __pyx_t_13;
+  Py_ssize_t __pyx_t_14;
+  __Pyx_memviewslice __pyx_t_15 = { 0, 0, { 0 }, { 0 }, { 0 } };
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
@@ -2827,8 +2831,26 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  * 
  */
       __pyx_t_10 = __pyx_v_x;
-      __pyx_t_11 = ((__pyx_v_sample + __pyx_v_n_taps) - __pyx_v_x);
-      __pyx_v_out = __Pyx_c_sum_double(__pyx_v_out, __Pyx_c_prod_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_h.data + __pyx_t_10 * __pyx_v_h.strides[0]) ))), (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_in.data + __pyx_t_11 * __pyx_v_samples_in.strides[0]) )))));
+      __pyx_t_11 = -1;
+      if (__pyx_t_10 < 0) {
+        __pyx_t_10 += __pyx_v_h.shape[0];
+        if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+      } else if (unlikely(__pyx_t_10 >= __pyx_v_h.shape[0])) __pyx_t_11 = 0;
+      if (unlikely(__pyx_t_11 != -1)) {
+        __Pyx_RaiseBufferIndexError(__pyx_t_11);
+        __PYX_ERR(0, 47, __pyx_L1_error)
+      }
+      __pyx_t_12 = ((__pyx_v_sample + __pyx_v_n_taps) - __pyx_v_x);
+      __pyx_t_11 = -1;
+      if (__pyx_t_12 < 0) {
+        __pyx_t_12 += __pyx_v_samples_in.shape[0];
+        if (unlikely(__pyx_t_12 < 0)) __pyx_t_11 = 0;
+      } else if (unlikely(__pyx_t_12 >= __pyx_v_samples_in.shape[0])) __pyx_t_11 = 0;
+      if (unlikely(__pyx_t_11 != -1)) {
+        __Pyx_RaiseBufferIndexError(__pyx_t_11);
+        __PYX_ERR(0, 47, __pyx_L1_error)
+      }
+      __pyx_v_out = __Pyx_c_sum_double(__pyx_v_out, __Pyx_c_prod_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_h.data + __pyx_t_10 * __pyx_v_h.strides[0]) ))), (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_in.data + __pyx_t_12 * __pyx_v_samples_in.strides[0]) )))));
     }
 
     /* "rx_cython.pyx":48
@@ -2838,8 +2860,17 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  * 
  *         # for each symbol, calculate error signal...
  */
-    __pyx_t_11 = __pyx_v_sample;
-    *((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_11 * __pyx_v_samples_out_view.strides[0]) )) = __pyx_v_out;
+    __pyx_t_12 = __pyx_v_sample;
+    __pyx_t_11 = -1;
+    if (__pyx_t_12 < 0) {
+      __pyx_t_12 += __pyx_v_samples_out_view.shape[0];
+      if (unlikely(__pyx_t_12 < 0)) __pyx_t_11 = 0;
+    } else if (unlikely(__pyx_t_12 >= __pyx_v_samples_out_view.shape[0])) __pyx_t_11 = 0;
+    if (unlikely(__pyx_t_11 != -1)) {
+      __Pyx_RaiseBufferIndexError(__pyx_t_11);
+      __PYX_ERR(0, 48, __pyx_L1_error)
+    }
+    *((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_12 * __pyx_v_samples_out_view.strides[0]) )) = __pyx_v_out;
 
     /* "rx_cython.pyx":51
  * 
@@ -2848,8 +2879,8 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *             # in CMA operation case
  *             if sample <= n_CMA:
  */
-    __pyx_t_12 = (((__pyx_v_sample % __pyx_v_sps) == 0) != 0);
-    if (__pyx_t_12) {
+    __pyx_t_13 = (((__pyx_v_sample % __pyx_v_sps) == 0) != 0);
+    if (__pyx_t_13) {
 
       /* "rx_cython.pyx":53
  *         if (sample % sps == 0):
@@ -2858,8 +2889,8 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                 # calc error, see [1], eq. (26)
  *                 eps = samples_out_view[sample] * (abs(samples_out_view[sample])**2 - r)
  */
-      __pyx_t_12 = ((__pyx_v_sample <= __pyx_v_n_CMA) != 0);
-      if (__pyx_t_12) {
+      __pyx_t_13 = ((__pyx_v_sample <= __pyx_v_n_CMA) != 0);
+      if (__pyx_t_13) {
 
         /* "rx_cython.pyx":55
  *             if sample <= n_CMA:
@@ -2868,9 +2899,27 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                 mu = mu_cma
  *             # in DDE operation case
  */
-        __pyx_t_11 = __pyx_v_sample;
+        __pyx_t_12 = __pyx_v_sample;
+        __pyx_t_11 = -1;
+        if (__pyx_t_12 < 0) {
+          __pyx_t_12 += __pyx_v_samples_out_view.shape[0];
+          if (unlikely(__pyx_t_12 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_12 >= __pyx_v_samples_out_view.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 55, __pyx_L1_error)
+        }
         __pyx_t_10 = __pyx_v_sample;
-        __pyx_v_eps = __Pyx_c_prod_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_11 * __pyx_v_samples_out_view.strides[0]) ))), __pyx_t_double_complex_from_parts((pow(__Pyx_c_abs_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_10 * __pyx_v_samples_out_view.strides[0]) )))), 2.0) - __pyx_v_r), 0));
+        __pyx_t_11 = -1;
+        if (__pyx_t_10 < 0) {
+          __pyx_t_10 += __pyx_v_samples_out_view.shape[0];
+          if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_samples_out_view.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 55, __pyx_L1_error)
+        }
+        __pyx_v_eps = __Pyx_c_prod_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_12 * __pyx_v_samples_out_view.strides[0]) ))), __pyx_t_double_complex_from_parts((pow(__Pyx_c_abs_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_10 * __pyx_v_samples_out_view.strides[0]) )))), 2.0) - __pyx_v_r), 0));
 
         /* "rx_cython.pyx":56
  *                 # calc error, see [1], eq. (26)
@@ -2898,8 +2947,8 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                 # decision (find closest point of original constellation)
  *                 err_min = abs(samples_out_view[sample] - sig_constellation[0])
  */
-      __pyx_t_12 = ((__pyx_v_sample > (__pyx_v_n_CMA + __pyx_v_n_RDE)) != 0);
-      if (__pyx_t_12) {
+      __pyx_t_13 = ((__pyx_v_sample > (__pyx_v_n_CMA + __pyx_v_n_RDE)) != 0);
+      if (__pyx_t_13) {
 
         /* "rx_cython.pyx":60
  *             elif sample > (n_CMA + n_RDE):
@@ -2909,8 +2958,26 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                 for x in range(1, len_constellation):
  */
         __pyx_t_10 = __pyx_v_sample;
-        __pyx_t_11 = 0;
-        __pyx_v_err_min = __Pyx_c_abs_double(__Pyx_c_diff_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_10 * __pyx_v_samples_out_view.strides[0]) ))), (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_sig_constellation.data + __pyx_t_11 * __pyx_v_sig_constellation.strides[0]) )))));
+        __pyx_t_11 = -1;
+        if (__pyx_t_10 < 0) {
+          __pyx_t_10 += __pyx_v_samples_out_view.shape[0];
+          if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_samples_out_view.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 60, __pyx_L1_error)
+        }
+        __pyx_t_12 = 0;
+        __pyx_t_11 = -1;
+        if (__pyx_t_12 < 0) {
+          __pyx_t_12 += __pyx_v_sig_constellation.shape[0];
+          if (unlikely(__pyx_t_12 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_12 >= __pyx_v_sig_constellation.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 60, __pyx_L1_error)
+        }
+        __pyx_v_err_min = __Pyx_c_abs_double(__Pyx_c_diff_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_10 * __pyx_v_samples_out_view.strides[0]) ))), (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_sig_constellation.data + __pyx_t_12 * __pyx_v_sig_constellation.strides[0]) )))));
 
         /* "rx_cython.pyx":61
  *                 # decision (find closest point of original constellation)
@@ -2940,9 +3007,27 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                     if err < err_min:
  *                         err_min = err
  */
-          __pyx_t_11 = __pyx_v_sample;
+          __pyx_t_12 = __pyx_v_sample;
+          __pyx_t_11 = -1;
+          if (__pyx_t_12 < 0) {
+            __pyx_t_12 += __pyx_v_samples_out_view.shape[0];
+            if (unlikely(__pyx_t_12 < 0)) __pyx_t_11 = 0;
+          } else if (unlikely(__pyx_t_12 >= __pyx_v_samples_out_view.shape[0])) __pyx_t_11 = 0;
+          if (unlikely(__pyx_t_11 != -1)) {
+            __Pyx_RaiseBufferIndexError(__pyx_t_11);
+            __PYX_ERR(0, 63, __pyx_L1_error)
+          }
           __pyx_t_10 = __pyx_v_x;
-          __pyx_v_err = __Pyx_c_abs_double(__Pyx_c_diff_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_11 * __pyx_v_samples_out_view.strides[0]) ))), (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_sig_constellation.data + __pyx_t_10 * __pyx_v_sig_constellation.strides[0]) )))));
+          __pyx_t_11 = -1;
+          if (__pyx_t_10 < 0) {
+            __pyx_t_10 += __pyx_v_sig_constellation.shape[0];
+            if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+          } else if (unlikely(__pyx_t_10 >= __pyx_v_sig_constellation.shape[0])) __pyx_t_11 = 0;
+          if (unlikely(__pyx_t_11 != -1)) {
+            __Pyx_RaiseBufferIndexError(__pyx_t_11);
+            __PYX_ERR(0, 63, __pyx_L1_error)
+          }
+          __pyx_v_err = __Pyx_c_abs_double(__Pyx_c_diff_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_12 * __pyx_v_samples_out_view.strides[0]) ))), (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_sig_constellation.data + __pyx_t_10 * __pyx_v_sig_constellation.strides[0]) )))));
 
           /* "rx_cython.pyx":64
  *                 for x in range(1, len_constellation):
@@ -2951,8 +3036,8 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                         err_min = err
  *                         idx_min = x
  */
-          __pyx_t_12 = ((__pyx_v_err < __pyx_v_err_min) != 0);
-          if (__pyx_t_12) {
+          __pyx_t_13 = ((__pyx_v_err < __pyx_v_err_min) != 0);
+          if (__pyx_t_13) {
 
             /* "rx_cython.pyx":65
  *                     err = abs(samples_out_view[sample] - sig_constellation[x])
@@ -2990,6 +3075,15 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                 mu = mu_dde
  */
         __pyx_t_10 = __pyx_v_idx_min;
+        __pyx_t_11 = -1;
+        if (__pyx_t_10 < 0) {
+          __pyx_t_10 += __pyx_v_sig_constellation.shape[0];
+          if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_sig_constellation.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 67, __pyx_L1_error)
+        }
         __pyx_v_const_point = (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_sig_constellation.data + __pyx_t_10 * __pyx_v_sig_constellation.strides[0]) )));
 
         /* "rx_cython.pyx":68
@@ -3000,6 +3094,15 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *             # in RDE operation case
  */
         __pyx_t_10 = __pyx_v_sample;
+        __pyx_t_11 = -1;
+        if (__pyx_t_10 < 0) {
+          __pyx_t_10 += __pyx_v_samples_out_view.shape[0];
+          if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_samples_out_view.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 68, __pyx_L1_error)
+        }
         __pyx_v_eps = __Pyx_c_diff_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_10 * __pyx_v_samples_out_view.strides[0]) ))), __pyx_v_const_point);
 
         /* "rx_cython.pyx":69
@@ -3030,8 +3133,26 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  */
       /*else*/ {
         __pyx_t_10 = __pyx_v_sample;
-        __pyx_t_11 = 0;
-        __pyx_v_err_min = fabs((pow(__Pyx_c_abs_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_10 * __pyx_v_samples_out_view.strides[0]) )))), 2.0) - (*((double *) ( /* dim=0 */ (__pyx_v_radii.data + __pyx_t_11 * __pyx_v_radii.strides[0]) )))));
+        __pyx_t_11 = -1;
+        if (__pyx_t_10 < 0) {
+          __pyx_t_10 += __pyx_v_samples_out_view.shape[0];
+          if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_samples_out_view.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 73, __pyx_L1_error)
+        }
+        __pyx_t_12 = 0;
+        __pyx_t_11 = -1;
+        if (__pyx_t_12 < 0) {
+          __pyx_t_12 += __pyx_v_radii.shape[0];
+          if (unlikely(__pyx_t_12 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_12 >= __pyx_v_radii.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 73, __pyx_L1_error)
+        }
+        __pyx_v_err_min = fabs((pow(__Pyx_c_abs_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_10 * __pyx_v_samples_out_view.strides[0]) )))), 2.0) - (*((double *) ( /* dim=0 */ (__pyx_v_radii.data + __pyx_t_12 * __pyx_v_radii.strides[0]) )))));
 
         /* "rx_cython.pyx":74
  *                 # decision (find closest radius of original constellation)
@@ -3061,9 +3182,27 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                     if err < err_min:
  *                         err_min = err
  */
-          __pyx_t_11 = __pyx_v_sample;
+          __pyx_t_12 = __pyx_v_sample;
+          __pyx_t_11 = -1;
+          if (__pyx_t_12 < 0) {
+            __pyx_t_12 += __pyx_v_samples_out_view.shape[0];
+            if (unlikely(__pyx_t_12 < 0)) __pyx_t_11 = 0;
+          } else if (unlikely(__pyx_t_12 >= __pyx_v_samples_out_view.shape[0])) __pyx_t_11 = 0;
+          if (unlikely(__pyx_t_11 != -1)) {
+            __Pyx_RaiseBufferIndexError(__pyx_t_11);
+            __PYX_ERR(0, 76, __pyx_L1_error)
+          }
           __pyx_t_10 = __pyx_v_x;
-          __pyx_v_err = fabs((pow(__Pyx_c_abs_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_11 * __pyx_v_samples_out_view.strides[0]) )))), 2.0) - (*((double *) ( /* dim=0 */ (__pyx_v_radii.data + __pyx_t_10 * __pyx_v_radii.strides[0]) )))));
+          __pyx_t_11 = -1;
+          if (__pyx_t_10 < 0) {
+            __pyx_t_10 += __pyx_v_radii.shape[0];
+            if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+          } else if (unlikely(__pyx_t_10 >= __pyx_v_radii.shape[0])) __pyx_t_11 = 0;
+          if (unlikely(__pyx_t_11 != -1)) {
+            __Pyx_RaiseBufferIndexError(__pyx_t_11);
+            __PYX_ERR(0, 76, __pyx_L1_error)
+          }
+          __pyx_v_err = fabs((pow(__Pyx_c_abs_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_12 * __pyx_v_samples_out_view.strides[0]) )))), 2.0) - (*((double *) ( /* dim=0 */ (__pyx_v_radii.data + __pyx_t_10 * __pyx_v_radii.strides[0]) )))));
 
           /* "rx_cython.pyx":77
  *                 for x in range(len_radii):
@@ -3072,8 +3211,8 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                         err_min = err
  *                         idx_min = x
  */
-          __pyx_t_12 = ((__pyx_v_err < __pyx_v_err_min) != 0);
-          if (__pyx_t_12) {
+          __pyx_t_13 = ((__pyx_v_err < __pyx_v_err_min) != 0);
+          if (__pyx_t_13) {
 
             /* "rx_cython.pyx":78
  *                     err = abs(abs(samples_out_view[sample])**2 - radii[x])
@@ -3111,6 +3250,15 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                 mu = mu_rde
  */
         __pyx_t_10 = __pyx_v_idx_min;
+        __pyx_t_11 = -1;
+        if (__pyx_t_10 < 0) {
+          __pyx_t_10 += __pyx_v_radii.shape[0];
+          if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_radii.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 80, __pyx_L1_error)
+        }
         __pyx_v_r_min = (*((double *) ( /* dim=0 */ (__pyx_v_radii.data + __pyx_t_10 * __pyx_v_radii.strides[0]) )));
 
         /* "rx_cython.pyx":81
@@ -3121,8 +3269,26 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  * 
  */
         __pyx_t_10 = __pyx_v_sample;
-        __pyx_t_11 = __pyx_v_sample;
-        __pyx_v_eps = __Pyx_c_prod_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_10 * __pyx_v_samples_out_view.strides[0]) ))), __pyx_t_double_complex_from_parts((pow(__Pyx_c_abs_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_11 * __pyx_v_samples_out_view.strides[0]) )))), 2.0) - __pyx_v_r_min), 0));
+        __pyx_t_11 = -1;
+        if (__pyx_t_10 < 0) {
+          __pyx_t_10 += __pyx_v_samples_out_view.shape[0];
+          if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_samples_out_view.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 81, __pyx_L1_error)
+        }
+        __pyx_t_12 = __pyx_v_sample;
+        __pyx_t_11 = -1;
+        if (__pyx_t_12 < 0) {
+          __pyx_t_12 += __pyx_v_samples_out_view.shape[0];
+          if (unlikely(__pyx_t_12 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_12 >= __pyx_v_samples_out_view.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 81, __pyx_L1_error)
+        }
+        __pyx_v_eps = __Pyx_c_prod_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_10 * __pyx_v_samples_out_view.strides[0]) ))), __pyx_t_double_complex_from_parts((pow(__Pyx_c_abs_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_out_view.data + __pyx_t_12 * __pyx_v_samples_out_view.strides[0]) )))), 2.0) - __pyx_v_r_min), 0));
 
         /* "rx_cython.pyx":82
  *                 r_min = radii[idx_min]
@@ -3142,8 +3308,8 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                 # update impulse response, see [1], eq (28)
  *                 for x in range(len_h):
  */
-      __pyx_t_12 = (((__pyx_v_sample / ((Py_ssize_t)__pyx_v_sps)) <= __pyx_v_stop_adapting) != 0);
-      if (__pyx_t_12) {
+      __pyx_t_13 = (((__pyx_v_sample / ((Py_ssize_t)__pyx_v_sps)) <= __pyx_v_stop_adapting) != 0);
+      if (__pyx_t_13) {
 
         /* "rx_cython.pyx":87
  *             if (sample/sps <= stop_adapting):
@@ -3164,10 +3330,37 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  * 
  *             # save return info, if necessary
  */
-          __pyx_t_11 = __pyx_v_x;
+          __pyx_t_12 = __pyx_v_x;
+          __pyx_t_11 = -1;
+          if (__pyx_t_12 < 0) {
+            __pyx_t_12 += __pyx_v_h.shape[0];
+            if (unlikely(__pyx_t_12 < 0)) __pyx_t_11 = 0;
+          } else if (unlikely(__pyx_t_12 >= __pyx_v_h.shape[0])) __pyx_t_11 = 0;
+          if (unlikely(__pyx_t_11 != -1)) {
+            __Pyx_RaiseBufferIndexError(__pyx_t_11);
+            __PYX_ERR(0, 88, __pyx_L1_error)
+          }
           __pyx_t_10 = ((__pyx_v_sample + __pyx_v_n_taps) - __pyx_v_x);
-          __pyx_t_13 = __pyx_v_x;
-          *((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_h.data + __pyx_t_13 * __pyx_v_h.strides[0]) )) = __Pyx_c_diff_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_h.data + __pyx_t_11 * __pyx_v_h.strides[0]) ))), __Pyx_c_prod_double(__Pyx_c_prod_double(__pyx_t_double_complex_from_parts(__pyx_v_mu, 0), __Pyx_c_conj_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_in.data + __pyx_t_10 * __pyx_v_samples_in.strides[0]) ))))), __pyx_v_eps));
+          __pyx_t_11 = -1;
+          if (__pyx_t_10 < 0) {
+            __pyx_t_10 += __pyx_v_samples_in.shape[0];
+            if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+          } else if (unlikely(__pyx_t_10 >= __pyx_v_samples_in.shape[0])) __pyx_t_11 = 0;
+          if (unlikely(__pyx_t_11 != -1)) {
+            __Pyx_RaiseBufferIndexError(__pyx_t_11);
+            __PYX_ERR(0, 88, __pyx_L1_error)
+          }
+          __pyx_t_14 = __pyx_v_x;
+          __pyx_t_11 = -1;
+          if (__pyx_t_14 < 0) {
+            __pyx_t_14 += __pyx_v_h.shape[0];
+            if (unlikely(__pyx_t_14 < 0)) __pyx_t_11 = 0;
+          } else if (unlikely(__pyx_t_14 >= __pyx_v_h.shape[0])) __pyx_t_11 = 0;
+          if (unlikely(__pyx_t_11 != -1)) {
+            __Pyx_RaiseBufferIndexError(__pyx_t_11);
+            __PYX_ERR(0, 88, __pyx_L1_error)
+          }
+          *((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_h.data + __pyx_t_14 * __pyx_v_h.strides[0]) )) = __Pyx_c_diff_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_h.data + __pyx_t_12 * __pyx_v_h.strides[0]) ))), __Pyx_c_prod_double(__Pyx_c_prod_double(__pyx_t_double_complex_from_parts(__pyx_v_mu, 0), __Pyx_c_conj_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_in.data + __pyx_t_10 * __pyx_v_samples_in.strides[0]) ))))), __pyx_v_eps));
         }
 
         /* "rx_cython.pyx":85
@@ -3186,8 +3379,8 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                 h_tmp_view[n_update,:] = h.copy()
  *                 eps_tmp_view[n_update] = eps
  */
-      __pyx_t_12 = (__pyx_v_return_info != 0);
-      if (__pyx_t_12) {
+      __pyx_t_13 = (__pyx_v_return_info != 0);
+      if (__pyx_t_13) {
 
         /* "rx_cython.pyx":92
  *             # save return info, if necessary
@@ -3196,13 +3389,21 @@ static PyObject *__pyx_pf_9rx_cython__bae_loop(CYTHON_UNUSED PyObject *__pyx_sel
  *                 eps_tmp_view[n_update] = eps
  * 
  */
-        __pyx_t_14 = __pyx_memoryview_copy_slice_dc___pyx_t_double_complex_c(__pyx_v_h); if (unlikely(!__pyx_t_14.memview)) __PYX_ERR(0, 92, __pyx_L1_error)
+        __pyx_t_15 = __pyx_memoryview_copy_slice_dc___pyx_t_double_complex_c(__pyx_v_h); if (unlikely(!__pyx_t_15.memview)) __PYX_ERR(0, 92, __pyx_L1_error)
         __pyx_t_4.data = __pyx_v_h_tmp_view.data;
         __pyx_t_4.memview = __pyx_v_h_tmp_view.memview;
         __PYX_INC_MEMVIEW(&__pyx_t_4, 0);
         {
     Py_ssize_t __pyx_tmp_idx = __pyx_v_n_update;
+        Py_ssize_t __pyx_tmp_shape = __pyx_v_h_tmp_view.shape[0];
     Py_ssize_t __pyx_tmp_stride = __pyx_v_h_tmp_view.strides[0];
+        if (__pyx_tmp_idx < 0)
+            __pyx_tmp_idx += __pyx_tmp_shape;
+        if (unlikely(!__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape))) {
+            PyErr_SetString(PyExc_IndexError,
+                            "Index out of bounds (axis 0)");
+            __PYX_ERR(0, 92, __pyx_L1_error)
+        }
         __pyx_t_4.data += __pyx_tmp_idx * __pyx_tmp_stride;
 }
 
@@ -3210,13 +3411,13 @@ __pyx_t_4.shape[0] = __pyx_v_h_tmp_view.shape[1];
 __pyx_t_4.strides[0] = __pyx_v_h_tmp_view.strides[1];
     __pyx_t_4.suboffsets[0] = -1;
 
-if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_14, __pyx_t_4, 1, 1, 0) < 0)) __PYX_ERR(0, 92, __pyx_L1_error)
+if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_15, __pyx_t_4, 1, 1, 0) < 0)) __PYX_ERR(0, 92, __pyx_L1_error)
         __PYX_XDEC_MEMVIEW(&__pyx_t_4, 1);
         __pyx_t_4.memview = NULL;
         __pyx_t_4.data = NULL;
-        __PYX_XDEC_MEMVIEW(&__pyx_t_14, 1);
-        __pyx_t_14.memview = NULL;
-        __pyx_t_14.data = NULL;
+        __PYX_XDEC_MEMVIEW(&__pyx_t_15, 1);
+        __pyx_t_15.memview = NULL;
+        __pyx_t_15.data = NULL;
 
         /* "rx_cython.pyx":93
  *             if return_info:
@@ -3226,6 +3427,15 @@ if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_14, __pyx_t_4, 1, 1, 0) < 0)
  *             n_update += 1
  */
         __pyx_t_10 = __pyx_v_n_update;
+        __pyx_t_11 = -1;
+        if (__pyx_t_10 < 0) {
+          __pyx_t_10 += __pyx_v_eps_tmp_view.shape[0];
+          if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_eps_tmp_view.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 93, __pyx_L1_error)
+        }
         *((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_eps_tmp_view.data + __pyx_t_10 * __pyx_v_eps_tmp_view.strides[0]) )) = __pyx_v_eps;
 
         /* "rx_cython.pyx":91
@@ -3261,7 +3471,7 @@ if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_14, __pyx_t_4, 1, 1, 0) < 0)
  * 
  *     return samples_out, h_tmp, eps_tmp             # <<<<<<<<<<<<<<
  * 
- * @cython.boundscheck(False)  # Deactivate bounds checking
+ * @cython.boundscheck(True)  # De/activate bounds checking
  */
   __Pyx_XDECREF(__pyx_r);
   __pyx_t_1 = PyTuple_New(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 97, __pyx_L1_error)
@@ -3280,7 +3490,7 @@ if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_14, __pyx_t_4, 1, 1, 0) < 0)
   goto __pyx_L0;
 
   /* "rx_cython.pyx":12
- * @cython.wraparound(False)   # Deactivate negative indexing.
+ * @cython.wraparound(True)   # De/activate negative indexing.
  * @cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
  * def _bae_loop(double complex [:] samples_in, samples_out, double complex [:] h,             # <<<<<<<<<<<<<<
  *               int n_taps, int sps, int n_CMA, double mu_cma, int n_RDE,
@@ -3292,7 +3502,7 @@ if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_14, __pyx_t_4, 1, 1, 0) < 0)
   __Pyx_XDECREF(__pyx_t_1);
   __PYX_XDEC_MEMVIEW(&__pyx_t_4, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_t_5, 1);
-  __PYX_XDEC_MEMVIEW(&__pyx_t_14, 1);
+  __PYX_XDEC_MEMVIEW(&__pyx_t_15, 1);
   __Pyx_AddTraceback("rx_cython._bae_loop", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
@@ -3309,7 +3519,7 @@ if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_14, __pyx_t_4, 1, 1, 0) < 0)
 }
 
 /* "rx_cython.pyx":102
- * @cython.wraparound(False)   # Deactivate negative indexing.
+ * @cython.wraparound(True)   # De/activate negative indexing.
  * @cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
  * def _cpe_bps_loop(double complex [:] samples_norm, samples_out, dec_samples,             # <<<<<<<<<<<<<<
  *                   est_phase_noise, double [:] errors, int n_blocks, int n_taps,
@@ -3489,15 +3699,16 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
   int __pyx_t_11;
   int __pyx_t_12;
   Py_ssize_t __pyx_t_13;
-  Py_ssize_t __pyx_t_14;
+  int __pyx_t_14;
   Py_ssize_t __pyx_t_15;
   Py_ssize_t __pyx_t_16;
   Py_ssize_t __pyx_t_17;
-  int __pyx_t_18;
-  Py_ssize_t __pyx_t_19;
-  __Pyx_memviewslice __pyx_t_20 = { 0, 0, { 0 }, { 0 }, { 0 } };
+  Py_ssize_t __pyx_t_18;
+  int __pyx_t_19;
+  Py_ssize_t __pyx_t_20;
   __Pyx_memviewslice __pyx_t_21 = { 0, 0, { 0 }, { 0 }, { 0 } };
-  PyObject *__pyx_t_22 = NULL;
+  __Pyx_memviewslice __pyx_t_22 = { 0, 0, { 0 }, { 0 }, { 0 } };
+  PyObject *__pyx_t_23 = NULL;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
@@ -3609,6 +3820,15 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
  *             for sample in range(n_taps):
  */
       __pyx_t_10 = __pyx_v_idx_rot;
+      __pyx_t_11 = -1;
+      if (__pyx_t_10 < 0) {
+        __pyx_t_10 += __pyx_v_errors.shape[0];
+        if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+      } else if (unlikely(__pyx_t_10 >= __pyx_v_errors.shape[0])) __pyx_t_11 = 0;
+      if (unlikely(__pyx_t_11 != -1)) {
+        __Pyx_RaiseBufferIndexError(__pyx_t_11);
+        __PYX_ERR(0, 125, __pyx_L1_error)
+      }
       *((double *) ( /* dim=0 */ (__pyx_v_errors.data + __pyx_t_10 * __pyx_v_errors.strides[0]) )) = 0.0;
 
       /* "rx_cython.pyx":127
@@ -3631,8 +3851,26 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
  *                 err_idx = 0
  */
         __pyx_t_10 = ((__pyx_v_block * __pyx_v_n_taps) + __pyx_v_sample);
-        __pyx_t_14 = __pyx_v_idx_rot;
-        __pyx_v_rotated_sample = __Pyx_c_prod_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_norm.data + __pyx_t_10 * __pyx_v_samples_norm.strides[0]) ))), (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_rotations.data + __pyx_t_14 * __pyx_v_rotations.strides[0]) ))));
+        __pyx_t_14 = -1;
+        if (__pyx_t_10 < 0) {
+          __pyx_t_10 += __pyx_v_samples_norm.shape[0];
+          if (unlikely(__pyx_t_10 < 0)) __pyx_t_14 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_samples_norm.shape[0])) __pyx_t_14 = 0;
+        if (unlikely(__pyx_t_14 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_14);
+          __PYX_ERR(0, 129, __pyx_L1_error)
+        }
+        __pyx_t_15 = __pyx_v_idx_rot;
+        __pyx_t_14 = -1;
+        if (__pyx_t_15 < 0) {
+          __pyx_t_15 += __pyx_v_rotations.shape[0];
+          if (unlikely(__pyx_t_15 < 0)) __pyx_t_14 = 0;
+        } else if (unlikely(__pyx_t_15 >= __pyx_v_rotations.shape[0])) __pyx_t_14 = 0;
+        if (unlikely(__pyx_t_14 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_14);
+          __PYX_ERR(0, 129, __pyx_L1_error)
+        }
+        __pyx_v_rotated_sample = __Pyx_c_prod_double((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_samples_norm.data + __pyx_t_10 * __pyx_v_samples_norm.strides[0]) ))), (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_rotations.data + __pyx_t_15 * __pyx_v_rotations.strides[0]) ))));
 
         /* "rx_cython.pyx":130
  *                 # rotate each sample in block by test phase
@@ -3641,8 +3879,17 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
  *                 err_idx = 0
  *                 for idx_const in range(1,len_const):
  */
-        __pyx_t_14 = 0;
-        __pyx_v_err_min = __Pyx_c_abs_double(__Pyx_c_diff_double(__pyx_v_rotated_sample, (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_constellation.data + __pyx_t_14 * __pyx_v_constellation.strides[0]) )))));
+        __pyx_t_15 = 0;
+        __pyx_t_14 = -1;
+        if (__pyx_t_15 < 0) {
+          __pyx_t_15 += __pyx_v_constellation.shape[0];
+          if (unlikely(__pyx_t_15 < 0)) __pyx_t_14 = 0;
+        } else if (unlikely(__pyx_t_15 >= __pyx_v_constellation.shape[0])) __pyx_t_14 = 0;
+        if (unlikely(__pyx_t_14 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_14);
+          __PYX_ERR(0, 130, __pyx_L1_error)
+        }
+        __pyx_v_err_min = __Pyx_c_abs_double(__Pyx_c_diff_double(__pyx_v_rotated_sample, (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_constellation.data + __pyx_t_15 * __pyx_v_constellation.strides[0]) )))));
 
         /* "rx_cython.pyx":131
  *                 rotated_sample = samples_norm[block*n_taps+sample] * rotations[idx_rot]
@@ -3660,10 +3907,10 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
  *                     err = abs(rotated_sample-constellation[idx_const])
  *                     if err < err_min:
  */
-        __pyx_t_15 = __pyx_v_len_const;
-        __pyx_t_16 = __pyx_t_15;
-        for (__pyx_t_17 = 1; __pyx_t_17 < __pyx_t_16; __pyx_t_17+=1) {
-          __pyx_v_idx_const = __pyx_t_17;
+        __pyx_t_16 = __pyx_v_len_const;
+        __pyx_t_17 = __pyx_t_16;
+        for (__pyx_t_18 = 1; __pyx_t_18 < __pyx_t_17; __pyx_t_18+=1) {
+          __pyx_v_idx_const = __pyx_t_18;
 
           /* "rx_cython.pyx":133
  *                 err_idx = 0
@@ -3672,8 +3919,17 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
  *                     if err < err_min:
  *                         err_min = err
  */
-          __pyx_t_14 = __pyx_v_idx_const;
-          __pyx_v_err = __Pyx_c_abs_double(__Pyx_c_diff_double(__pyx_v_rotated_sample, (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_constellation.data + __pyx_t_14 * __pyx_v_constellation.strides[0]) )))));
+          __pyx_t_15 = __pyx_v_idx_const;
+          __pyx_t_14 = -1;
+          if (__pyx_t_15 < 0) {
+            __pyx_t_15 += __pyx_v_constellation.shape[0];
+            if (unlikely(__pyx_t_15 < 0)) __pyx_t_14 = 0;
+          } else if (unlikely(__pyx_t_15 >= __pyx_v_constellation.shape[0])) __pyx_t_14 = 0;
+          if (unlikely(__pyx_t_14 != -1)) {
+            __Pyx_RaiseBufferIndexError(__pyx_t_14);
+            __PYX_ERR(0, 133, __pyx_L1_error)
+          }
+          __pyx_v_err = __Pyx_c_abs_double(__Pyx_c_diff_double(__pyx_v_rotated_sample, (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_constellation.data + __pyx_t_15 * __pyx_v_constellation.strides[0]) )))));
 
           /* "rx_cython.pyx":134
  *                 for idx_const in range(1,len_const):
@@ -3682,8 +3938,8 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
  *                         err_min = err
  *                         err_idx = idx_const
  */
-          __pyx_t_18 = ((__pyx_v_err < __pyx_v_err_min) != 0);
-          if (__pyx_t_18) {
+          __pyx_t_19 = ((__pyx_v_err < __pyx_v_err_min) != 0);
+          if (__pyx_t_19) {
 
             /* "rx_cython.pyx":135
  *                     err = abs(rotated_sample-constellation[idx_const])
@@ -3720,10 +3976,32 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
  *                 errors[idx_rot] += abs(rotated_sample - dec_samples_view[sample, idx_rot])**2
  *             if errors[idx_rot] < min_err_rot:
  */
-        __pyx_t_14 = __pyx_v_err_idx;
+        __pyx_t_15 = __pyx_v_err_idx;
+        __pyx_t_14 = -1;
+        if (__pyx_t_15 < 0) {
+          __pyx_t_15 += __pyx_v_constellation.shape[0];
+          if (unlikely(__pyx_t_15 < 0)) __pyx_t_14 = 0;
+        } else if (unlikely(__pyx_t_15 >= __pyx_v_constellation.shape[0])) __pyx_t_14 = 0;
+        if (unlikely(__pyx_t_14 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_14);
+          __PYX_ERR(0, 137, __pyx_L1_error)
+        }
         __pyx_t_10 = __pyx_v_sample;
-        __pyx_t_19 = __pyx_v_idx_rot;
-        *((__pyx_t_double_complex *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_dec_samples_view.data + __pyx_t_10 * __pyx_v_dec_samples_view.strides[0]) ) + __pyx_t_19 * __pyx_v_dec_samples_view.strides[1]) )) = (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_constellation.data + __pyx_t_14 * __pyx_v_constellation.strides[0]) )));
+        __pyx_t_20 = __pyx_v_idx_rot;
+        __pyx_t_14 = -1;
+        if (__pyx_t_10 < 0) {
+          __pyx_t_10 += __pyx_v_dec_samples_view.shape[0];
+          if (unlikely(__pyx_t_10 < 0)) __pyx_t_14 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_dec_samples_view.shape[0])) __pyx_t_14 = 0;
+        if (__pyx_t_20 < 0) {
+          __pyx_t_20 += __pyx_v_dec_samples_view.shape[1];
+          if (unlikely(__pyx_t_20 < 0)) __pyx_t_14 = 1;
+        } else if (unlikely(__pyx_t_20 >= __pyx_v_dec_samples_view.shape[1])) __pyx_t_14 = 1;
+        if (unlikely(__pyx_t_14 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_14);
+          __PYX_ERR(0, 137, __pyx_L1_error)
+        }
+        *((__pyx_t_double_complex *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_dec_samples_view.data + __pyx_t_10 * __pyx_v_dec_samples_view.strides[0]) ) + __pyx_t_20 * __pyx_v_dec_samples_view.strides[1]) )) = (*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_constellation.data + __pyx_t_15 * __pyx_v_constellation.strides[0]) )));
 
         /* "rx_cython.pyx":138
  *                         err_idx = idx_const
@@ -3732,10 +4010,32 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
  *             if errors[idx_rot] < min_err_rot:
  *                 min_err_rot = errors[idx_rot]
  */
-        __pyx_t_14 = __pyx_v_sample;
-        __pyx_t_19 = __pyx_v_idx_rot;
+        __pyx_t_15 = __pyx_v_sample;
+        __pyx_t_20 = __pyx_v_idx_rot;
+        __pyx_t_14 = -1;
+        if (__pyx_t_15 < 0) {
+          __pyx_t_15 += __pyx_v_dec_samples_view.shape[0];
+          if (unlikely(__pyx_t_15 < 0)) __pyx_t_14 = 0;
+        } else if (unlikely(__pyx_t_15 >= __pyx_v_dec_samples_view.shape[0])) __pyx_t_14 = 0;
+        if (__pyx_t_20 < 0) {
+          __pyx_t_20 += __pyx_v_dec_samples_view.shape[1];
+          if (unlikely(__pyx_t_20 < 0)) __pyx_t_14 = 1;
+        } else if (unlikely(__pyx_t_20 >= __pyx_v_dec_samples_view.shape[1])) __pyx_t_14 = 1;
+        if (unlikely(__pyx_t_14 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_14);
+          __PYX_ERR(0, 138, __pyx_L1_error)
+        }
         __pyx_t_10 = __pyx_v_idx_rot;
-        *((double *) ( /* dim=0 */ (__pyx_v_errors.data + __pyx_t_10 * __pyx_v_errors.strides[0]) )) += pow(__Pyx_c_abs_double(__Pyx_c_diff_double(__pyx_v_rotated_sample, (*((__pyx_t_double_complex *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_dec_samples_view.data + __pyx_t_14 * __pyx_v_dec_samples_view.strides[0]) ) + __pyx_t_19 * __pyx_v_dec_samples_view.strides[1]) ))))), 2.0);
+        __pyx_t_14 = -1;
+        if (__pyx_t_10 < 0) {
+          __pyx_t_10 += __pyx_v_errors.shape[0];
+          if (unlikely(__pyx_t_10 < 0)) __pyx_t_14 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_errors.shape[0])) __pyx_t_14 = 0;
+        if (unlikely(__pyx_t_14 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_14);
+          __PYX_ERR(0, 138, __pyx_L1_error)
+        }
+        *((double *) ( /* dim=0 */ (__pyx_v_errors.data + __pyx_t_10 * __pyx_v_errors.strides[0]) )) += pow(__Pyx_c_abs_double(__Pyx_c_diff_double(__pyx_v_rotated_sample, (*((__pyx_t_double_complex *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_dec_samples_view.data + __pyx_t_15 * __pyx_v_dec_samples_view.strides[0]) ) + __pyx_t_20 * __pyx_v_dec_samples_view.strides[1]) ))))), 2.0);
       }
 
       /* "rx_cython.pyx":139
@@ -3745,9 +4045,18 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
  *                 min_err_rot = errors[idx_rot]
  *                 min_err_rot_idx = idx_rot
  */
-      __pyx_t_19 = __pyx_v_idx_rot;
-      __pyx_t_18 = (((*((double *) ( /* dim=0 */ (__pyx_v_errors.data + __pyx_t_19 * __pyx_v_errors.strides[0]) ))) < __pyx_v_min_err_rot) != 0);
-      if (__pyx_t_18) {
+      __pyx_t_20 = __pyx_v_idx_rot;
+      __pyx_t_11 = -1;
+      if (__pyx_t_20 < 0) {
+        __pyx_t_20 += __pyx_v_errors.shape[0];
+        if (unlikely(__pyx_t_20 < 0)) __pyx_t_11 = 0;
+      } else if (unlikely(__pyx_t_20 >= __pyx_v_errors.shape[0])) __pyx_t_11 = 0;
+      if (unlikely(__pyx_t_11 != -1)) {
+        __Pyx_RaiseBufferIndexError(__pyx_t_11);
+        __PYX_ERR(0, 139, __pyx_L1_error)
+      }
+      __pyx_t_19 = (((*((double *) ( /* dim=0 */ (__pyx_v_errors.data + __pyx_t_20 * __pyx_v_errors.strides[0]) ))) < __pyx_v_min_err_rot) != 0);
+      if (__pyx_t_19) {
 
         /* "rx_cython.pyx":140
  *                 errors[idx_rot] += abs(rotated_sample - dec_samples_view[sample, idx_rot])**2
@@ -3756,8 +4065,17 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
  *                 min_err_rot_idx = idx_rot
  * 
  */
-        __pyx_t_19 = __pyx_v_idx_rot;
-        __pyx_v_min_err_rot = (*((double *) ( /* dim=0 */ (__pyx_v_errors.data + __pyx_t_19 * __pyx_v_errors.strides[0]) )));
+        __pyx_t_20 = __pyx_v_idx_rot;
+        __pyx_t_11 = -1;
+        if (__pyx_t_20 < 0) {
+          __pyx_t_20 += __pyx_v_errors.shape[0];
+          if (unlikely(__pyx_t_20 < 0)) __pyx_t_11 = 0;
+        } else if (unlikely(__pyx_t_20 >= __pyx_v_errors.shape[0])) __pyx_t_11 = 0;
+        if (unlikely(__pyx_t_11 != -1)) {
+          __Pyx_RaiseBufferIndexError(__pyx_t_11);
+          __PYX_ERR(0, 140, __pyx_L1_error)
+        }
+        __pyx_v_min_err_rot = (*((double *) ( /* dim=0 */ (__pyx_v_errors.data + __pyx_t_20 * __pyx_v_errors.strides[0]) )));
 
         /* "rx_cython.pyx":141
  *             if errors[idx_rot] < min_err_rot:
@@ -3785,39 +4103,55 @@ static PyObject *__pyx_pf_9rx_cython_2_cpe_bps_loop(CYTHON_UNUSED PyObject *__py
  *         # est_phase_noise_view[block] = np.angle(rotations[min_err_rot_idx])
  *         est_phase_noise_view[block] = atan2(rotations[min_err_rot_idx].imag, rotations[min_err_rot_idx].real)
  */
-    __pyx_t_20.data = __pyx_v_dec_samples_view.data;
-    __pyx_t_20.memview = __pyx_v_dec_samples_view.memview;
-    __PYX_INC_MEMVIEW(&__pyx_t_20, 0);
-    __pyx_t_20.shape[0] = __pyx_v_dec_samples_view.shape[0];
-__pyx_t_20.strides[0] = __pyx_v_dec_samples_view.strides[0];
-    __pyx_t_20.suboffsets[0] = -1;
+    __pyx_t_21.data = __pyx_v_dec_samples_view.data;
+    __pyx_t_21.memview = __pyx_v_dec_samples_view.memview;
+    __PYX_INC_MEMVIEW(&__pyx_t_21, 0);
+    __pyx_t_21.shape[0] = __pyx_v_dec_samples_view.shape[0];
+__pyx_t_21.strides[0] = __pyx_v_dec_samples_view.strides[0];
+    __pyx_t_21.suboffsets[0] = -1;
 
 {
     Py_ssize_t __pyx_tmp_idx = __pyx_v_min_err_rot_idx;
+        Py_ssize_t __pyx_tmp_shape = __pyx_v_dec_samples_view.shape[1];
     Py_ssize_t __pyx_tmp_stride = __pyx_v_dec_samples_view.strides[1];
-        __pyx_t_20.data += __pyx_tmp_idx * __pyx_tmp_stride;
-}
-
-__pyx_t_21.data = __pyx_v_samples_out_view.data;
-    __pyx_t_21.memview = __pyx_v_samples_out_view.memview;
-    __PYX_INC_MEMVIEW(&__pyx_t_21, 0);
-    {
-    Py_ssize_t __pyx_tmp_idx = __pyx_v_block;
-    Py_ssize_t __pyx_tmp_stride = __pyx_v_samples_out_view.strides[0];
+        if (__pyx_tmp_idx < 0)
+            __pyx_tmp_idx += __pyx_tmp_shape;
+        if (unlikely(!__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape))) {
+            PyErr_SetString(PyExc_IndexError,
+                            "Index out of bounds (axis 1)");
+            __PYX_ERR(0, 143, __pyx_L1_error)
+        }
         __pyx_t_21.data += __pyx_tmp_idx * __pyx_tmp_stride;
 }
 
-__pyx_t_21.shape[0] = __pyx_v_samples_out_view.shape[1];
-__pyx_t_21.strides[0] = __pyx_v_samples_out_view.strides[1];
-    __pyx_t_21.suboffsets[0] = -1;
+__pyx_t_22.data = __pyx_v_samples_out_view.data;
+    __pyx_t_22.memview = __pyx_v_samples_out_view.memview;
+    __PYX_INC_MEMVIEW(&__pyx_t_22, 0);
+    {
+    Py_ssize_t __pyx_tmp_idx = __pyx_v_block;
+        Py_ssize_t __pyx_tmp_shape = __pyx_v_samples_out_view.shape[0];
+    Py_ssize_t __pyx_tmp_stride = __pyx_v_samples_out_view.strides[0];
+        if (__pyx_tmp_idx < 0)
+            __pyx_tmp_idx += __pyx_tmp_shape;
+        if (unlikely(!__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape))) {
+            PyErr_SetString(PyExc_IndexError,
+                            "Index out of bounds (axis 0)");
+            __PYX_ERR(0, 143, __pyx_L1_error)
+        }
+        __pyx_t_22.data += __pyx_tmp_idx * __pyx_tmp_stride;
+}
 
-if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_20, __pyx_t_21, 1, 1, 0) < 0)) __PYX_ERR(0, 143, __pyx_L1_error)
+__pyx_t_22.shape[0] = __pyx_v_samples_out_view.shape[1];
+__pyx_t_22.strides[0] = __pyx_v_samples_out_view.strides[1];
+    __pyx_t_22.suboffsets[0] = -1;
+
+if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_21, __pyx_t_22, 1, 1, 0) < 0)) __PYX_ERR(0, 143, __pyx_L1_error)
+    __PYX_XDEC_MEMVIEW(&__pyx_t_22, 1);
+    __pyx_t_22.memview = NULL;
+    __pyx_t_22.data = NULL;
     __PYX_XDEC_MEMVIEW(&__pyx_t_21, 1);
     __pyx_t_21.memview = NULL;
     __pyx_t_21.data = NULL;
-    __PYX_XDEC_MEMVIEW(&__pyx_t_20, 1);
-    __pyx_t_20.memview = NULL;
-    __pyx_t_20.data = NULL;
 
     /* "rx_cython.pyx":145
  *         samples_out_view[block, :] = dec_samples_view[:,min_err_rot_idx]
@@ -3826,10 +4160,37 @@ if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_20, __pyx_t_21, 1, 1, 0) < 0
  *         # est_phase_noise_view[block] = arg(rotations[min_err_rot_idx])
  * 
  */
-    __pyx_t_19 = __pyx_v_min_err_rot_idx;
-    __pyx_t_14 = __pyx_v_min_err_rot_idx;
+    __pyx_t_20 = __pyx_v_min_err_rot_idx;
+    __pyx_t_11 = -1;
+    if (__pyx_t_20 < 0) {
+      __pyx_t_20 += __pyx_v_rotations.shape[0];
+      if (unlikely(__pyx_t_20 < 0)) __pyx_t_11 = 0;
+    } else if (unlikely(__pyx_t_20 >= __pyx_v_rotations.shape[0])) __pyx_t_11 = 0;
+    if (unlikely(__pyx_t_11 != -1)) {
+      __Pyx_RaiseBufferIndexError(__pyx_t_11);
+      __PYX_ERR(0, 145, __pyx_L1_error)
+    }
+    __pyx_t_15 = __pyx_v_min_err_rot_idx;
+    __pyx_t_11 = -1;
+    if (__pyx_t_15 < 0) {
+      __pyx_t_15 += __pyx_v_rotations.shape[0];
+      if (unlikely(__pyx_t_15 < 0)) __pyx_t_11 = 0;
+    } else if (unlikely(__pyx_t_15 >= __pyx_v_rotations.shape[0])) __pyx_t_11 = 0;
+    if (unlikely(__pyx_t_11 != -1)) {
+      __Pyx_RaiseBufferIndexError(__pyx_t_11);
+      __PYX_ERR(0, 145, __pyx_L1_error)
+    }
     __pyx_t_10 = __pyx_v_block;
-    *((double *) ( /* dim=0 */ (__pyx_v_est_phase_noise_view.data + __pyx_t_10 * __pyx_v_est_phase_noise_view.strides[0]) )) = atan2(__Pyx_CIMAG((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_rotations.data + __pyx_t_19 * __pyx_v_rotations.strides[0]) )))), __Pyx_CREAL((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_rotations.data + __pyx_t_14 * __pyx_v_rotations.strides[0]) )))));
+    __pyx_t_11 = -1;
+    if (__pyx_t_10 < 0) {
+      __pyx_t_10 += __pyx_v_est_phase_noise_view.shape[0];
+      if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 0;
+    } else if (unlikely(__pyx_t_10 >= __pyx_v_est_phase_noise_view.shape[0])) __pyx_t_11 = 0;
+    if (unlikely(__pyx_t_11 != -1)) {
+      __Pyx_RaiseBufferIndexError(__pyx_t_11);
+      __PYX_ERR(0, 145, __pyx_L1_error)
+    }
+    *((double *) ( /* dim=0 */ (__pyx_v_est_phase_noise_view.data + __pyx_t_10 * __pyx_v_est_phase_noise_view.strides[0]) )) = atan2(__Pyx_CIMAG((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_rotations.data + __pyx_t_20 * __pyx_v_rotations.strides[0]) )))), __Pyx_CREAL((*((__pyx_t_double_complex *) ( /* dim=0 */ (__pyx_v_rotations.data + __pyx_t_15 * __pyx_v_rotations.strides[0]) )))));
   }
 
   /* "rx_cython.pyx":149
@@ -3838,20 +4199,20 @@ if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_20, __pyx_t_21, 1, 1, 0) < 0
  *     return samples_out, est_phase_noise             # <<<<<<<<<<<<<<
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_22 = PyTuple_New(2); if (unlikely(!__pyx_t_22)) __PYX_ERR(0, 149, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_22);
+  __pyx_t_23 = PyTuple_New(2); if (unlikely(!__pyx_t_23)) __PYX_ERR(0, 149, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_23);
   __Pyx_INCREF(__pyx_v_samples_out);
   __Pyx_GIVEREF(__pyx_v_samples_out);
-  PyTuple_SET_ITEM(__pyx_t_22, 0, __pyx_v_samples_out);
+  PyTuple_SET_ITEM(__pyx_t_23, 0, __pyx_v_samples_out);
   __Pyx_INCREF(__pyx_v_est_phase_noise);
   __Pyx_GIVEREF(__pyx_v_est_phase_noise);
-  PyTuple_SET_ITEM(__pyx_t_22, 1, __pyx_v_est_phase_noise);
-  __pyx_r = __pyx_t_22;
-  __pyx_t_22 = 0;
+  PyTuple_SET_ITEM(__pyx_t_23, 1, __pyx_v_est_phase_noise);
+  __pyx_r = __pyx_t_23;
+  __pyx_t_23 = 0;
   goto __pyx_L0;
 
   /* "rx_cython.pyx":102
- * @cython.wraparound(False)   # Deactivate negative indexing.
+ * @cython.wraparound(True)   # De/activate negative indexing.
  * @cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
  * def _cpe_bps_loop(double complex [:] samples_norm, samples_out, dec_samples,             # <<<<<<<<<<<<<<
  *                   est_phase_noise, double [:] errors, int n_blocks, int n_taps,
@@ -3862,9 +4223,9 @@ if (unlikely(__pyx_memoryview_copy_contents(__pyx_t_20, __pyx_t_21, 1, 1, 0) < 0
   __pyx_L1_error:;
   __PYX_XDEC_MEMVIEW(&__pyx_t_2, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_t_3, 1);
-  __PYX_XDEC_MEMVIEW(&__pyx_t_20, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_t_21, 1);
-  __Pyx_XDECREF(__pyx_t_22);
+  __PYX_XDEC_MEMVIEW(&__pyx_t_22, 1);
+  __Pyx_XDECREF(__pyx_t_23);
   __Pyx_AddTraceback("rx_cython._cpe_bps_loop", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
@@ -18057,7 +18418,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GIVEREF(__pyx_tuple__19);
 
   /* "rx_cython.pyx":12
- * @cython.wraparound(False)   # Deactivate negative indexing.
+ * @cython.wraparound(True)   # De/activate negative indexing.
  * @cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
  * def _bae_loop(double complex [:] samples_in, samples_out, double complex [:] h,             # <<<<<<<<<<<<<<
  *               int n_taps, int sps, int n_CMA, double mu_cma, int n_RDE,
@@ -18069,7 +18430,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_codeobj__21 = (PyObject*)__Pyx_PyCode_New(18, 0, 36, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__20, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_rx_cython_pyx, __pyx_n_s_bae_loop, 12, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__21)) __PYX_ERR(0, 12, __pyx_L1_error)
 
   /* "rx_cython.pyx":102
- * @cython.wraparound(False)   # Deactivate negative indexing.
+ * @cython.wraparound(True)   # De/activate negative indexing.
  * @cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
  * def _cpe_bps_loop(double complex [:] samples_norm, samples_out, dec_samples,             # <<<<<<<<<<<<<<
  *                   est_phase_noise, double [:] errors, int n_blocks, int n_taps,
@@ -18513,7 +18874,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
   /* "rx_cython.pyx":12
- * @cython.wraparound(False)   # Deactivate negative indexing.
+ * @cython.wraparound(True)   # De/activate negative indexing.
  * @cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
  * def _bae_loop(double complex [:] samples_in, samples_out, double complex [:] h,             # <<<<<<<<<<<<<<
  *               int n_taps, int sps, int n_CMA, double mu_cma, int n_RDE,
@@ -18525,7 +18886,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
   /* "rx_cython.pyx":102
- * @cython.wraparound(False)   # Deactivate negative indexing.
+ * @cython.wraparound(True)   # De/activate negative indexing.
  * @cython.cdivision(True) # to use C divisions (e.g. for modulo operations)
  * def _cpe_bps_loop(double complex [:] samples_norm, samples_out, dec_samples,             # <<<<<<<<<<<<<<
  *                   est_phase_noise, double [:] errors, int n_blocks, int n_taps,
@@ -18909,6 +19270,12 @@ invalid_keyword:
     #endif
 bad:
     return -1;
+}
+
+/* BufferIndexError */
+static void __Pyx_RaiseBufferIndexError(int axis) {
+  PyErr_Format(PyExc_IndexError,
+     "Out of bounds on buffer access (axis %d)", axis);
 }
 
 /* MemviewSliceInit */

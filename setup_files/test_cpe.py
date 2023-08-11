@@ -26,10 +26,10 @@ sig_tx.symbol_rate = 12.8e9
 TX_UPSAMPLE_FACTOR = DAC_SR / sig_tx.symbol_rate[0]
 
 #%% # generate bits
-sig_tx.generate_bits(n_bits=2**15, seed=1)
+sig_tx.generate_bits(n_bits=2**17, seed=1)
 
 #%% # set constellation (modulation format)
-sig_tx.generate_constellation(format='QAM', order=4)
+sig_tx.generate_constellation(format='QAM', order=16)
 
 #%% # create symbols
 sig_tx.mapper()
@@ -201,10 +201,10 @@ sig_rx.plot_constellation(hist=True, tit='constellation before EQ', fNum=3)
 adaptive_filter = True
 #%% # either blind adaptive filter....
 if adaptive_filter == True:    
-    results = skc.rx.blind_adaptive_equalizer(sig_rx, n_taps=51, mu_cma=1e-4, 
+    results = skc.rx.blind_adaptive_equalizer(sig_rx, n_taps=51, mu_cma=1e-5, 
                                                mu_rde=1e-5, mu_dde=0.5, decimate=True, 
                                                return_info=True, stop_adapting=-1, 
-                                               start_rde=5000*0, start_dde=5000*0,
+                                               start_rde=5000*1, start_dde=5000*0,
                                                compiled=True)
     
     sig_rx = results['sig']
@@ -280,53 +280,35 @@ if viterbi:
 # ...or BPS
 else:
     t0 = datetime.datetime.now()
-    cpe_results_o = skc.rx.carrier_phase_estimation_bps(sig_rx.samples[0].copy(), 
+    cpe_results_p = skc.rx.carrier_phase_estimation_bps(sig_rx.samples[0].copy(), 
                                                       sig_rx.constellation[0], 
                                                       n_taps=15, n_test_phases=45, 
                                                       const_symmetry=np.pi/2,
-                                                      loop='intern')
-    dt_o = datetime.datetime.now() - t0
-    t0 = datetime.datetime.now()
-    cpe_results_e = skc.rx.carrier_phase_estimation_bps(sig_rx.samples[0].copy(), 
-                                                      sig_rx.constellation[0], 
-                                                      n_taps=15, n_test_phases=45, 
-                                                      const_symmetry=np.pi/2,
-                                                      loop='extern')
-    dt_e = datetime.datetime.now() - t0
+                                                      compiled=False)
+    dt_p = datetime.datetime.now() - t0
+    
     t0 = datetime.datetime.now()
     cpe_results_c = skc.rx.carrier_phase_estimation_bps(sig_rx.samples[0].copy(), 
                                                       sig_rx.constellation[0], 
                                                       n_taps=15, n_test_phases=45, 
                                                       const_symmetry=np.pi/2,
-                                                      loop='cython')
+                                                      compiled=True)
     dt_c = datetime.datetime.now() - t0
-    print(f'Time CPE Original {dt_o.total_seconds():f} s')
-    print(f'Time CPE ext. loop {dt_e.total_seconds():f} s')
-    print(f'time gain intern/extern {dt_o.total_seconds()/dt_e.total_seconds():f}')
-            
-    sc = np.allclose(cpe_results_o['samples_corrected'], cpe_results_e['samples_corrected'],rtol=1e-5, atol=1e-8)
-    epn = np.allclose(cpe_results_o['est_phase_noise'], cpe_results_e['est_phase_noise'],rtol=1e-5, atol=1e-8)
-    so = np.allclose(cpe_results_o['samples_out'], cpe_results_e['samples_out'],rtol=1e-5, atol=1e-8)
-    
-    if sc and epn and so:
-       print('CPE results EQUAL')
-    else:
-       print('CPE results NOT EQUAL')
-    
+    print(f'Time CPE Python {dt_p.total_seconds():f} s')
     print(f'Time CPE Cython {dt_c.total_seconds():f} s')
-    print(f'time gain intern/cython {dt_o.total_seconds()/dt_c.total_seconds():f}')
-    sc = np.allclose(cpe_results_c['samples_corrected'], cpe_results_e['samples_corrected'],rtol=1e-5, atol=1e-8)
-    epn = np.allclose(cpe_results_c['est_phase_noise'], cpe_results_e['est_phase_noise'],rtol=1e-5, atol=1e-8)
-    so = np.allclose(cpe_results_c['samples_out'], cpe_results_e['samples_out'],rtol=1e-5, atol=1e-8)
+    print(f'time gain Python/C {dt_p.total_seconds()/dt_c.total_seconds():f}')
+            
+    sc = np.allclose(cpe_results_p['samples_corrected'], cpe_results_c['samples_corrected'],rtol=1e-5, atol=1e-8)
+    epn = np.allclose(cpe_results_p['est_phase_noise'], cpe_results_c['est_phase_noise'],rtol=1e-5, atol=1e-8)
+    so = np.allclose(cpe_results_p['samples_out'], cpe_results_c['samples_out'],rtol=1e-5, atol=1e-8)
     
     if sc and epn and so:
        print('CPE results EQUAL')
     else:
-       print('CPE results NOT EQUAL')
-       
+       print('CPE results NOT EQUAL')       
     
-    sig_rx.samples = cpe_results_o['samples_corrected']
-    est_phase = cpe_results_o['est_phase_noise']
+    sig_rx.samples = cpe_results_c['samples_corrected']
+    est_phase = cpe_results_c['est_phase_noise']
 
 f = plt.figure(8)
 f.clear()
