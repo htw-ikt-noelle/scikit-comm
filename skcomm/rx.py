@@ -207,8 +207,17 @@ def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, shift_d
         # watch out, that this is really an integer
         len_dsp = sr_dsp / sample_rate * np.size(samples, axis=0)
         if len_dsp % 1:
-            raise ValueError('DSP samplerate results in asynchronous sampling of the data symbols')
-        samples_tmp = ssignal.resample(samples_tmp, num=int(len_dsp), window=None)    
+            #hotfix 
+            for i in range(np.size(samples, axis=0)):
+                samples = samples[:-1]
+                len_dsp = sr_dsp / sample_rate * np.size(samples, axis=0)
+                if len_dsp % 1:
+                    #raise ValueError('DSP samplerate results in asynchronous sampling of the data symbols')
+                    pass
+                else:
+                    break
+
+        samples_tmp = ssignal.resample(samples_tmp, num=int(len_dsp), window=None)
     
     # calc length of vector so that spectrum exactly includes the symbol rate
     tmp = np.floor(symbol_rate * np.size(samples_tmp, axis=0) / sr_dsp)
@@ -636,6 +645,9 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     est_phase_noise = np.unwrap(np.asarray(est_phase_noise)*unwrap_limit)/unwrap_limit
     f_int = interpolate.interp1d(np.arange(n_blocks)*n_taps, est_phase_noise, kind='linear', bounds_error=False, fill_value='extrapolate')
     est_phase_noise_int = f_int(np.arange(n_blocks*n_taps))
+
+    if n_blocks == 1:
+        est_phase_noise_int = np.full(est_phase_noise_int.shape, fill_value=est_phase_noise)
     
     samples_corrected = samples_norm[:n_blocks*n_taps] * np.exp(1j * est_phase_noise_int)
     
