@@ -280,7 +280,8 @@ if viterbi:
 # ...or BPS
 else:
     cpe_results = skc.rx.carrier_phase_estimation_bps(sig_rx.samples[0], sig_rx.constellation[0], 
-                                               n_taps=15, n_test_phases=45, const_symmetry=np.pi/2)
+                                               n_taps=15, n_test_phases=45, const_symmetry=np.pi/2,
+                                               compiled=True)
     sig_rx.samples = cpe_results['samples_corrected']
     est_phase = cpe_results['est_phase_noise']
 

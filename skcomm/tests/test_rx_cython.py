@@ -37,3 +37,30 @@ class BlindAdaptiveEqualizerCython(unittest.TestCase):
         # test for equality
         assert_array_almost_equal(sig_out_py, sig_out_cy, decimal=12)
         
+class CarrierPhaseEstimationBps(unittest.TestCase):
+    """
+    Test class for BPS CPE cython implementation
+    """
+    
+    def test_equal_output(self):
+        # generate random input samples
+        sig_in = signal.Signal()
+        sig_in.symbol_rate = 1
+        sig_in.sample_rate = 2
+        sig_in.samples = np.random.randn(1000) + 1j * np.random.randn(1000) 
+        sig_in.constellation = np.asarray([np.mean(sig_in.samples[0])])
+        # run python implementation
+        res_py = rx.carrier_phase_estimation_bps(sig_in.samples[0], sig_in.constellation[0], 
+                                                    n_taps=15, n_test_phases=45, 
+                                                    const_symmetry=np.pi/2, compiled=False)
+        # run cython implementation
+        res_cy = rx.carrier_phase_estimation_bps(copy.deepcopy(sig_in.samples[0]), 
+                                                 copy.deepcopy(sig_in.constellation[0]),
+                                                 n_taps=15, n_test_phases=45, 
+                                                 const_symmetry=np.pi/2, compiled=True)
+        
+        # test for equality
+        assert_array_almost_equal(res_py['samples_corrected'], res_cy['samples_corrected'], decimal=12)
+        assert_array_almost_equal(res_py['est_phase_noise'], res_cy['est_phase_noise'], decimal=12)
+        assert_array_almost_equal(res_py['samples_out'], res_cy['samples_out'], decimal=12)
+        
