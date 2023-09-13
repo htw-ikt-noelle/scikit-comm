@@ -205,12 +205,12 @@ def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, shift_d
         # upsample to 3 samples per symol
         sr_dsp = symbol_rate * 3
         # watch out, that this is really an integer
-        len_dsp = sr_dsp / sample_rate * np.size(samples, axis=0)
+        len_dsp = sr_dsp / sample_rate * np.size(samples_tmp, axis=0)
         if len_dsp % 1:
             #hotfix 
-            for i in range(np.size(samples, axis=0)):
-                samples = samples[:-1]
-                len_dsp = sr_dsp / sample_rate * np.size(samples, axis=0)
+            for i in range(np.size(samples_tmp, axis=0)):
+                samples_tmp = samples_tmp[:-1]
+                len_dsp = sr_dsp / sample_rate * np.size(samples_tmp, axis=0)
                 if len_dsp % 1:
                     #raise ValueError('DSP samplerate results in asynchronous sampling of the data symbols')
                     pass
