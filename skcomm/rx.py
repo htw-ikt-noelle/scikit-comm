@@ -752,11 +752,13 @@ def symbol_sequence_sync(sig, dimension=-1):
         # manipulate physical samples in order to compensate for phase rotations and inversion 
         # of real and / or imaginary part (optical modulator ambiguity)
         if symbols_conj:    
-            sig.samples[dim] = np.conj(sig.samples[dim] * np.exp(1j*phase_est))        
+            sig.samples[dim] = np.conj(sig.samples[dim] * np.exp(1j*phase_est))
+            return_phase_est = phase_est        
         else:        
             sig.samples[dim] = sig.samples[dim] * np.exp(-1j*phase_est)
+            return_phase_est = -phase_est   
     
-    return sig    
+    return sig, return_phase_est, int(symbol_delay_est)    
 
 def _bae_loop(samples_in, samples_out, h, n_taps, sps, n_CMA, mu_cma, n_RDE, 
               mu_rde, radii, mu_dde, stop_adapting, sig_constellation, r, 
