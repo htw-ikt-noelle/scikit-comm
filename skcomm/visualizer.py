@@ -100,7 +100,7 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spe
     plt.title(tit)
     plt.xlabel('frequency [Hz]')
     plt.ylabel(ylabel)
-    plt.grid()
+    plt.grid(visible=True)
     
     if save_fig:
         if not ffname:
@@ -171,19 +171,19 @@ def plot_signal(samples, sample_rate=1.0, fNum=None, boundaries=[None, None],
         plt.plot(t, np.real(samples))
         plt.xlabel('time [s]')
         plt.ylabel('amplitude real part')
-        plt.grid()
+        plt.grid(visible=True)
         plt.subplot(122)
         plt.plot(t, np.imag(samples))
         plt.xlabel('time [s]')
         plt.ylabel('amplitude imaginary part')
         plt.title(tit)
-        plt.grid()        
+        plt.grid(visible=True)        
     else:
         plt.plot(t, samples)
         plt.xlabel('time [s]')
         plt.ylabel('amplitude')
         plt.title(tit)
-        plt.grid()
+        plt.grid(visible=True)
     
     if save_fig:
         if not ffname:
@@ -262,20 +262,20 @@ def plot_eye(samples, sample_rate=2, bit_rate=1, fNum=None,
         plt.plot(t, np.real(samples), color = '#1f77b4')
         plt.xlabel('time [s]')
         plt.ylabel('amplitude real part')
-        plt.grid()        
+        plt.grid(visible=True)        
         plt.title(tit)
         plt.subplot(122)
         plt.plot(t, np.imag(samples), color = '#1f77b4')
         plt.xlabel('time [s]')
         plt.ylabel('amplitude imaginary part')
-        plt.grid()
+        plt.grid(visible=True)
         plt.gcf().tight_layout()        
     else:
         plt.plot(t, samples, color = '#1f77b4')
         plt.xlabel('time [s]')
         plt.ylabel('amplitude')
         plt.title(tit)
-        plt.grid()
+        plt.grid(visible=True)
     
     if save_fig:
         if not ffname:
@@ -347,7 +347,7 @@ def plot_constellation(samples, decimation=1, fNum =None, tit='constellation',
         plt.hist2d(samples.real, samples.imag, bins=bins, cmap=cm, cmin=1, density=False)             
     else:     
         plt.plot(samples.real, samples.imag, 'C0.')      
-        plt.grid()
+        plt.grid(visible=True)
     plt.gca().axis('equal')       
     plt.xlim((-axMax, axMax))
     plt.ylim((-axMax,axMax))  
