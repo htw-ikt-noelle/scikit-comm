@@ -1,14 +1,19 @@
-import time, copy
+import time, copy, sys, pathlib
 
 import numpy as np
 import scipy.signal as ssignal
 import matplotlib.pyplot as plt
 import scipy.interpolate as sinterp
 
+mod_path = str(pathlib.Path(__file__).parent.parent)
+if not mod_path in sys.path:
+    sys.path.append(mod_path)
 import skcomm as skc
 
-#%% Tx 
-#%% # signal parameters
+plt.ion()
+
+# Tx 
+# signal parameters
 LASER_LINEWIDTH = 1*100e3 # [Hz]
 DAC_SR = 16e9
 EXPERIMENT = False
@@ -18,42 +23,42 @@ USE_PREDIST = False
 SINC_CORRECTION = False
 SNR = 20
 
-#%% # contruct signal
+# contruct signal
 sig_tx = skc.signal.Signal(n_dims=1)
 sig_tx.symbol_rate = 3.2e9
 
 TX_UPSAMPLE_FACTOR = DAC_SR / sig_tx.symbol_rate[0]
 
-#%% # generate bits
+# generate bits
 sig_tx.generate_bits(n_bits=2**15, seed=1)
 
-#%% # set constellation (modulation format)
+# set constellation (modulation format)
 sig_tx.generate_constellation(format='QAM', order=4)
 
-#%% # create symbols
+# create symbols
 sig_tx.mapper()
 
-#%% # upsampling and pulseshaping
+# upsampling and pulseshaping
 ROLL_OFF = 0.1
 sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=[ROLL_OFF])
 
-#%% # generate DAC samples (analytical signalg at IF)
+# generate DAC samples (analytical signalg at IF)
 f_IF_nom = 2e9
 f_granularity = 1 / sig_tx.samples[0].size * sig_tx.sample_rate[0]
 f_if = round(f_IF_nom / f_granularity) * f_granularity
 print('intermediate frequency: {} MHz'.format(f_if/1e6))
 t = np.arange(0, np.size(sig_tx.samples[0])) / sig_tx.sample_rate
 
-#%% # upmixing to IF
+# upmixing to IF
 sig_tx.samples[0] = sig_tx.samples[0] * np.exp(1j * 2 * np.pi * f_if * t)
 sig_tx.center_frequency = f_if
 
-#%% # sinc correction
+# sinc correction
 if SINC_CORRECTION:
     sig_tx.samples[0] = skc.pre_distortion.dac_sinc_correction(sig_tx.samples[0],
                                                                 f_max=1.0)
 
-#%% # pre-equalization of AWG frequency response
+# pre-equalization of AWG frequency response
 if USE_PREDIST:
     filtershape = np.load('setup_files/preDistFilter.npy')
     sig_tx.samples[0] = skc.filters.filter_arbitrary(sig_tx.samples[0], 
@@ -62,17 +67,14 @@ if USE_PREDIST:
 
 # TODO: equalization of cosine MZM transfer function
 
-# sig_tx.plot_spectrum()
-# sig_tx.plot_constellation()
-
 # format samples so that driver can handle them (range +-1)
 maxVal = np.max(np.abs(np.concatenate((np.real(sig_tx.samples), np.imag(sig_tx.samples)))))
 samples = np.asarray(sig_tx.samples) / maxVal
 samples = np.concatenate((np.real(samples), np.imag(samples)))
 
 
-#%% Link 
-#%% # Experiment 
+# Link 
+# Experiment 
 if EXPERIMENT:
     if UPLOAD_SAMPLES:                    
         # write samples to AWG        
@@ -111,7 +113,7 @@ if EXPERIMENT:
     # remove mean of signal
     samples = samples - np.mean(samples)
 
-#%% # Simulation 
+# Simulation 
 else: # Simulation
     # build ideal complex signal from Tx samples (no ampl. and phase noise)
     samples = samples[0] + 1j*samples[1] 
@@ -137,14 +139,14 @@ else: # Simulation
     # correctly) by ambiguity compensation
     # samples = np.conj(samples * np.exp(-1j*np.pi/3))
     
-    #%% ## add amplitude noise
+    # add amplitude noise
     samples = skc.channel.set_snr(samples, snr_dB=SNR, sps=sig_tx.sample_rate[0]/sig_tx.symbol_rate[0], seed=None)
 
-    ##%% ## phase noise emulation
+    # phase noise emulation
     samples = skc.channel.add_phase_noise(samples ,sig_tx.sample_rate[0] , LASER_LINEWIDTH, seed=1)['samples']
     sr = sig_tx.sample_rate[0]
     
-    #%% ## add artificial sample clock error
+    # add artificial sample clock error
     ratio = 1.0 # ratio of sampling frequency missmatch     
     n_old = np.size(samples, axis=0)
     t_old = np.arange(n_old) / sr
@@ -158,17 +160,17 @@ else: # Simulation
     # after heterodyne detection and balanced detection
     samples = np.real(samples)
 
-#%% Rx 
+# Rx 
 
-#%% # contruct rx signal structure
+# contruct rx signal structure
 sig_rx = copy.deepcopy(sig_tx)
 sig_rx.samples = samples
 sig_rx.sample_rate = sr
 
-#%% # resampling to the same sample rate as at the transmitter
+# resampling to the same sample rate as at the transmitter
 sr_dsp = sig_tx.sample_rate[0]
 
-# # watch out, that this is really an integer, otherwise the samplerate is asynchronous with the data afterwards!!!
+# watch out, that this is really an integer, otherwise the samplerate is asynchronous with the data afterwards!!!
 len_dsp = sr_dsp / sig_rx.sample_rate[0] * np.size(samples)
 if len_dsp % 1:
     raise ValueError('DSP samplerate results in asynchronous sampling of the data symbols')
@@ -176,7 +178,7 @@ sig_rx.samples = ssignal.resample(sig_rx.samples[0], num=int(len_dsp), window=No
 sig_rx.sample_rate = sr_dsp
 sig_rx.plot_spectrum(tit='received spectrum before IF downmixing')
 
-#%% # IQ-Downmixing and (ideal) lowpass filtering
+# IQ-Downmixing and (ideal) lowpass filtering
 # ...either real signal processing
 t = skc.utils.create_time_axis(sig_rx.sample_rate[0], np.size(sig_rx.samples[0]))
 samples_r = sig_rx.samples[0] *  np.cos(2 * np.pi * f_if * t)
@@ -193,15 +195,15 @@ sig_rx.samples[0] = samples_r - 1j * samples_i
 # samples_bb = samples *  np.exp(-1j*2*np.pi*(f_if+1e4*0)*t)
 # sig_rx.samples[0] = samples_bb
 
-#%% # From here: "standard" coherent complex baseband signal processing ############
-#%% # resample to 2 sps
+# From here: "standard" coherent complex baseband signal processing ############
+# resample to 2 sps
 sps_new = 2
 sps = sig_rx.sample_rate[0]/sig_rx.symbol_rate[0]
 new_length = int(sig_rx.samples[0].size/sps*sps_new)
 sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
 sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
 
-#%% # normalize samples to mean magnitude of original constellation
+# normalize samples to mean magnitude of original constellation
 mag_const = np.mean(abs(sig_rx.constellation[0]))
 mag_samples = np.mean(abs(sig_rx.samples[0]))
 sig_rx.samples = sig_rx.samples[0] * mag_const / mag_samples
@@ -209,7 +211,7 @@ sig_rx.samples = sig_rx.samples[0] * mag_const / mag_samples
 sig_rx.plot_constellation(hist=True, tit='constellation before EQ')
 
 adaptive_filter = True
-#%% # either blind adaptive filter....
+# either blind adaptive filter....
 if adaptive_filter == True:    
     results = skc.rx.blind_adaptive_equalizer(sig_rx, n_taps=31, mu_cma=1e-3, 
                                                mu_rde=1e-5, mu_dde=0.5, decimate=False, 
@@ -248,7 +250,7 @@ if adaptive_filter == True:
     cut = 5000
     sig_rx.samples = sig_rx.samples[0][int(cut)*sps:]
 
-#%% # ... or matched filtering
+# ... or matched filtering
 else:
     # Rx matched filter
     sig_rx.raised_cosine_filter(roll_off=ROLL_OFF,root_raised=True) 
@@ -265,13 +267,13 @@ else:
     BLOCK_SIZE = -1 # size of one block in SYMBOLS... -1 for only one block
     sig_rx.sampling_clock_adjustment(BLOCK_SIZE)
     
-#%% # sampling (if necessary)
+# sampling (if necessary)
 START_SAMPLE = 0
 sps = sig_rx.sample_rate[0] / sig_rx.symbol_rate[0] # CHECK FOR INTEGER SPS!!!
 sig_rx.samples = sig_rx.samples[0][START_SAMPLE::int(sps)]
 sig_rx.plot_constellation(0, hist=True, tit='constellation after EQ')
 
-#%% # CPE
+# CPE
 viterbi = False
 # ...either VV
 if viterbi:
@@ -296,21 +298,21 @@ plt.show()
 
 sig_rx.plot_constellation(hist=True, tit='constellation after CPE')
 
-#%% # delay and phase ambiguity estimation and compensation
+# delay and phase ambiguity estimation and compensation
 sig_rx = skc.rx.symbol_sequence_sync(sig_rx, dimension=-1)
     
-#%% # calc EVM
+# calc EVM
 evm = skc.utils.calc_evm(sig_rx, norm='max')
 print("EVM: {:2.2%}".format(evm[0]))
 
-#%% # estimate SNR
+# estimate SNR
 snr = skc.utils.estimate_SNR_evm(sig_rx, norm='rms', method='data_aided', opt=False)
 print("real SNR: {:.2f} dB, est. SNR: {:.2f} dB".format(SNR, snr[0]))
 
-#%% # decision and demapper
+# decision and demapper
 sig_rx.decision()
 sig_rx.demapper()
 
-#%% # BER counting
+# BER counting
 ber_res = skc.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
 print('BER = {}'.format(ber_res['ber']))
