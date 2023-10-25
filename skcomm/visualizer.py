@@ -4,6 +4,7 @@ import tkinter as tk
 import numpy as np
 import numpy.fft as fft
 import matplotlib.pyplot as plt
+import screeninfo
 
 from . import utils
 
@@ -541,8 +542,8 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum=1,
     return handles
 
 
-def place_figures(auto_layout=True, offset=[0,0], screen_resolution=None, nc=4, 
-                  nr=3, taskbar_offset=40, figure_toolbar=64):
+def place_figures(auto_layout=True, monitor_num=0, nc=4, 
+                  nr=3, taskbar_offset=40, figure_toolbar=70):
     """
     Place open figure on screen.
     
@@ -554,14 +555,10 @@ def place_figures(auto_layout=True, offset=[0,0], screen_resolution=None, nc=4,
     auto_layout : bool, optional
         The layout is chosen automatically depending on the number of opened 
         figures. Number of figures must not exceed 32. The default is True.
-    offset : list, optional
-        Specifies the offset from top left screen edge in integer pixels [x, y],
-        where the layout is supposed to start. This can be used to put the layout
-        onto the second screen, if available. The default is [0,0].
-    screen_resolution : list, optional
-        Specifies the resolution in integer pixels [width,height] which is used 
-        for the layout of the figures. If None, the resolution of the whole screen
-        (using the specified offset) is estimated. The default is None.
+    monitor_num : int, optional
+        Monitor onto which the figures are placed. Please note that the order 
+        is rather random (i.e. the primary monitor is not necessarily number 0).
+        The default is 0.
     nc : int, optional
         Number of coloums used for the layout. Only used if auto_layout=False.
         The default is 4.
@@ -570,9 +567,13 @@ def place_figures(auto_layout=True, offset=[0,0], screen_resolution=None, nc=4,
         The default is 3.
     taskbar_offset : int, optional
         Height of the (windows) taskbar which should not be covered by the layout. 
-        The taskbar is assumed to be on the bottom of the screen. The default is 40.
+        The taskbar is assumed to be on the bottom of the screen. The height
+        depends on many parameters (e.g. monitor scaling, layout of taskbar,... )
+        and is therefore to determined by the useer. The default is 40.
     figure_toolbar : int, optional
-        Height of the toolbar of the individual plot windows. The default is 64.
+        Height of the toolbar of the individual plot windows. The height
+        depends on many parameters (e.g. graphical backend, monitor scaling,... )
+        and is therefore to determined by the useer. The default is 64.
 
     Returns
     -------
@@ -592,30 +593,11 @@ def place_figures(auto_layout=True, offset=[0,0], screen_resolution=None, nc=4,
 
     if n_fig <= 0:
         raise ValueError('no figures found to place')
-
-    if screen_resolution:
-        screen_resolution[1] = screen_resolution[1] -  taskbar_offset
-    else:    
-        # workaround to determine screen resolution:
-        # * open tk window
-        # * place the window according to offset
-        # * make it fullscreen
-        # * get width and height
-        # * kill window
-        # from https://stackoverflow.com/questions/3129322/how-do-i-get-monitor-resolution-in-python
-        # TODO: find better way to determine screen resolutions of individual monitors
-        root = tk.Tk()
-        root.update_idletasks()
-        root.geometry(f'100x100+{offset[0]}+{offset[1]}')
-        # print(root.geometry())
-        root.attributes('-fullscreen', True)
-        # print(root.geometry())
-        root.state('iconic')
-        screen_resolution = []
-        screen_resolution.append(root.winfo_screenwidth())
-        # reduce screen height by the (windows) taskbar
-        screen_resolution.append(root.winfo_screenheight() -  taskbar_offset)
-        root.destroy()
+    
+    # https://stackoverflow.com/questions/3129322/how-do-i-get-monitor-resolution-in-python
+    monitor = screeninfo.get_monitors()[monitor_num]
+    screen_resolution = [monitor.width, monitor.height-taskbar_offset]
+    offset = [monitor.x, monitor.y]
 
     # auto layout?
     if auto_layout:
