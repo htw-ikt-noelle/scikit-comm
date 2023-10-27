@@ -639,9 +639,18 @@ def place_figures(auto_layout=True, monitor_num=0, nc=4,
     for r in range(nr):
         for c in range(nc):
             if fig_cnt >= n_fig:
-                break        
-            figHandle[fig_cnt].set_figheight(fig_height / figHandle[fig_cnt].get_dpi())
-            figHandle[fig_cnt].set_figwidth(fig_width / figHandle[fig_cnt].get_dpi())
+                break
+            # move figure to required monitor
+            if backend == 'TkAgg':
+                figHandle[fig_cnt].canvas.manager.window.wm_geometry("+%d+%d" % offset[0]+1, offset[1]+1)
+            elif backend == 'WXAgg':
+                figHandle[fig_cnt].canvas.manager.window.SetPosition(offset[0]+1, offset[1]+1)
+            else:
+                figHandle[fig_cnt].canvas.manager.window.move(offset[0]+1, offset[1]+1)  
+            # get DPI (for scaling)
+            fig_dpi = figHandle[fig_cnt].get_dpi()  
+            figHandle[fig_cnt].set_figheight(fig_height / fig_dpi)
+            figHandle[fig_cnt].set_figwidth(fig_width / fig_dpi)               
             # solution for different backends taken
             # from https://stackoverflow.com/questions/7449585/how-do-you-set-the-absolute-position-of-figure-windows-with-matplotlib
             if r == 0:
@@ -650,12 +659,14 @@ def place_figures(auto_layout=True, monitor_num=0, nc=4,
                 elif backend == 'WXAgg':
                     figHandle[fig_cnt].canvas.manager.window.SetPosition((int(fig_width*c + offset[0]), int(fig_height*r) + offset[1]))
                 else:
-                    figHandle[fig_cnt].canvas.manager.window.move(int(fig_width*c + offset[0]), int(fig_height*r) + offset[1])
+                    figHandle[fig_cnt].canvas.manager.window.move(int((fig_width*c + offset[0])/(fig_dpi/100)), int(((fig_height*r) + offset[1])/(fig_dpi/100)))
             else:
                 if backend == 'TkAgg':
                     figHandle[fig_cnt].canvas.manager.window.wm_geometry("+%d+%d" % (int(fig_width*c + offset[0]), int((fig_height+figure_toolbar)*r) + offset[1]))
                 elif backend == 'WXAgg':
                     figHandle[fig_cnt].canvas.manager.window.SetPosition((int(fig_width*c + offset[0]), int((fig_height+figure_toolbar)*r) + offset[1]))
                 else:
-                    figHandle[fig_cnt].canvas.manager.window.move(int(fig_width*c + offset[0]), int((fig_height+figure_toolbar)*r) + offset[1])
+                    figHandle[fig_cnt].canvas.manager.window.move(int((fig_width*c + offset[0])/(fig_dpi/100)), int((((fig_height+figure_toolbar)*r) + offset[1])/(fig_dpi/100)))
+            
+
             fig_cnt += 1

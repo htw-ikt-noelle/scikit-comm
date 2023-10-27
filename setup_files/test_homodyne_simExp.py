@@ -4,6 +4,7 @@ import numpy as np
 import scipy.signal as ssignal
 import matplotlib.pyplot as plt
 import scipy.interpolate as sinterp
+from icecream import ic
 
 mod_path = str(pathlib.Path(__file__).parent.parent)
 if not mod_path in sys.path:
@@ -322,6 +323,8 @@ else:
 sig_rx.decision()
 sig_rx.demapper()
 
+skc.visualizer.place_figures(monitor_num=0)
+
 # BER counting
-ber_res = skc.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
+ber_res = ic(skc.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0]))
 print('BER = {:.2e}'.format(ber_res['ber']))
