@@ -217,6 +217,7 @@ if adaptive_filter == True:
     plt.title('evolution of equalizer error')
     plt.xlabel('time / symbols')
     plt.ylabel('error /a.u.')
+    plt.grid(visible=True)
     plt.show()       
     # plot evolution of filters frequency response
     f = plt.figure(5)
@@ -229,6 +230,7 @@ if adaptive_filter == True:
     plt.title('evolution of equalizer frequency response')
     plt.xlabel('frequency / Hz')
     plt.ylabel('time / symbols')  
+    plt.grid(visible=True)
     plt.show()
      # plot last filter frequency response
     f = plt.figure(6)
@@ -238,6 +240,7 @@ if adaptive_filter == True:
     plt.title('last equalizer frequency response')
     plt.xlabel('frequency / Hz')
     plt.ylabel('amplitude a.u.')
+    plt.grid(visible=True)
     plt.show()               
         
     # cut away init symbols
@@ -291,7 +294,7 @@ plt.plot(est_phase)
 plt.title('estimated phase noise')
 plt.xlabel('time / symbols')
 plt.ylabel('phase / rad')
-plt.grid()
+plt.grid(visible=True)
 plt.show()
 
 sig_rx.plot_constellation(hist=True, tit='constellation after CPE',fNum=9)

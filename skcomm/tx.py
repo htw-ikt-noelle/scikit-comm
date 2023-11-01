@@ -12,23 +12,18 @@ def generate_bits(n_bits=2**15, type='random', seed=None):
 
     Parameters
     ----------
-    n_bits : TYPE, optional
-        DESCRIPTION. The default is 2**15.
-    type : TYPE, optional
-        DESCRIPTION. The default is 'random'.
-    seed : TYPE, optional
-        DESCRIPTION. The default is None.
-
-    Raises
-    ------
-    ValueError
-        DESCRIPTION.
+    n_bits : int, optional
+        Number of bits to be generated. The default is 2**15.
+    type : string, optional
+        How should the bits be generated. 'random' generates n_bits unifomly 
+        distributed bits.  The default is 'random'.
+    seed : int, optional
+        Seed of the random number generator. The default is None.    
 
     Returns
     -------
-    bits : TYPE
-        DESCRIPTION.
-
+    bits : 1D numpy array, bool
+        np.ndarray of shape (n_bits,) containing bools.
     """
     
     if type == 'random':
@@ -42,13 +37,29 @@ def generate_bits(n_bits=2**15, type='random', seed=None):
 
 
 def mapper(bits, constellation):
-    """ Map bits to a given constellation alphabet.
+    """ 
+    Map bits to a given constellation alphabet.
 	
 	Bits are grouped into blocks of log2(constellation.size) and converted to
 	decimals. These decimals are used to index the particular constellation 
-	value in the constellation array.
-	
+	value in the constellation array.	
+    
+    Parameters
+    ----------
+    bits : 1D numpy array, bool
+        Bits to be mapped to constallation symbols.
+    constellation : 1D numpy array, complex
+        Constellation (symbol) alphabet onto which the bits (or group of bits) 
+        are mapped
+    
+
+    Returns
+    -------
+    symbols : 1D numpy array, complex
+        np.ndarray of shape (n_bits/np.log2(constellation.size),) containing the
+        constellation (or symbol) sequence after mapping.
     """
+    
     if constellation.ndim > 1:
         raise ValueError('multiple, different constellations not allowed yet...')    
     

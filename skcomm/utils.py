@@ -617,7 +617,7 @@ def estimate_osnr_spectrum(power_vector = [], wavelength_vector = [], interpolat
         plt.xlabel('Wavelength [nm]')
         plt.ylabel('Power density [dBm/{0}nm]'.format(resolution_bandwidth))        
         plt.ylim(np.min(power_vector)-10,np.max(power_vector)+10)
-        plt.grid()
+        plt.grid(visible=True)
 
     return OSNR_01nm,OSNR_val
 
@@ -807,6 +807,7 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         plt.xlabel('given x value / a.u.')
         plt.ylabel('given y value / dB')
         plt.title('est. SNR = {:.1f} dB in noise bandwidth of {:.2e}'.format(snr_db, noise_bw))
+        plt.grid(visible=True)
         plt.show()
         
     return snr_db
@@ -1336,7 +1337,7 @@ def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9, save_fig=False,
     plt.plot(x_data[0], y_data[0])
     plt.xlabel('wavelength / m or frequency / Hz')
     plt.ylabel('power / dBm or W')
-    plt.grid()
+    plt.grid(visible=True)
         
     for idx, y in enumerate(y_data[1:]):        
         if operator[idx] == '-':
@@ -1359,7 +1360,7 @@ def combine_OSA_traces(x_data, y_data, operator='-', x0=1550e-9, save_fig=False,
     plt.plot(x_data[0], comb)
     plt.plot(x0, att0, 'ro', label='{:.1f} dB'.format(att0))
     plt.legend()
-    plt.grid()
+    plt.grid(visible=True)
     plt.xlabel('wavelength / m or frequency / Hz')
     plt.ylabel('gain / dB') 
     plt.show()
