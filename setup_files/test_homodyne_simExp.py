@@ -322,8 +322,6 @@ else:
 sig_rx.decision()
 sig_rx.demapper()
 
-skc.visualizer.place_figures(monitor_num=1,taskbar_offset=35*1., figure_toolbar=65*1.)
-
 # BER counting
 ber_res = skc.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
 print('BER = {:.2e}'.format(ber_res['ber']))
