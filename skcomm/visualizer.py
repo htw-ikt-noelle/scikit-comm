@@ -543,7 +543,7 @@ def plot_poincare_sphere(samplesX, samplesY, decimation=1, fNum=1,
 
 
 def place_figures(auto_layout=True, monitor_num=0, nc=4, 
-                  nr=3, taskbar_offset=40, figure_toolbar=70):
+                  nr=3, taskbar_offset=35, figure_toolbar=65):
     """
     Place open figure on screen.
     
@@ -569,11 +569,11 @@ def place_figures(auto_layout=True, monitor_num=0, nc=4,
         Height of the (windows) taskbar which should not be covered by the layout. 
         The taskbar is assumed to be on the bottom of the screen. The height
         depends on many parameters (e.g. monitor scaling, layout of taskbar,... )
-        and is therefore to determined by the useer. The default is 40.
+        and is therefore to determined by the useer. The default is 35.
     figure_toolbar : int, optional
         Height of the toolbar of the individual plot windows. The height
         depends on many parameters (e.g. graphical backend, monitor scaling,... )
-        and is therefore to determined by the useer. The default is 64.
+        and is therefore to determined by the useer. The default is 65.
 
     Returns
     -------
@@ -629,10 +629,9 @@ def place_figures(auto_layout=True, monitor_num=0, nc=4,
     else:
         if (nc * nr) < n_fig:
             raise ValueError(f'more figures opened ({n_fig}) than rows times coloumns given ({nc*nr}): try to increase numbers or switch to auto layout mode')
-            
-
+    
     fig_width = screen_resolution[0]/nc 
-    fig_height = screen_resolution[1]/nr - figure_toolbar 
+    fig_height = screen_resolution[1]/nr-figure_toolbar 
 
     fig_cnt = 0
     backend = plt.get_backend()
@@ -640,33 +639,31 @@ def place_figures(auto_layout=True, monitor_num=0, nc=4,
         for c in range(nc):
             if fig_cnt >= n_fig:
                 break
-            # move figure to required monitor
+            # move figure to required monitor            
             if backend == 'TkAgg':
-                figHandle[fig_cnt].canvas.manager.window.wm_geometry("+%d+%d" % offset[0]+1, offset[1]+1)
+                figHandle[fig_cnt].canvas.manager.window.wm_geometry(f"+{offset[0]+1}+{offset[1]+1}")
             elif backend == 'WXAgg':
                 figHandle[fig_cnt].canvas.manager.window.SetPosition(offset[0]+1, offset[1]+1)
             else:
                 figHandle[fig_cnt].canvas.manager.window.move(offset[0]+1, offset[1]+1)  
             # get DPI (for scaling)
             fig_dpi = figHandle[fig_cnt].get_dpi()  
+            # set figure to desired size
             figHandle[fig_cnt].set_figheight(fig_height / fig_dpi)
-            figHandle[fig_cnt].set_figwidth(fig_width / fig_dpi)               
+            figHandle[fig_cnt].set_figwidth(fig_width / fig_dpi)  
+            figHandle[fig_cnt].tight_layout() 
             # solution for different backends taken
             # from https://stackoverflow.com/questions/7449585/how-do-you-set-the-absolute-position-of-figure-windows-with-matplotlib
-            if r == 0:
-                if backend == 'TkAgg':
-                    figHandle[fig_cnt].canvas.manager.window.wm_geometry("+%d+%d" % (int(fig_width*c + offset[0]), int(fig_height*r) + offset[1]))
-                elif backend == 'WXAgg':
-                    figHandle[fig_cnt].canvas.manager.window.SetPosition((int(fig_width*c + offset[0]), int(fig_height*r) + offset[1]))
-                else:
-                    figHandle[fig_cnt].canvas.manager.window.move(int((fig_width*c + offset[0])/(fig_dpi/100)), int(((fig_height*r) + offset[1])/(fig_dpi/100)))
+            if r == 0:                
+                x_pos = int((fig_width*c)/(fig_dpi/100)+offset[0])
+                y_pos = int((fig_height*r)/(fig_dpi/100)+offset[1])
+            else:                
+                x_pos = int((fig_width*c)/(fig_dpi/100)+offset[0])
+                y_pos = int(((fig_height+figure_toolbar)*r)/(fig_dpi/100)+offset[1])
+            if backend == 'TkAgg':
+                figHandle[fig_cnt].canvas.manager.window.wm_geometry(f"+{x_pos}+{y_pos}")
+            elif backend == 'WXAgg':
+                figHandle[fig_cnt].canvas.manager.window.SetPosition(x_pos, y_pos)
             else:
-                if backend == 'TkAgg':
-                    figHandle[fig_cnt].canvas.manager.window.wm_geometry("+%d+%d" % (int(fig_width*c + offset[0]), int((fig_height+figure_toolbar)*r) + offset[1]))
-                elif backend == 'WXAgg':
-                    figHandle[fig_cnt].canvas.manager.window.SetPosition((int(fig_width*c + offset[0]), int((fig_height+figure_toolbar)*r) + offset[1]))
-                else:
-                    figHandle[fig_cnt].canvas.manager.window.move(int((fig_width*c + offset[0])/(fig_dpi/100)), int((((fig_height+figure_toolbar)*r) + offset[1])/(fig_dpi/100)))
-            
-
+                figHandle[fig_cnt].canvas.manager.window.move(x_pos, y_pos)
             fig_cnt += 1
