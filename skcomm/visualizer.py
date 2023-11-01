@@ -347,8 +347,9 @@ def plot_constellation(samples, decimation=1, fNum =None, tit='constellation',
         plt.hist2d(samples.real, samples.imag, bins=bins, cmap=cm, cmin=1, density=False)             
     else:     
         plt.plot(samples.real, samples.imag, 'C0.')      
-        plt.grid(visible=True)
-    plt.gca().axis('equal')       
+    plt.gca().axis('equal')
+    plt.gca().set_axisbelow(True) 
+    plt.grid(visible=True)      
     plt.xlim((-axMax, axMax))
     plt.ylim((-axMax,axMax))  
     plt.title(tit)
