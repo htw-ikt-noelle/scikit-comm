@@ -358,7 +358,7 @@ def time_shift(samples, sample_rate=1.0, tau=0.0):
     # fractional sample shift
     else:    
         # check, if input is real    
-        isreal = np.alltrue(np.isreal(samples))
+        isreal = np.all(np.isreal(samples))
         # frequency vector
         w = np.fft.fftfreq(np.size(samples, axis=0), d=1/sample_rate) * 2 * np.pi    
         
