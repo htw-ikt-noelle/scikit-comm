@@ -2,6 +2,7 @@ import copy
 import tkinter as tk
 
 import numpy as np
+import scipy.signal as ssignal
 import numpy.fft as fft
 import matplotlib.pyplot as plt
 import screeninfo
@@ -9,7 +10,8 @@ import screeninfo
 from . import utils
 
     
-def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spectrum',
+def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm',
+                  resolution_bw=None, ax_lims=[None,None,None,None], tit='spectrum',
                   save_fig=False, ffolder='.', ffname=None, fformat='png',
                   add_timestamp=False):
     """
@@ -32,6 +34,14 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spe
         The y axis will be shown in linear or logarithmic scale and can either be
         normalized to the maximum y value or not (absolute values). 
         The default is 'logNorm'.
+    resolution_bw : float, optional
+        Resolution bandwidth of the displayed spectrum given in 'Hz'. This parameter is
+        used for the estimation of the power spectrum using Welch's method. If None, no
+        averaging is performed (i.e. the intrinsic resolution, defined by the signals
+        temporal length is displayed). The defauls is None.
+    ax_lims : list of floats, optional
+        Specifies the axis limits of the plot as [xmin, xmax, ymin, ymax]. A value of
+        None sets no axis limits. The default is [None, None, None, None].
     tit : string, optional
         title of the plot. The default is 'spectrum'.
     save_fig : bool, optional
@@ -49,40 +59,33 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spe
 
     """
     
-
     isReal = np.all(np.isreal(samples))
-
-    # fft
-    fSamples = fft.fft(samples)
-    fSamples = fSamples / len(fSamples)
     
-    # if real input signal -> mulitply all frequencies, but the DC by 2
-    if isReal:
-        fSamples[1:] *= 2        
-    
-    # calc amplitude and frequency axis
-    fSamples = np.abs(fSamples)
-    freq = fft.fftfreq(len(fSamples), 1/sample_rate)
-    
+    if resolution_bw is None:
+        freq, fSamples = ssignal.welch(samples, sample_rate, window='boxcar', nperseg=samples.size, return_onesided=True, scaling='spectrum', detrend=False)
+    else:
+        nperseg = int(sample_rate/resolution_bw)        
+        freq, fSamples = ssignal.welch(samples, sample_rate, window='boxcar', nperseg=nperseg, return_onesided=True, scaling='spectrum', detrend=False)
+        
     # scale spectrum
     if scale == 'logNorm':
         with np.errstate(divide='ignore'):
-            fSamples = 20*np.log10(fSamples / np.max(fSamples))  
+            fSamples = 10*np.log10(fSamples / np.max(fSamples))            
         ylabel = "normalized amplitude [dB]"
     elif scale == 'log':
         with np.errstate(divide='ignore'):
-            fSamples = 20*np.log10(fSamples)
+            fSamples = 10*np.log10(fSamples)            
         ylabel = "amplitude [dB]"
     elif scale == 'linNorm':
-        fSamples = fSamples / np.max(fSamples)
+        fSamples = fSamples / np.max(fSamples)        
         ylabel = "normalized amplitude [a.u.]"
     elif scale == 'lin':
-        fSamples = fSamples
+        fSamples = fSamples       
         ylabel = "amplitude [a.u.]"
     else:
         print('plotSpectrum scale must be lin(Norm) or log(Norm)...using "logNorm"')
         with np.errstate(divide='ignore'):
-            fSamples = 20*np.log10(fSamples / np.max(fSamples))
+            fSamples = 10*np.log10(fSamples / np.max(fSamples))            
         ylabel = "normalized amplitude [dB]"    
     
     # plot spectrum
@@ -92,15 +95,16 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spe
         fig = plt.figure(facecolor='white', edgecolor='white')
         
     plt.clf()
-    # if signal real -> plot only positive frequencies
+    
     if isReal:
-        plt.plot(freq[0:int(len(fSamples)/2)], fSamples[0:int(len(fSamples)/2)])
-    # if signal complex -> plot neg. and pos. frequencies
+        plt.plot(freq, fSamples)   
     else:
         plt.plot(fft.fftshift(freq), fft.fftshift(fSamples))
+    
     plt.title(tit)
     plt.xlabel('frequency [Hz]')
     plt.ylabel(ylabel)
+    plt.gca().set(xlim=(ax_lims[:2]), ylim=(ax_lims[2:]))
     plt.grid(visible=True)
     
     if save_fig:
