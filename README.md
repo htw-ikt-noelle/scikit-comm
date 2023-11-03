@@ -242,7 +242,7 @@ skc.visualizer.plot_signal(est_phase, tit='estimated phase noise')
 sig_rx.plot_constellation(hist=True, tit='constellation after CPE')
 
 # delay and phase ambiguity estimation and compensation
-sig_rx = skc.rx.symbol_sequence_sync(sig_rx, dimension=-1)
+sig_rx = skc.rx.symbol_sequence_sync(sig_rx, dimension=-1)["sig"]
     
 # calc EVM
 evm = skc.utils.calc_evm(sig_rx, norm='max')

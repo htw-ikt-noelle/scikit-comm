@@ -690,8 +690,15 @@ def symbol_sequence_sync(sig, dimension=-1):
 
     Returns
     -------
-    sig : skcomm.signal.Signal
-        signal containing the synced sequences.
+    return_dict : nested dict containing following keys
+        per dimension on signal object :
+            phase_est : float
+                estimated phase offset
+            symbol_delay_est : int
+                estimated symbol offset
+        overall : 
+            sig : sskcomm.signal.Signal
+                signal containing the synced sequences.
 
     """    
     if type(sig) != signal.Signal:
@@ -704,6 +711,9 @@ def symbol_sequence_sync(sig, dimension=-1):
     else:
         dims = [dimension]
     
+    # init dict for return values
+    return_dict = {}
+
     # iterate over specified signal dimensions
     for dim in dims:
     
@@ -749,16 +759,22 @@ def symbol_sequence_sync(sig, dimension=-1):
         sig.symbols[dim] = np.roll(sig.symbols[dim], -int(symbol_delay_est)) 
         sig.bits[dim] = np.roll(sig.bits[dim], -int(symbol_delay_est*bps)) 
         
+        # return symbol delay est & init nested dict
+        return_dict[dim] = {"symbol_delay_est": int(symbol_delay_est)}  
+
         # manipulate physical samples in order to compensate for phase rotations and inversion 
         # of real and / or imaginary part (optical modulator ambiguity)
         if symbols_conj:    
             sig.samples[dim] = np.conj(sig.samples[dim] * np.exp(1j*phase_est))
-            return_phase_est = phase_est        
+            return_dict[dim]["phase_est"] = phase_est        
         else:        
             sig.samples[dim] = sig.samples[dim] * np.exp(-1j*phase_est)
-            return_phase_est = -phase_est   
+            return_dict[dim]["phase_est"] = -phase_est   
+
+    # return signal object
+    return_dict["sig"] = sig
     
-    return sig, return_phase_est, int(symbol_delay_est)    
+    return return_dict 
 
 def _bae_loop(samples_in, samples_out, h, n_taps, sps, n_CMA, mu_cma, n_RDE, 
               mu_rde, radii, mu_dde, stop_adapting, sig_constellation, r, 
