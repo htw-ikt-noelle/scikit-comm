@@ -17,12 +17,12 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm',
     """
     Plot the power spectrum of given samples.    
     
-    If the samples are real, a onesided spectrum (only positive frequencies) is
-    plotted, otherwise a two-sided spectrum (positive and negative frequencies).
+    If the samples are real-valued, a one-sided spectrum (only positive frequencies) is
+    generated, otherwise a two-sided spectrum (positive and negative frequencies) is generated.
     
     Parameters
     ----------
-    samples : 1D np.array, float
+    samples : 1D np.ndarray, float
         time domain samples of the signal.
     sample_rate : float, optional
         sample rate of the signal in Hz. The default is 1.0
@@ -30,18 +30,18 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm',
         figure number to be used for plot. The default is None which uses the 
         "next unused figure number".
     scale : string, optional
-        scaling of the y axis, can either be 'logNorm', 'log', 'linNorm','lin'.
-        The y axis will be shown in linear or logarithmic scale and can either be
-        normalized to the maximum y value or not (absolute values). 
+        scaling of the y axis data, can either be 'logNorm', 'log', 'linNorm','lin'.
+        The y axis will be shown in linear or logarithmic dB-scale and can either be
+        normalized to the maximum y value or not (absolute values).
         The default is 'logNorm'.
     resolution_bw : float, optional
         Resolution bandwidth of the displayed spectrum given in 'Hz'. This parameter is
         used for the estimation of the power spectrum using Welch's method. If None, no
         averaging is performed (i.e. the intrinsic resolution, defined by the signals
-        temporal length is displayed). The defauls is None.
+        temporal length and sample rate is displayed). The defauls is None.
     ax_lims : list of floats, optional
         Specifies the axis limits of the plot as [xmin, xmax, ymin, ymax]. A value of
-        None sets no axis limits. The default is [None, None, None, None].
+        None sets automatic axis limits. The default is [None, None, None, None].
     tit : string, optional
         title of the plot. The default is 'spectrum'.
     save_fig : bool, optional
@@ -61,7 +61,7 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm',
     ---------- 
     results : dict containing following keys
         'power_spectrum' : np.ndarray
-            power spectrum of samples in scaling requested by parameter 'scale'
+            power spectrum of samples in same scaling as requested by parameter 'scale'
         'freq' : np.ndarray
             frequency bins of the returned power spectrum in Hz
     """
