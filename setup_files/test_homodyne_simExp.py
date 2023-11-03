@@ -175,7 +175,7 @@ new_length = int(sig_rx.samples[0].size/sps*sps_new)
 sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
 sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
 
-sig_rx.plot_spectrum(tit='spectrum after resampling',fNum=2)
+sig_rx.plot_spectrum(tit='spectrum after resampling',fNum=2,resolution_bw=10e6)
 
 skc.visualizer.place_figures(monitor_num=0)
 
