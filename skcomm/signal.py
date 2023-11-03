@@ -71,6 +71,10 @@ class Signal():
         self.constellation = [np.empty(0, dtype=complex)] * n_dims
 
 
+    def __iter__(self):
+        for attr, value in vars(self).items():
+            yield attr, value
+
     def _check_attribute(self, value):
         """
         Check if attribute is of valid type (or can be converted to a valid type).
@@ -210,6 +214,33 @@ class Signal():
         value = self._check_attribute(value)
         self._constellation = value
 
+    def get_dimensions(self, dims=[0]):
+        """
+        Gets all attributes form specific dimensions.
+
+        This method returns a new skcomm.signal.Signal opject
+        containing all attributes of the dimensions specified by dims.
+        
+        Parameters
+        ----------
+        dims : list of int
+            Specifies which dimensions should be returned. The defauls is [0] 
+        
+        Returns
+        -------
+        tmp : skcomm.signal.Signal
+            Signal containing all attributes of specified dimensions.
+        """
+        if len(dims) > self._n_dims:
+            raise ValueError('Object has less dimensions than requested')
+        
+        tmp = Signal(n_dims=len(dims))
+        for sour_attr, sour_value in self:
+            if sour_attr == '_n_dims':
+                vars(tmp)[sour_attr] = sour_value
+            else:
+                vars(tmp)[sour_attr] = [sour_value[i] for i in dims]
+        return tmp
 
 
     def generate_bits(self, n_bits=2**15, type='random', seed=None):
