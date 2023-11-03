@@ -69,17 +69,16 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm',
     isReal = np.all(np.isreal(samples))
     
     if resolution_bw is None:
-        if isReal:
-            freq, power_spectrum = ssignal.welch(samples, sample_rate, window='boxcar', nperseg=samples.size, return_onesided=True, scaling='spectrum', detrend=False)
-        else:
-            freq, power_spectrum = ssignal.welch(samples, sample_rate, window='boxcar', nperseg=samples.size, return_onesided=False, scaling='spectrum', detrend=False)
+        nperseg=samples.size
     else:
-        nperseg = int(sample_rate/resolution_bw)        
-        if isReal:
-            freq, power_spectrum = ssignal.welch(samples, sample_rate, window='boxcar', nperseg=nperseg, return_onesided=True, scaling='spectrum', detrend=False)
-        else:
-            freq, power_spectrum = ssignal.welch(samples, sample_rate, window='boxcar', nperseg=nperseg, return_onesided=False, scaling='spectrum', detrend=False)
-        
+        nperseg = int(sample_rate/resolution_bw)
+    
+    if isReal:
+        return_onesided=True
+    else:
+        return_onesided=False
+    freq, power_spectrum = ssignal.welch(samples, sample_rate, window='boxcar', nperseg=nperseg, return_onesided=return_onesided, scaling='spectrum', detrend=False)
+
     # scale spectrum
     if scale == 'logNorm':
         with np.errstate(divide='ignore'):
@@ -99,7 +98,7 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm',
         print('plotSpectrum scale must be lin(Norm) or log(Norm)...using "logNorm"')
         with np.errstate(divide='ignore'):
             power_spectrum = 10*np.log10(power_spectrum / np.max(power_spectrum))            
-        ylabel = "normalized amplitude [dB]"    
+        ylabel = "normalized power [dB]"    
     
     # plot spectrum
     if fNum:
@@ -109,11 +108,10 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm',
         
     plt.clf()
     
-    if isReal:
-        plt.plot(freq, power_spectrum)   
-    else:
-        plt.plot(fft.fftshift(freq), fft.fftshift(power_spectrum))
+    if not isReal:
+        freq, power_spectrum = fft.fftshift(freq), fft.fftshift(power_spectrum)
     
+    plt.plot(freq, power_spectrum)
     plt.title(tit)
     plt.xlabel('frequency [Hz]')
     plt.ylabel(ylabel)
@@ -130,7 +128,6 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm',
     results = dict()
     results['power_spectrum'] = power_spectrum
     results['freq'] = freq
-
     return results
 
 
