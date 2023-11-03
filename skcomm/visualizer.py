@@ -71,17 +71,17 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm',
     if scale == 'logNorm':
         with np.errstate(divide='ignore'):
             fSamples = 10*np.log10(fSamples / np.max(fSamples))            
-        ylabel = "normalized amplitude [dB]"
+        ylabel = "normalized power [dB]"
     elif scale == 'log':
         with np.errstate(divide='ignore'):
             fSamples = 10*np.log10(fSamples)            
-        ylabel = "amplitude [dB]"
+        ylabel = "power [dB]"
     elif scale == 'linNorm':
         fSamples = fSamples / np.max(fSamples)        
-        ylabel = "normalized amplitude [a.u.]"
+        ylabel = "normalized power [a.u.]"
     elif scale == 'lin':
         fSamples = fSamples       
-        ylabel = "amplitude [a.u.]"
+        ylabel = "power [a.u.]"
     else:
         print('plotSpectrum scale must be lin(Norm) or log(Norm)...using "logNorm"')
         with np.errstate(divide='ignore'):
