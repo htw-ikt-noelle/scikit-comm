@@ -647,7 +647,7 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         "x-axis" values of the spectrum. In general either frequency or wavelength.
         The values in this vector must be monotonically increasing.
     y : 1D array, float
-        "y-axis" values of the spectrum. In general either power or power density.
+        "y-axis" values of the spectrum. Unit should be W/(RBW of x axis).
     sig_range : 1D array, float
         Two values (same unit as x) that specify the left and right corner points
         of the data signal, respectively, and thus define the integration limits 
@@ -680,9 +680,17 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
 
     Returns
     -------
-    snr_db : float
-        Estimated SNR in dB.
-
+     results : dict containing following keys
+        snr_dB : float
+            estimated SNR in dB scale
+        snr_lin : float
+            estimated SNR in linear scale
+        p_sig : float
+            estimated signal power from spectrum.
+            Unit depends on input signal.
+        p_noise : float
+            estimated noise power from spectrum.
+            Unit depends on input signal.
     """
     
     if not (isinstance(x, np.ndarray) and isinstance(y, np.ndarray) and isinstance(noise_range, np.ndarray) and isinstance(sig_range, np.ndarray)):
@@ -809,8 +817,15 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         plt.title('est. SNR = {:.1f} dB in noise bandwidth of {:.2e}'.format(snr_db, noise_bw))
         plt.grid(visible=True)
         plt.show()
-        
-    return snr_db
+    
+    return_dict = {
+        "snr_dB": snr_db,
+        "snr_lin": snr,
+        "p_sig": (p_sig_n2-p_n2),
+        "p_noise": p_n1
+        }
+
+    return return_dict
 
 def est_snr_spec_wrapper(sig,roll_off,plotting=False):
     
@@ -836,7 +851,7 @@ def est_snr_spec_wrapper(sig,roll_off,plotting=False):
         #### call estimation function
         snr_dB[dim] = estimate_snr_spectrum(faxis, pwr_vec, sig_range, noise_range,
                                             order=1,noise_bw=sig.symbol_rate[dim],
-                                            scaling='lin',plotting=plotting)
+                                            scaling='lin',plotting=plotting)["snr_dB"]
         
     return snr_dB
         

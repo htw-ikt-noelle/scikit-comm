@@ -20,7 +20,7 @@ EXPERIMENT = False
 UPLOAD_SAMPLES = False
 HOLD_SHOT = False
 USE_PREDIST = False
-SINC_CORRECTION = True
+SINC_CORRECTION = False
 SNR = 20
 F_OFFSET = 100e6 # frequency offset
 
@@ -176,13 +176,15 @@ sig_rx.plot_spectrum(tit='spectrum after resampling',fNum=2)
 # estimate SNR
 sig_range = np.asarray([-1, 1])*sig_rx.symbol_rate[0]/2*(1+ROLL_OFF) + F_OFFSET
 noise_range = np.asarray([-1.1, -1.05, 1.05, 1.1]) * sig_rx.symbol_rate[0]/2 * (1+ROLL_OFF) + F_OFFSET
-                
-spec = np.abs(np.fft.fftshift(np.fft.fft(sig_rx.samples[0])))**2
+
+fft_temp = np.fft.fft(sig_rx.samples[0])/sig_rx.samples[0].size
+RBW = sig_rx.sample_rate[0]/sig_rx.samples[0].size
+spec = (np.abs(np.fft.fftshift(fft_temp))**2)/RBW # -> [W/Hz]
 freq = np.fft.fftshift(np.fft.fftfreq(sig_rx.samples[0].size, 1/sig_rx.sample_rate[0]))
 snr = skc.utils.estimate_snr_spectrum(freq, spec, sig_range=sig_range, 
                                        noise_range=noise_range, order=1, 
                                        noise_bw=sig_rx.symbol_rate[0], 
-                                       scaling='lin', plotting=True, fNum=3)
+                                       scaling='lin', plotting=True)["snr_dB"]
 
 print('est. SNR (from spectrum): {:.1f} dB'.format(snr))
 
