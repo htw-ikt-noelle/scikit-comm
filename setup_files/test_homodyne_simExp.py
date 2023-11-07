@@ -161,10 +161,6 @@ sig_rx = copy.deepcopy(sig_tx)
 sig_rx.samples = samples
 sig_rx.sample_rate = sr
 
-# t = skc.utils.create_time_axis(sample_rate=sig_rx.sample_rate[0],n_samples=sig_rx.samples[0].size)
-# sig_rx.samples[0] = np.cos(2*np.pi*2e9*t)
-# sig_rx.samples[0] = np.exp(1j*2*np.pi*2e9*t)
-
 sig_rx.plot_spectrum(tit='spectrum from scope',fNum=1)
 
 # From here: "standard" coherent complex baseband signal processing ############
@@ -175,9 +171,7 @@ new_length = int(sig_rx.samples[0].size/sps*sps_new)
 sig_rx.samples = ssignal.resample(sig_rx.samples[0], new_length, window='boxcar')
 sig_rx.sample_rate = sps_new*sig_rx.symbol_rate[0]
 
-sig_rx.plot_spectrum(tit='spectrum after resampling',fNum=2,resolution_bw=10e6)
-
-skc.visualizer.place_figures(monitor_num=0)
+sig_rx.plot_spectrum(tit='spectrum after resampling',fNum=2)
 
 # estimate SNR
 sig_range = np.asarray([-1, 1])*sig_rx.symbol_rate[0]/2*(1+ROLL_OFF) + F_OFFSET
@@ -327,8 +321,6 @@ else:
 # decision and demapper
 sig_rx.decision()
 sig_rx.demapper()
-
-skc.visualizer.place_figures(monitor_num=0)
 
 # BER counting
 ber_res = skc.rx.count_errors(sig_rx.bits[0], sig_rx.samples[0])
