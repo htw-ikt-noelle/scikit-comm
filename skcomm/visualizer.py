@@ -2,6 +2,7 @@ import copy
 import tkinter as tk
 
 import numpy as np
+import scipy.signal as ssignal
 import numpy.fft as fft
 import matplotlib.pyplot as plt
 import screeninfo
@@ -9,18 +10,19 @@ import screeninfo
 from . import utils
 
     
-def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spectrum',
+def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm',
+                  resolution_bw=None, ax_lims=[None,None,None,None], tit='spectrum',
                   save_fig=False, ffolder='.', ffname=None, fformat='png',
                   add_timestamp=False):
     """
-    plot the amplitude spectrum of given samples.    
+    Plot the power spectrum of given samples.    
     
-    If the samples are real, a onesided spectrum (only positive frequencies) is
-    plotted, otherwise a two-sided spectrum (positive and negative frequencies).
+    If the samples are real-valued, a one-sided spectrum (only positive frequencies) is
+    generated, otherwise a two-sided spectrum (positive and negative frequencies) is generated.
     
     Parameters
     ----------
-    samples : 1D np.array, float
+    samples : 1D np.ndarray, float
         time domain samples of the signal.
     sample_rate : float, optional
         sample rate of the signal in Hz. The default is 1.0
@@ -28,10 +30,18 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spe
         figure number to be used for plot. The default is None which uses the 
         "next unused figure number".
     scale : string, optional
-        scaling of the y axis, can either be 'logNorm', 'log', 'linNorm','lin'.
-        The y axis will be shown in linear or logarithmic scale and can either be
-        normalized to the maximum y value or not (absolute values). 
+        scaling of the y axis data, can either be 'logNorm', 'log', 'linNorm','lin'.
+        The y axis will be shown in linear or logarithmic dB-scale and can either be
+        normalized to the maximum y value or not (absolute values).
         The default is 'logNorm'.
+    resolution_bw : float, optional
+        Resolution bandwidth of the displayed spectrum given in 'Hz'. This parameter is
+        used for the estimation of the power spectrum using Welch's method. If None, no
+        averaging is performed (i.e. the intrinsic resolution, defined by the signals
+        temporal length and sample rate is displayed). The defauls is None.
+    ax_lims : list of floats, optional
+        Specifies the axis limits of the plot as [xmin, xmax, ymin, ymax]. A value of
+        None sets automatic axis limits. The default is [None, None, None, None].
     tit : string, optional
         title of the plot. The default is 'spectrum'.
     save_fig : bool, optional
@@ -45,45 +55,50 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spe
         format of the saved file, can either be 'png', 'pdf' or 'svg'. 
         The default is 'png'.
     add_timestamp : bool, optional
-        should a timestamp be added to the filename? The default is False.    
+        should a timestamp be added to the filename? The default is False.   
 
+    Returns
+    ---------- 
+    results : dict containing following keys
+        'power_spectrum' : np.ndarray
+            power spectrum of samples in same scaling as requested by parameter 'scale'
+        'freq' : np.ndarray
+            frequency bins of the returned power spectrum in Hz
     """
     
-
     isReal = np.all(np.isreal(samples))
-
-    # fft
-    fSamples = fft.fft(samples)
-    fSamples = fSamples / len(fSamples)
     
-    # if real input signal -> mulitply all frequencies, but the DC by 2
+    if resolution_bw is None:
+        nperseg=samples.size
+    else:
+        nperseg = int(sample_rate/resolution_bw)
+    
     if isReal:
-        fSamples[1:] *= 2        
-    
-    # calc amplitude and frequency axis
-    fSamples = np.abs(fSamples)
-    freq = fft.fftfreq(len(fSamples), 1/sample_rate)
-    
+        return_onesided=True
+    else:
+        return_onesided=False
+    freq, power_spectrum = ssignal.welch(samples, sample_rate, window='boxcar', nperseg=nperseg, return_onesided=return_onesided, scaling='spectrum', detrend=False)
+
     # scale spectrum
     if scale == 'logNorm':
         with np.errstate(divide='ignore'):
-            fSamples = 20*np.log10(fSamples / np.max(fSamples))  
-        ylabel = "normalized amplitude [dB]"
+            power_spectrum = 10*np.log10(power_spectrum / np.max(power_spectrum))            
+        ylabel = "normalized power [dB]"
     elif scale == 'log':
         with np.errstate(divide='ignore'):
-            fSamples = 20*np.log10(fSamples)
-        ylabel = "amplitude [dB]"
+            power_spectrum = 10*np.log10(power_spectrum)            
+        ylabel = "power [dB]"
     elif scale == 'linNorm':
-        fSamples = fSamples / np.max(fSamples)
-        ylabel = "normalized amplitude [a.u.]"
+        power_spectrum = power_spectrum / np.max(power_spectrum)        
+        ylabel = "normalized power [a.u.]"
     elif scale == 'lin':
-        fSamples = fSamples
-        ylabel = "amplitude [a.u.]"
+        power_spectrum = power_spectrum       
+        ylabel = "power [a.u.]"
     else:
         print('plotSpectrum scale must be lin(Norm) or log(Norm)...using "logNorm"')
         with np.errstate(divide='ignore'):
-            fSamples = 20*np.log10(fSamples / np.max(fSamples))
-        ylabel = "normalized amplitude [dB]"    
+            power_spectrum = 10*np.log10(power_spectrum / np.max(power_spectrum))            
+        ylabel = "normalized power [dB]"    
     
     # plot spectrum
     if fNum:
@@ -92,15 +107,15 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spe
         fig = plt.figure(facecolor='white', edgecolor='white')
         
     plt.clf()
-    # if signal real -> plot only positive frequencies
-    if isReal:
-        plt.plot(freq[0:int(len(fSamples)/2)], fSamples[0:int(len(fSamples)/2)])
-    # if signal complex -> plot neg. and pos. frequencies
-    else:
-        plt.plot(fft.fftshift(freq), fft.fftshift(fSamples))
+    
+    if not isReal:
+        freq, power_spectrum = fft.fftshift(freq), fft.fftshift(power_spectrum)
+    
+    plt.plot(freq, power_spectrum)
     plt.title(tit)
     plt.xlabel('frequency [Hz]')
     plt.ylabel(ylabel)
+    plt.gca().set(xlim=(ax_lims[:2]), ylim=(ax_lims[2:]))
     plt.grid(visible=True)
     
     if save_fig:
@@ -109,6 +124,11 @@ def plot_spectrum(samples, sample_rate=1.0, fNum=None, scale='logNorm', tit='spe
         utils.save_fig(fig, fformat=fformat, folder=ffolder, f_name=ffname, 
                  add_timestamp=add_timestamp)
     plt.show()
+
+    results = dict()
+    results['power_spectrum'] = power_spectrum
+    results['freq'] = freq
+    return results
 
 
 def plot_signal(samples, sample_rate=1.0, fNum=None, boundaries=[None, None], 
@@ -569,11 +589,11 @@ def place_figures(auto_layout=True, monitor_num=0, nc=4,
         Height of the (windows) taskbar which should not be covered by the layout. 
         The taskbar is assumed to be on the bottom of the screen. The height
         depends on many parameters (e.g. monitor scaling, layout of taskbar,... )
-        and is therefore to determined by the useer. The default is 35.
+        and is therefore to determined by the user. The default is 35.
     figure_toolbar : int, optional
         Height of the toolbar of the individual plot windows. The height
         depends on many parameters (e.g. graphical backend, monitor scaling,... )
-        and is therefore to determined by the useer. The default is 65.
+        and is therefore to determined by the user. The default is 65.
 
     Returns
     -------
