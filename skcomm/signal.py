@@ -116,7 +116,7 @@ class Signal():
                     # length having the ndarray in each element
                     value = [copy.deepcopy(value) for dim in range(self.n_dims)]
                 elif ((value.ndim == 2) and (value.shape[0] == self.n_dims)):
-                    # generate a list in which ever entry contains one row of
+                    # generate a list in which every entry contains one row of
                     # the given ndarray
                     value = list(value)
                 else:
