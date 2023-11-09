@@ -216,23 +216,39 @@ class Signal():
 
     def get_dimensions(self, dims=[0]):
         """
-        Gets all attributes form specific dimensions.
+        Gets all attributes form specific signal dimensions.
 
-        This method returns a new skcomm.signal.Signal opject
-        containing all attributes of the dimensions specified by dims.
+        This method returns a new skcomm.signal.Signal object
+        containing all attributes of the signal dimensions specified by dims.
+
+        This method could also be used to reorder (or duplicate) the dimensions 
+        of a signal object. 
+        Examples: 
+        1)
+        signal.get_dimensions(dims=[0,0]) results in a two-dimensional 
+        signal object containing two identical dimensions signal dimensions.
+
+        2) signal.get_dimensions(dims=[1,0]) reoders the dimensions of
+        a two-dimensional signsl object.
         
         Parameters
         ----------
         dims : list of int
-            Specifies which dimensions should be returned. The defauls is [0] 
+            Specifies which signal dimensions should be returned. The defauls is [0] 
         
         Returns
         -------
         tmp : skcomm.signal.Signal
-            Signal containing all attributes of specified dimensions.
+            Signal containing all attributes of specified signal dimensions.
         """
-        if len(dims) > self._n_dims:
-            raise ValueError('Object has less dimensions than requested')
+        if not isinstance(dims,list):
+            raise ValueError('dims needs to be of type list')
+
+        if (len(dims) > self.n_dims) or (len(dims)==0):
+            raise ValueError(f'ndims needs to be a list of length between 1 and {self.n_dims}')
+        
+        if any(np.asarray(dims)<0) or any(np.asarray(dims)>(self.n_dims-1)):
+            raise ValueError(f'The requested dimensions need to be between 0 and {self.n_dims-1}')
         
         tmp = Signal(n_dims=len(dims))
         for sour_attr, sour_value in self:
