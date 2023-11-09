@@ -690,15 +690,14 @@ def symbol_sequence_sync(sig, dimension=-1):
 
     Returns
     -------
-    return_dict : nested dict containing following keys
-        per dimension on signal object :
+    return_dict : dict containing following keys
+        number of dimension of signal : dict containing following keys
             phase_est : float
-                estimated phase offset
+                estimated phase offset of specified signal dimension
             symbol_delay_est : int
-                estimated symbol offset
-        overall : 
-            sig : sskcomm.signal.Signal
-                signal containing the synced sequences.
+                estimated symbol offset of specified signal dimension
+        sig :  sskcomm.signal.Signal
+            signal containing the synced sequences (all signal dimensions)
 
     """    
     if type(sig) != signal.Signal:

@@ -304,7 +304,7 @@ plt.show()
 
 sig_rx.plot_constellation(hist=True, tit='constellation after CPE',fNum=10)
 
-#%% # delay and phase ambiguity estimation and compensation
+# delay and phase ambiguity estimation and compensation
 sig_rx = skc.rx.symbol_sequence_sync(sig_rx, dimension=-1)["sig"]
     
 # calc EVM
