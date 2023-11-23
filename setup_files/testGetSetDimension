@@ -35,12 +35,19 @@ sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=ROL
 
 # test get method
 # sig_new = sig_tx.get_dimensions([0,2])
+# sig_new = sig_tx.get_dimensions([0,1,2,0,1,2,0])
+# sig_new = sig_tx.get_dimensions([0,0,0,0,0,0,0])
 
-# test add method
-sig_new = sig_tx.get_dimensions([0])
-sig_tx.add_dimension(sig_new,dim=3)
+# # test add method
+# sig_new = sig_tx.get_dimensions([0])
+# sig_tx.add_dimension(sig_new,dim=3)
 
-sig_test = skc.signal.Signal()
-sig_tx.add_dimension(sig_test)
+# sig_test = skc.signal.Signal()
+# sig_tx.add_dimension(sig_test)
+
+# test set method
+sig_new = skc.signal.Signal(n_dims=2)
+# sig_new = sig_tx.get_dimensions(dims=[2,0])
+sig_tx.set_dimensions(sig_new, dims=[0,1])
 
 print('1')

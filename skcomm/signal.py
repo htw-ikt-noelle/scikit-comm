@@ -244,8 +244,8 @@ class Signal():
         if not isinstance(dims,list):
             raise ValueError('dims needs to be of type list')
 
-        if (len(dims) > self.n_dims) or (len(dims)==0):
-            raise ValueError(f'ndims needs to be a list of length between 1 and {self.n_dims}')
+        if len(dims)==0:
+            raise ValueError('ndims needs to be a list of at least length 1')
         
         if any(np.asarray(dims)<0) or any(np.asarray(dims)>(self.n_dims-1)):
             raise ValueError(f'The requested dimensions need to be between 0 and {self.n_dims-1}')
@@ -289,6 +289,49 @@ class Signal():
         for sour_attr, sour_value in sig:
             if not (sour_attr == '_n_dims'):                                                   
                 vars(self)[sour_attr].insert(dim,sour_value[0])
+    
+    def set_dimensions(self, sig, dims=[0]):
+        """
+        Set / replace dimensions of signal object by dimensions of other signal object.
+
+        The contents / dimensions of a signal object are added to the existing
+        signal object and therefore replace the original signal dimensions. The positions 
+        at which the additional dimensions will be inserted can be 
+        specified with the parameter dims.
+        
+        Parameters
+        ----------
+        sig : skc.signal.Signal
+            Signal object containing the dimensions which will replace signal dimensions in 
+            the original signal object.
+        dims : list of int
+            Specifies at which positions the additional dimensions will be inserted. dims contains
+            the indicies of the dimensions before which to insert, so dims=[0,self.n_dims] replaces the first
+            and last dimension of the original signal object with the first and second dimension 
+            of the sig parameter (signal object). The defauls is [0].        
+        """
+
+        if not isinstance(dims,list):
+            raise ValueError('dims must be a list')
+        
+        if np.unique(np.asarray(dims)).size < len(dims):
+            raise ValueError('dims must contain unique values')
+        
+        if not isinstance(sig,Signal):
+            raise ValueError('sig must be of type skc.signal.Signal')
+        
+        if (len(dims) > self.n_dims) or (len(dims) > sig.n_dims):
+            raise ValueError('len(dims) must be smaller or equal than the number of signal dimension of self and sig')
+        
+        if max(dims) > self.n_dims:
+            raise ValueError('elements in dims must be smaller than number of dimensions of self')
+
+        sour_idx = 0
+        for dim in dims:
+            for sour_attr, sour_value in sig:
+                if not (sour_attr == '_n_dims'):
+                    vars(self)[sour_attr][dim] = sour_value[sour_idx]
+            sour_idx += 1
         
 
 
