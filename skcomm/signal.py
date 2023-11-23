@@ -226,10 +226,10 @@ class Signal():
         Examples: 
         1)
         signal.get_dimensions(dims=[0,0]) results in a two-dimensional 
-        signal object containing two identical dimensions signal dimensions.
+        signal object containing two identical signal dimensions.
 
         2) signal.get_dimensions(dims=[1,0]) reoders the dimensions of
-        a two-dimensional signsl object.
+        a two-dimensional signal object.
         
         Parameters
         ----------
@@ -255,6 +255,41 @@ class Signal():
             if not (sour_attr == '_n_dims'):                
                 vars(tmp)[sour_attr] = [sour_value[i] for i in dims]
         return tmp
+    
+    def add_dimension(self, sig, dim=0):
+        """
+        Adds a signal dimension to the signal.
+
+        The content of a one dimensional signal object is added to the existing
+        signal object. The position at which the additional dimension will be added can be 
+        specified with the parameter dim.
+        
+        Parameters
+        ----------
+        sig : skc.signal.Signal
+            One dimensional signal object which will be added to the signal.
+        dim : int
+            Specifies at which position the additional dimension will be inserted. dim is
+            the index of the dimension before which to insert, so dim=0 inserts the dimension
+            at the front while dim=self.n_dims appends the dimension at the end of the signal
+            object. The defauls is 0.
+        
+        """
+        if not isinstance(dim,int):
+            raise ValueError('dim needs to be an integer')
+        
+        if not isinstance(sig,Signal):
+            raise ValueError('sig needs to be of type skc.signal.Signal')
+        
+        if sig.n_dims != 1:
+            raise ValueError('signal needs to be a one-dimensional signal')        
+        
+        self.n_dims += 1
+
+        for sour_attr, sour_value in sig:
+            if not (sour_attr == '_n_dims'):                                                   
+                vars(self)[sour_attr].insert(dim,sour_value[0])
+        
 
 
     def generate_bits(self, n_bits=2**15, type='random', seed=None):

@@ -33,8 +33,14 @@ sig_tx.mapper()
 ROLL_OFF = 0.1
 sig_tx.pulseshaper(upsampling=TX_UPSAMPLE_FACTOR, pulseshape='rrc', roll_off=ROLL_OFF)
 
+# test get method
+# sig_new = sig_tx.get_dimensions([0,2])
 
-sig_new = sig_tx.get_dimensions([0,2])
+# test add method
+sig_new = sig_tx.get_dimensions([0])
+sig_tx.add_dimension(sig_new,dim=3)
 
+sig_test = skc.signal.Signal()
+sig_tx.add_dimension(sig_test)
 
-print('a')
+print('1')
