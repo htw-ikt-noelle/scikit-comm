@@ -252,16 +252,14 @@ class Signal():
         
         tmp = Signal(n_dims=len(dims))
         for sour_attr, sour_value in self:
-            if sour_attr == '_n_dims':
-                vars(tmp)[sour_attr] = sour_value
-            else:
+            if not (sour_attr == '_n_dims'):                
                 vars(tmp)[sour_attr] = [sour_value[i] for i in dims]
         return tmp
 
 
     def generate_bits(self, n_bits=2**15, type='random', seed=None):
         """
-        Generate an array of size (n_bits,) binary values.
+        Generate an array of shape (n_bits,) binary values.
 
         For detailed documentation see skcomm.tx.generate_bits.     
         """
