@@ -261,25 +261,31 @@ class Signal():
     
     def add_dimension(self, sig, dim=0):
         """
-        Adds a signal dimension to the signal.
+        Adds a one-dimensional signal to the signal space of the existing signal object.
 
-        The content of a one dimensional signal object is added to the existing
-        signal object. The position at which the additional dimension will be added can be 
-        specified with the parameter dim.
+        The content of a 1-D signal object is inserted into the existing signal 'self',
+        increasing the dimensionality of the existing signal object by 1.
+        The dimensional position before which the additional 1-D signal is inserted can
+        be defined using the parameter dim.
+
+        Example: 
+        signal.add_dimension(sig_1D, dim=3) inserts the one-dimensional signal object 
+        sig_1D before the third signal dimension of the existing (parent) signal object.
         
         Parameters
         ----------
         sig : skc.signal.Signal
-            One dimensional signal object which will be added to the signal.
+            One dimensional signal object which will be inserted as a new dimension 
+            into the existing signal object.
         dim : int
-            Specifies at which position the additional dimension will be inserted. dim is
-            the index of the dimension before which to insert, so dim=0 inserts the dimension
-            at the front while dim=self.n_dims appends the dimension at the end of the signal
-            object. The defauls is 0.
-        
+            Specifies the position at which the additional signal dimension is to be 
+            inserted. dim is the dimensional index of the existing signal to be 
+            inserted before. dim=0 inserts the new signal dimension as first dimension 
+            while dim≥self.n_dims appends the new signal dimension to the existing
+            signal space. The default value is 0.
         """
-        if not isinstance(dim,int):
-            raise ValueError('dim needs to be an integer')
+        if not isinstance(dim,int) or dim<0 :
+            raise ValueError('dim needs to be a non-negative integer')
         
         if not isinstance(sig,Signal):
             raise ValueError('sig needs to be of type skc.signal.Signal')
@@ -289,9 +295,9 @@ class Signal():
         
         self.n_dims += 1
 
-        for sour_attr, sour_value in sig:
-            if not (sour_attr == '_n_dims'):                                                   
-                vars(self)[sour_attr].insert(dim,sour_value[0])
+        for source_attr, source_value in sig:
+            if isinstance(source_value, list):
+                vars(self)[source_attr].insert(dim,source_value[0])
     
     def set_dimensions(self, sig, dims=[0]):
         """
