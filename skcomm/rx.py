@@ -205,10 +205,19 @@ def sampling_phase_adjustment(samples, sample_rate=1.0, symbol_rate=2.0, shift_d
         # upsample to 3 samples per symol
         sr_dsp = symbol_rate * 3
         # watch out, that this is really an integer
-        len_dsp = sr_dsp / sample_rate * np.size(samples, axis=0)
+        len_dsp = sr_dsp / sample_rate * np.size(samples_tmp, axis=0)
         if len_dsp % 1:
-            raise ValueError('DSP samplerate results in asynchronous sampling of the data symbols')
-        samples_tmp = ssignal.resample(samples_tmp, num=int(len_dsp), window=None)    
+            #hotfix 
+            for i in range(np.size(samples_tmp, axis=0)):
+                samples_tmp = samples_tmp[:-1]
+                len_dsp = sr_dsp / sample_rate * np.size(samples_tmp, axis=0)
+                if len_dsp % 1:
+                    #raise ValueError('DSP samplerate results in asynchronous sampling of the data symbols')
+                    pass
+                else:
+                    break
+
+        samples_tmp = ssignal.resample(samples_tmp, num=int(len_dsp), window=None)
     
     # calc length of vector so that spectrum exactly includes the symbol rate
     tmp = np.floor(symbol_rate * np.size(samples_tmp, axis=0) / sr_dsp)
@@ -636,6 +645,9 @@ def  carrier_phase_estimation_bps(samples, constellation, n_taps=15, n_test_phas
     est_phase_noise = np.unwrap(np.asarray(est_phase_noise)*unwrap_limit)/unwrap_limit
     f_int = interpolate.interp1d(np.arange(n_blocks)*n_taps, est_phase_noise, kind='linear', bounds_error=False, fill_value='extrapolate')
     est_phase_noise_int = f_int(np.arange(n_blocks*n_taps))
+
+    if n_blocks == 1:
+        est_phase_noise_int = np.full(est_phase_noise_int.shape, fill_value=est_phase_noise)
     
     samples_corrected = samples_norm[:n_blocks*n_taps] * np.exp(1j * est_phase_noise_int)
     
@@ -678,8 +690,14 @@ def symbol_sequence_sync(sig, dimension=-1):
 
     Returns
     -------
-    sig : skcomm.signal.Signal
-        signal containing the synced sequences.
+    return_dict : dict containing following keys
+        number of dimension of signal : dict containing following keys
+            phase_est : float
+                estimated phase offset of specified signal dimension
+            symbol_delay_est : int
+                estimated symbol offset of specified signal dimension
+        sig :  sskcomm.signal.Signal
+            signal containing the synced sequences (all signal dimensions)
 
     """    
     if type(sig) != signal.Signal:
@@ -692,6 +710,9 @@ def symbol_sequence_sync(sig, dimension=-1):
     else:
         dims = [dimension]
     
+    # init dict for return values
+    return_dict = {}
+
     # iterate over specified signal dimensions
     for dim in dims:
     
@@ -737,14 +758,22 @@ def symbol_sequence_sync(sig, dimension=-1):
         sig.symbols[dim] = np.roll(sig.symbols[dim], -int(symbol_delay_est)) 
         sig.bits[dim] = np.roll(sig.bits[dim], -int(symbol_delay_est*bps)) 
         
+        # return symbol delay est & init nested dict
+        return_dict[dim] = {"symbol_delay_est": int(symbol_delay_est)}  
+
         # manipulate physical samples in order to compensate for phase rotations and inversion 
         # of real and / or imaginary part (optical modulator ambiguity)
         if symbols_conj:    
-            sig.samples[dim] = np.conj(sig.samples[dim] * np.exp(1j*phase_est))        
+            sig.samples[dim] = np.conj(sig.samples[dim] * np.exp(1j*phase_est))
+            return_dict[dim]["phase_est"] = phase_est        
         else:        
             sig.samples[dim] = sig.samples[dim] * np.exp(-1j*phase_est)
+            return_dict[dim]["phase_est"] = -phase_est   
+
+    # return signal object
+    return_dict["sig"] = sig
     
-    return sig    
+    return return_dict 
 
 def _bae_loop(samples_in, samples_out, h, n_taps, sps, n_CMA, mu_cma, n_RDE, 
               mu_rde, radii, mu_dde, stop_adapting, sig_constellation, r, 
