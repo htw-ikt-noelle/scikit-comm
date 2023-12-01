@@ -216,21 +216,24 @@ class Signal():
 
     def get_dimensions(self, dims=[0]):
         """
-        Gets all attributes form specific signal dimensions.
+        Gets all attributes from specific signal dimensions.
 
         This method returns a new skcomm.signal.Signal object
         containing all attributes of the signal dimensions specified by dims.
 
-        This method could also be used to reorder (or duplicate) the dimensions 
-        of a signal object. 
-        Examples: 
-        1)
-        signal.get_dimensions(dims=[0,0]) results in a two-dimensional 
-        signal object containing two identical signal dimensions.
+        This method could also be used to reorder, duplicate and extend the dimensions 
+        of the signal object.
 
-        2) signal.get_dimensions(dims=[1,0]) reoders the dimensions of
-        a two-dimensional signal object.
+        Examples: 
+        1) signal.get_dimensions(dims=[0,0]) returns a two-dimensional (2-D) 
+        signal object containing two identical (duplicated) parent signal dimensions.
+
+        2) signal.get_dimensions(dims=[1,0]) returns a 2-D Signal object with re-ordered
+        dimensions of the parent signal object.
         
+        3) signal.get_dimensions(dims=[1,2,0,1]) returns a 4-D Signal object with re-ordered
+        and (eventually) extended dimensions of the parent signal object.
+
         Parameters
         ----------
         dims : list of int
@@ -238,7 +241,7 @@ class Signal():
         
         Returns
         -------
-        tmp : skcomm.signal.Signal
+        sig : skcomm.signal.Signal
             Signal containing all attributes of specified signal dimensions.
         """
         if not isinstance(dims,list):
@@ -249,12 +252,12 @@ class Signal():
         
         if any(np.asarray(dims)<0) or any(np.asarray(dims)>(self.n_dims-1)):
             raise ValueError(f'The requested dimensions need to be between 0 and {self.n_dims-1}')
-        
-        tmp = Signal(n_dims=len(dims))
-        for sour_attr, sour_value in self:
-            if not (sour_attr == '_n_dims'):                
-                vars(tmp)[sour_attr] = [sour_value[i] for i in dims]
-        return tmp
+
+        sig = Signal(n_dims=len(dims))
+        for source_attr, source_value in self:
+            if isinstance(source_value, list):
+                vars(sig)[source_attr] = [source_value[i] for i in dims]
+        return sig
     
     def add_dimension(self, sig, dim=0):
         """
