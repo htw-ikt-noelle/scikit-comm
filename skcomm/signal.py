@@ -360,7 +360,8 @@ class Signal():
 
         For further documentation see skcomm.visualizer.plot_spectrum.
         """
-        visualizer.plot_spectrum(self.samples[dimension], self.sample_rate[dimension], **kwargs)
+        results = visualizer.plot_spectrum(self.samples[dimension], sample_rate=self.sample_rate[dimension], **kwargs)
+        return results
 
     def plot_constellation(self, dimension=0, decimation=1, **kwargs):
         """
@@ -392,3 +393,15 @@ class Signal():
         
         visualizer.plot_signal(self.samples[dimension], self.sample_rate[dimension],
                                boundaries=boundaries, **kwargs)
+    
+    def copy(self):
+        """
+        Return a copy of the signal object.
+
+        Returns
+        -------
+        sig : skc.signal.Signal
+            Copy of the signal object.
+
+        """
+        return copy.deepcopy(self)
