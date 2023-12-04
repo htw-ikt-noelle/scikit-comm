@@ -647,7 +647,7 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         "x-axis" values of the spectrum. In general either frequency or wavelength.
         The values in this vector must be monotonically increasing.
     y : 1D array, float
-        "y-axis" values of the spectrum. In general either power or power density.
+        "y-axis" values of the spectrum. Unit should be W/(RBW of x axis).
     sig_range : 1D array, float
         Two values (same unit as x) that specify the left and right corner points
         of the data signal, respectively, and thus define the integration limits 
@@ -680,9 +680,17 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
 
     Returns
     -------
-    snr_db : float
-        Estimated SNR in dB.
-
+     results : dict containing following keys
+        snr_dB : float
+            estimated SNR in dB scale
+        snr_lin : float
+            estimated SNR in linear scale
+        p_sig : float
+            estimated signal power from spectrum.
+            Unit depends on input signal.
+        p_noise : float
+            estimated noise power from spectrum.
+            Unit depends on input signal.
     """
     
     if not (isinstance(x, np.ndarray) and isinstance(y, np.ndarray) and isinstance(noise_range, np.ndarray) and isinstance(sig_range, np.ndarray)):
@@ -809,36 +817,17 @@ def estimate_snr_spectrum(x, y, sig_range, noise_range, order=1, noise_bw=12.5e9
         plt.title('est. SNR = {:.1f} dB in noise bandwidth of {:.2e}'.format(snr_db, noise_bw))
         plt.grid(visible=True)
         plt.show()
-        
-    return snr_db
-
-def est_snr_spec_wrapper(sig,roll_off,plotting=False):
     
-    if roll_off.size != sig.n_dims:
-        raise ValueError('Length of array of roll_off factors and number of signal dimensions be equal.')
-    # init snr_dB array
-    snr_dB = np.zeros(shape=(sig.n_dims,),dtype='float')
-    # loop over signal dimensions
-    for dim in range(sig.n_dims):
-        #### generate freq axis from signal attributes
-        sr = sig.sample_rate[dim]
-        n_samples = sig.samples[dim].size
-        # frequency delta
-        df = sr/n_samples
-        faxis = np.linspace((-sr+df)/2,(sr-df)/2,n_samples)
-        #### calc linear power spectrum
-        pwr_vec = np.abs(np.fft.fftshift(np.fft.fft(sig.samples[dim])))**2
-        #### calc bandwidth from symbol rate and roll off factor
-        bw_half = sig.symbol_rate[dim]/2 + (1+roll_off[dim])
-        sig_range = np.array([-bw_half,bw_half])
-        #### calc noise range
-        noise_range = np.array([-bw_half-1e9,-bw_half,bw_half,bw_half+1e9])
-        #### call estimation function
-        snr_dB[dim] = estimate_snr_spectrum(faxis, pwr_vec, sig_range, noise_range,
-                                            order=1,noise_bw=sig.symbol_rate[dim],
-                                            scaling='lin',plotting=plotting)
-        
-    return snr_dB
+    return_dict = {
+        "snr_dB": snr_db,
+        "snr_lin": snr,
+        "p_sig": (p_sig_n2-p_n2),
+        "p_noise": p_n1
+        }
+
+    return return_dict
+
+
         
     
     

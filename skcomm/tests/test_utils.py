@@ -117,14 +117,14 @@ class TestEstimateSnrSpectrum(unittest.TestCase):
         snr = utils.estimate_snr_spectrum(x, y, sig_range, noise_range, 
                                                order=order, noise_bw=noise_bw, 
                                                scaling='lin', fit_lin=False, 
-                                               plotting=False)
+                                               plotting=False)["snr_dB"]
         
         assert_almost_equal(snr, 10.0, decimal=10)
         
         snr = utils.estimate_snr_spectrum(x, y, sig_range, noise_range, 
                                                order=order, noise_bw=noise_bw, 
                                                scaling='lin', fit_lin=True, 
-                                               plotting=False)
+                                               plotting=False)["snr_dB"]
         
         assert_almost_equal(snr, 10.0, decimal=10)
     
