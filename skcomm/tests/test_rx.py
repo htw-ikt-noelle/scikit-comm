@@ -8,6 +8,7 @@ from numpy.testing import (
 
 from .. import rx
 from .. import utils
+from .. import signal
 
 
 class TestDemapper(unittest.TestCase):
@@ -65,5 +66,42 @@ class TestSamplingPhaseClockAdjustment(unittest.TestCase):
         shifts = rx.sampling_clock_adjustment(samples, sample_rate=sr, symbol_rate=symbr, block_size=int(n_samples/(sr/symbr*2)))['est_shift']
         assert_array_almost_equal(shifts, np.asarray([-phase/np.pi/symbr, -phase/np.pi/symbr]), decimal=10)
         
-        
-        
+
+class TestSymbolSequenceSync(unittest.TestCase):
+    """
+    Test class for symbol_sequence_sync
+    """
+    
+    def test_delays_and_phase_shifts(self):
+        # generate test signal
+        sig = signal.Signal(n_dims=2)
+        sig.constellation = [np.asarray([-1, 1]), np.asarray([-1-1j,-1+1j, 1-1j, 1+1j])]
+        sig.symbols = [sig.constellation[0][np.random.randint(low=0,high=2,size=100)], sig.constellation[1][np.random.randint(low=0,high=4,size=100)]]
+        # 1) no shift, no phase error
+        sig.samples = sig.symbols
+        tmp = rx.symbol_sequence_sync(sig, dimension=-1)        
+        assert_equal(tmp[0],
+                {'symbol_delay_est':0, 'phase_est':0.0}
+                )
+        assert_equal(tmp[1],
+                {'symbol_delay_est':0, 'phase_est':-0.0}
+                )
+        # 2) shift, shift+phase error
+        sig.samples = [np.roll(sig.symbols[0],shift=-10), np.roll(sig.symbols[1], shift=-5)*np.exp(1j*np.pi)]
+        tmp = rx.symbol_sequence_sync(sig, dimension=-1)        
+        assert_equal(tmp[0],
+                {'symbol_delay_est':10, 'phase_est':0.0}
+                )
+        assert_equal(tmp[1],
+                {'symbol_delay_est':5, 'phase_est':-np.pi}
+                )
+        # 3) shift+phase error, shift+conj+phase phase error
+        sig.samples = [np.roll(sig.symbols[0]*np.exp(-1j*np.pi/2),shift=-10), np.conj(np.roll(sig.symbols[1], shift=-10)*np.exp(1j*np.pi))]
+        tmp = rx.symbol_sequence_sync(sig, dimension=-1)        
+        assert_equal(tmp[0],
+                {'symbol_delay_est':10, 'phase_est':np.pi/2}
+                )
+        assert_equal(tmp[1],
+                {'symbol_delay_est':10, 'phase_est':np.pi}
+                )
+

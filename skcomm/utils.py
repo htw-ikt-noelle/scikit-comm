@@ -1225,7 +1225,7 @@ def calc_evm(sig, norm='max', method='blind', opt=False, dimension=-1):
         # use given reference symbols, i.e. sent symbol sequence
         elif method == 'data_aided':            
             # sync samples to sent symbol sequence
-            sig_tmp = rx.symbol_sequence_sync(sig)            
+            sig_tmp = rx.symbol_sequence_sync(sig)["sig"]            
             if sig_tmp.symbols[dim].size < sig_tmp.samples[dim].size:
                 # repeat sent reference symbols in order to match length of symbols
                 ratio_base = sig_tmp.samples[dim].size // sig_tmp.symbols[dim].size

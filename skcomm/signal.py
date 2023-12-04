@@ -528,3 +528,15 @@ class Signal():
         
         visualizer.plot_signal(self.samples[dimension], self.sample_rate[dimension],
                                boundaries=boundaries, **kwargs)
+    
+    def copy(self):
+        """
+        Return a copy of the signal object.
+
+        Returns
+        -------
+        sig : skc.signal.Signal
+            Copy of the signal object.
+
+        """
+        return copy.deepcopy(self)
