@@ -71,6 +71,10 @@ class Signal():
         self.constellation = [np.empty(0, dtype=complex)] * n_dims
 
 
+    def __iter__(self):
+        for attr, value in vars(self).items():
+            yield attr, value
+
     def _check_attribute(self, value):
         """
         Check if attribute is of valid type (or can be converted to a valid type).
@@ -112,7 +116,7 @@ class Signal():
                     # length having the ndarray in each element
                     value = [copy.deepcopy(value) for dim in range(self.n_dims)]
                 elif ((value.ndim == 2) and (value.shape[0] == self.n_dims)):
-                    # generate a list in which ever entry contains one row of
+                    # generate a list in which every entry contains one row of
                     # the given ndarray
                     value = list(value)
                 else:
@@ -210,11 +214,142 @@ class Signal():
         value = self._check_attribute(value)
         self._constellation = value
 
+    def get_dimensions(self, dims=[0]):
+        """
+        Gets all attributes from specific signal dimensions.
+
+        This method returns a new skcomm.signal.Signal object
+        containing all attributes of the signal dimensions specified by dims.
+
+        This method could also be used to reorder, duplicate and extend the dimensions 
+        of the signal object.
+
+        Examples: 
+        1) signal.get_dimensions(dims=[0,0]) returns a two-dimensional (2-D) 
+        signal object containing two identical (duplicated) parent signal dimensions.
+
+        2) signal.get_dimensions(dims=[1,0]) returns a 2-D Signal object with re-ordered
+        dimensions of the parent signal object.
+        
+        3) signal.get_dimensions(dims=[1,2,0,1]) returns a 4-D Signal object with re-ordered
+        and (eventually) extended dimensions of the parent signal object.
+
+        Parameters
+        ----------
+        dims : list of int
+            Specifies which signal dimensions should be returned. The defauls is [0] 
+        
+        Returns
+        -------
+        sig : skcomm.signal.Signal
+            Signal containing all attributes of specified signal dimensions.
+        """
+        if (not isinstance(dims,list)) or (any(np.asarray(dims)<0)):
+            raise ValueError('dims needs to be of type list and all entries must be >0')
+
+        if len(dims)==0:
+            raise ValueError('ndims needs to be a list of at least length 1')
+        
+        if any(np.asarray(dims)<0) or any(np.asarray(dims)>(self.n_dims-1)):
+            raise ValueError(f'The requested dimensions need to be between 0 and {self.n_dims-1}')
+
+        sig = Signal(n_dims=len(dims))
+        for source_attr, source_value in self:
+            if isinstance(source_value, list):
+                vars(sig)[source_attr] = [source_value[i] for i in dims]
+        return sig
+    
+    def add_dimension(self, sig, dim=0):
+        """
+        Adds a one-dimensional signal to the signal space of the existing signal object.
+
+        The content of a 1-D signal object is inserted into the existing signal 'self',
+        increasing the dimensionality of the existing signal object by 1.
+        The dimensional position before which the additional 1-D signal is inserted can
+        be defined using the parameter dim.
+
+        Example: 
+        signal.add_dimension(sig_1D, dim=3) inserts the one-dimensional signal object 
+        sig_1D before the third signal dimension of the existing (parent) signal object.
+        
+        Parameters
+        ----------
+        sig : skc.signal.Signal
+            One dimensional signal object which will be inserted as a new dimension 
+            into the existing signal object.
+        dim : int
+            Specifies the position at which the additional signal dimension is to be 
+            inserted. dim is the dimensional index of the existing signal to be 
+            inserted before. dim=0 inserts the new signal dimension as first dimension 
+            while dim≥self.n_dims appends the new signal dimension to the existing
+            signal space. The default value is 0.
+        """
+        if not isinstance(dim,int) or dim<0 :
+            raise ValueError('dim needs to be a non-negative integer')
+        
+        if not isinstance(sig,Signal):
+            raise ValueError('sig needs to be of type skc.signal.Signal')
+        
+        if sig.n_dims != 1:
+            raise ValueError('signal needs to be a one-dimensional signal')        
+        
+        self.n_dims += 1
+
+        for source_attr, source_value in sig:
+            if isinstance(source_value, list):
+                vars(self)[source_attr].insert(dim,source_value[0])
+    
+    def set_dimensions(self, sig, dims=[0]):
+        """
+        Sets / replaces dimensions of signal object by dimensions of other signal object.
+
+        The signal dimensions of signal object 'sig' replace the specified dimensions of
+        the existing signal object 'self'. The positions that are to be replaced in 'self'
+        are specified by the parameter dim.
+
+        Example:
+        signal.set_dimensions(sig_3D, dims=[1,0]) replaces the second dimension of 'self'
+        with the first dimension of the new signal object sig_3D and the first dimension
+        of 'self' the second dimension of sig_3D.
+        
+        Parameters
+        ----------
+        sig : skc.signal.Signal
+            Signal object containing the dimensions which will replace signal dimensions in 
+            the original signal object 'self'.
+        dims : list of int
+            Specifies the dimensional position indices in 'self' at which the signal dimensions
+            of 'sig' are inserted one after the other, so e.g., dims=[self.n_dims,0] replaces 
+            the last and the first dimension of the original signal object with the first and
+            second dimension of the signal object 'sig', respectively. The defauls is [0].
+        """
+
+        if not isinstance(dims,list):
+            raise ValueError('dims must be a list')
+        
+        if np.unique(np.asarray(dims)).size < len(dims):
+            raise ValueError('dims must contain unique values')
+        
+        if not isinstance(sig,Signal):
+            raise ValueError('sig must be of type skc.signal.Signal')
+        
+        if (len(dims) > self.n_dims) or (len(dims) > sig.n_dims):
+            raise ValueError('len(dims) must be smaller or equal than the number of signal dimensions of self and the inserted sig')
+        
+        if max(dims) > self.n_dims:
+            raise ValueError('elements in dims must be smaller than number of dimensions of self')
+
+        source_idx = 0
+        for dim in dims:
+            for source_attr, source_value in sig:
+                if isinstance(source_value, list):
+                    vars(self)[source_attr][dim] = source_value[source_idx]
+            source_idx += 1
 
 
     def generate_bits(self, n_bits=2**15, type='random', seed=None):
         """
-        Generate an array of size (n_bits,) binary values.
+        Generate an array of shape (n_bits,) binary values.
 
         For detailed documentation see skcomm.tx.generate_bits.     
         """
