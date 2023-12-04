@@ -301,23 +301,27 @@ class Signal():
     
     def set_dimensions(self, sig, dims=[0]):
         """
-        Set / replace dimensions of signal object by dimensions of other signal object.
+        Sets / replaces dimensions of signal object by dimensions of other signal object.
 
-        The contents / dimensions of a signal object are added to the existing
-        signal object and therefore replace the original signal dimensions. The positions 
-        at which the additional dimensions will be inserted can be 
-        specified with the parameter dims.
+        The signal dimensions of signal object 'sig' replace the specified dimensions of
+        the existing signal object 'self'. The positions that are to be replaced in 'self'
+        are specified by the parameter dim.
+
+        Example:
+        signal.set_dimensions(sig_3D, dims=[1,0]) replaces the second dimension of 'self'
+        with the first dimension of the new signal object sig_3D and the first dimension
+        of 'self' the second dimension of sig_3D.
         
         Parameters
         ----------
         sig : skc.signal.Signal
             Signal object containing the dimensions which will replace signal dimensions in 
-            the original signal object.
+            the original signal object 'self'.
         dims : list of int
-            Specifies at which positions the additional dimensions will be inserted. dims contains
-            the indicies of the dimensions before which to insert, so dims=[0,self.n_dims] replaces the first
-            and last dimension of the original signal object with the first and second dimension 
-            of the sig parameter (signal object). The defauls is [0].        
+            Specifies the dimensional position indices in 'self' at which the signal dimensions
+            of 'sig' are inserted one after the other, so e.g., dims=[self.n_dims,0] replaces 
+            the last and the first dimension of the original signal object with the first and
+            second dimension of the signal object 'sig', respectively. The defauls is [0].
         """
 
         if not isinstance(dims,list):
@@ -330,18 +334,17 @@ class Signal():
             raise ValueError('sig must be of type skc.signal.Signal')
         
         if (len(dims) > self.n_dims) or (len(dims) > sig.n_dims):
-            raise ValueError('len(dims) must be smaller or equal than the number of signal dimension of self and sig')
+            raise ValueError('len(dims) must be smaller or equal than the number of signal dimensions of self and the inserted sig')
         
         if max(dims) > self.n_dims:
             raise ValueError('elements in dims must be smaller than number of dimensions of self')
 
-        sour_idx = 0
+        source_idx = 0
         for dim in dims:
-            for sour_attr, sour_value in sig:
-                if not (sour_attr == '_n_dims'):
-                    vars(self)[sour_attr][dim] = sour_value[sour_idx]
-            sour_idx += 1
-        
+            for source_attr, source_value in sig:
+                if isinstance(source_value, list):
+                    vars(self)[source_attr][dim] = source_value[source_idx]
+            source_idx += 1
 
 
     def generate_bits(self, n_bits=2**15, type='random', seed=None):
