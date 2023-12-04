@@ -244,8 +244,8 @@ class Signal():
         sig : skcomm.signal.Signal
             Signal containing all attributes of specified signal dimensions.
         """
-        if not isinstance(dims,list):
-            raise ValueError('dims needs to be of type list')
+        if (not isinstance(dims,list)) or (any(np.asarray(dims)<0)):
+            raise ValueError('dims needs to be of type list and all entries must be >0')
 
         if len(dims)==0:
             raise ValueError('ndims needs to be a list of at least length 1')
