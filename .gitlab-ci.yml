@@ -1,13 +1,18 @@
 image: python:3.11
 
-docu:
+pages:
   stage: build
   script:
   - python -V
   # install common requirements
   - pip install -r requirements.txt 
+  # install requirements for compiling cython modules
+  - pip install cython setuptools wheel
+  # compile cython modules
+  - cd skcomm/cython_mods
+  - python setup_rx_cython.py build_ext --inplace 
   # generate docu
-  - cd docs
+  - cd ../../docs
   - sphinx-apidoc -f -o source ../skcomm
   - sphinx-build -b html source ../public
   # make docu available for download via artefacts
@@ -17,7 +22,6 @@ docu:
   # generate docu only for master branch
   only:
   - master
-
 
 unittests:
   stage: test
@@ -32,4 +36,3 @@ unittests:
   - python setup_rx_cython.py build_ext --inplace  
   # run unittests
   - python -m unittest discover -s ../tests -t ../../ -v
-
